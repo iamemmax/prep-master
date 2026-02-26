@@ -49,9 +49,16 @@ export default function Footer() {
               <Input
                 type="email"
                 placeholder="Enter your email"
+                autoComplete="off"
+                data-lpignore="true"
+                data-1p-ignore="true"
+                data-form-type="other"
                 className="h-11 rounded-full border-white/15 bg-white text-foreground placeholder:text-foreground/80  focus-visible:ring-accent/15"
               />
-              <Button className="h-11 rounded-full px-5 font-normal text-foreground btn-glow hover:bg-primary/90">
+              <Button
+                data-lpignore="true"
+                className="h-11 rounded-full px-5 font-normal text-foreground btn-glow hover:bg-primary/90"
+              >
                 Subscribe
               </Button>
             </div>

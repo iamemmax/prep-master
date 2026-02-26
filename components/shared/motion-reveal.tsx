@@ -5,7 +5,8 @@ import { motion, useReducedMotion, type HTMLMotionProps } from "framer-motion"
 
 import { cn } from "@/lib/utils"
 
-type MotionRevealProps = HTMLMotionProps<"div"> & {
+type MotionRevealProps = Omit<HTMLMotionProps<"div">, "children"> & {
+  children?: React.ReactNode
   delay?: number
   y?: number
   duration?: number
@@ -25,7 +26,7 @@ export default function MotionReveal({
 
   if (prefersReducedMotion) {
     return (
-      <div className={className} {...props}>
+      <div className={className}>
         {children}
       </div>
     )
