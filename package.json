@@ -6,7 +6,11 @@
     "dev": "next dev -p 4000",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "push": "git add . && git commit -m 'Update' && git push origin main",
+    "push2": "git add . && git commit -m 'Update' && git push https://github.com/upstagetechltd/prepmaster.git main",
+    "push-all": "git add . && git commit -m 'Update' && git push origin main && git push https://github.com/iamemmax/prep-master.git main"
+
   },
   "dependencies": {
     "class-variance-authority": "^0.7.1",
