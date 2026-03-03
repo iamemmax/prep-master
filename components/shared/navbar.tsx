@@ -41,7 +41,7 @@ export default function Navbar({
   brandTitle = "PrepMaster",
   brandSubtitle = "by Upstage",
   onSignInHref = "/signin",
-  primaryCtaHref = "/get-started",
+  primaryCtaHref = "/signup",
 }: {
   className?: string
   brandTitle?: string
@@ -67,7 +67,7 @@ export default function Navbar({
         className
       )}
     >
-      <div className="mx-auto flex  max-w-full h-full py-2 items-center justify-between px-4 sm:px-6 lg:px-8">
+      <div className="mx-auto flex  max-w-full h-full py-2 items-center justify-between px-4 sm:px-16 lg:px-16">
         {/* Brand */}
         <Link href="/" className="flex items-center gap-2.5">
           <div className="grid h-11 w-11 place-items-center rounded-xl bg-primary text-primary-foreground shadow-sm">

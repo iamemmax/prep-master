@@ -82,7 +82,7 @@ export default function ExamCategories() {
               <MotionReveal
                 key={c.title}
                 delay={idx * 0.05}
-                className="rounded-2xl border border-border bg-white px-6 py-8 shadow-sm transition-shadow hover:shadow-md"
+                className="rounded-2xl border border-border bg-white px-6 py-4 shadow-sm transition-shadow hover:shadow-md"
               >
                 <div className="flex items-start justify-between gap-4">
                   <div className="text-[48px] ">
@@ -93,7 +93,7 @@ export default function ExamCategories() {
                 <div className="mt-4 text-lg font-bold text-[#292D32] tracking-tight leading-none">{c.title}</div>
                 <div className="mt-1 text-[12px] text-[#45556C] leading-none">{c.subtitle}</div>
 
-                <div className="mt-8 pt-1 flex items-center justify-between border-t border-border text-xs text-muted-foreground">
+                <div className="mt-8 pt-4 flex items-center justify-between border-t border-border text-xs text-muted-foreground">
                   <span className="text-[#62748E] text-[12px]">Questions</span>
                   <span className="font-semibold text-[#292D32]">{c.questions}</span>
                 </div>

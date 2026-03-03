@@ -8,7 +8,7 @@ export default function FinalCta() {
     <section className="relative isolate overflow-hidden font-inter h-[427px] final-cta-bg">
      
 
-      <div className="mx-auto max-w-7xl h-full flex flex-col items-center justify-center px-4 py-16 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-6xl h-full flex flex-col items-center justify-center px-4 py-16 sm:px-6 lg:px-8">
         <MotionReveal className="mx-auto max-w-3xl text-center">
           <h2 className="text-balance text-2xl font-semibold font-jarkata tracking-[-0.02em] text-white sm:text-[36px]">
             Ready to start your success story?
@@ -21,9 +21,9 @@ export default function FinalCta() {
           <div className="mt-8 flex items-center justify-center gap-3 sm:flex-row sm:gap-4">
             <Button
               asChild
-              className="h-11 rounded-full px-6 font-normal text-foreground btn-glow hover:bg-primary/90"
+              className="h-11 min-w-[150px] rounded-full px-6 font-normal text-foreground btn-glow hover:bg-primary/90"
             >
-              <Link href="/get-started">
+              <Link href="/signup">
                 Start for free <ArrowUpRight className="h-4 w-4" />
               </Link>
             </Button>
@@ -31,7 +31,7 @@ export default function FinalCta() {
             <Button
               asChild
               variant="outline"
-              className="h-11 rounded-full border-white/20 bg-white px-6 font-normal text-foreground hover:bg-white/80"
+              className="h-11 min-w-[150px] rounded-full border-white/20 bg-white px-6 font-normal text-foreground hover:bg-white/80"
             >
               <Link href="/#pricing">See pricing</Link>
             </Button>

@@ -81,21 +81,18 @@ export default function UploadShowcase() {
   const marqueeChips = [...EXAM_CHIPS, ...EXAM_CHIPS]
 
   return (
-    <section className="relative isolate overflow-hidden bg-[#292D32]">
-      <div className="border-y border-border/80 bg-[#F8FAFC] py-2">
+    <section className="relative isolate overflow-hidden bg-[#292D32] font-inter">
+      <div className="border-y border-border/80 bg-[#F8FAFC] py-3">
         <div className=" ">
           <div className="chips-marquee relative overflow-hidden">
             <div className="chips-track flex w-max items-center gap-2 whitespace-nowrap pr-2">
               {marqueeChips.map((chip, i) => {
-              const active = chip === "Your own materials"
                 return (
                   <span
                     key={`${chip}-${i}`}
                     className={cn(
-                      "shrink-0 rounded-full border px-3 py-1 text-[10px] font-medium",
-                      active
-                        ? "border-primary/40 bg-primary text-[#0F172A]"
-                        : "border-border bg-white text-[#667085]"
+                      "shrink-0 rounded-full border border-border bg-white px-3 py-1 text-[10px] font-medium text-[#667085]",
+                      "transition-colors cursor-pointer duration-200 hover:border-primary/40 hover:bg-primary hover:text-[#0F172A]"
                     )}
                   >
                     {chip}
@@ -119,7 +116,9 @@ export default function UploadShowcase() {
           "bg-[radial-gradient(900px_550px_at_85%_30%,rgba(236,178,46,0.18),transparent_60%)] ellipse-bottom"
         )}
       />
-      <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8 lg:py-24">
+      <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8 lg:py-24 relative ">
+        <div className="absolute w-[255px] h-[255px] bg-[#ECB22E] -left-30 top-[18px] opacity-10 blur-2xl rounded-full"></div>
+        <div className="absolute w-[455px] h-[455px] bg-[#ECB22E] -right-30 bottom-0 opacity-10 blur-2xl rounded-full"></div>
         <div className="grid items-center gap-12 lg:grid-cols-2 lg:gap-16">
           {/* Left */}
           <MotionReveal className="font-inter">
@@ -128,15 +127,15 @@ export default function UploadShowcase() {
               AI-Powered Innovation
             </div>
 
-            <h2 className="mt-6 font-jarkata text-balance text-3xl font-extrabold leading-[1.1] tracking-tight text-white sm:text-4xl">
+            <h2 className="mt-6 font-jarkata text-balance text-3xl font-semibold leading-[1.1] tracking-tight text-white sm:text-[42px]">
               Transform{" "}
-              <span className="underline text-primary">
+              <span className="underline decoration-2 underline-offset-4 text-primary">
                 Study Materials
               </span>{" "}
               into Practice Questions
             </h2>
 
-            <p className="mt-4 max-w-xl text-pretty text-sm leading-relaxed text-white/65 sm:text-base">
+            <p className="mt-4 max-w-xl text-pretty text-sm leading-relaxed text-[#CAD5E2] sm:text-base">
               Upload lecture notes, textbooks, or any study material. Our advanced AI analyzes your
               content and generates relevant, exam-style questions in seconds.
             </p>
@@ -159,7 +158,7 @@ export default function UploadShowcase() {
             <div className="mt-10">
               <Button
                 asChild
-                className="h-14 rounded-[14px] px-6 font-medium text-foreground "
+                className="h-14 rounded-[14px] px-6 min-w-[230px] font-semibold text-foreground "
               >
                 <Link href="/upload">
                   Try AI Upload Now <ArrowRight className="h-4 w-4" />

@@ -14,7 +14,7 @@ const CHIPS = [
 export default function ForSchools() {
   return (
     <section className="bg-[#F2F2F2] font-inter">
-      <div className=" px-4 py-10 sm:px-6 lg:px-8">
+      <div className=" px-4 py-10 sm:px-16 lg:px-16">
         <div className=" px-6 py-8 sm:px-10 sm:py-10">
           <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
             <MotionReveal className="max-w-7xl">
