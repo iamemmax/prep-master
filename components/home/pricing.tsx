@@ -27,7 +27,7 @@ const PLANS: Plan[] = [
       "AI question generation (limited)",
       "Progress tracking",
     ],
-    cta: { label: "Get started free", href: "/get-started", variant: "outline" },
+    cta: { label: "Get started free", href: "/signup", variant: "outline" },
   },
   {
     name: "Premium",

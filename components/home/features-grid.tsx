@@ -40,7 +40,7 @@ export default function FeaturesGrid() {
       <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8 lg:py-24">
         <MotionReveal className="mx-auto max-w-3xl text-center">
           <div className="inline-flex items-center gap-2 rounded-full border border-border bg-muted/40 px-4 py-2 text-xs font-semibold text-muted-foreground">
-            <Sparkles className="h-4 w-4 text-primary" strokeWidth={1.5} />
+            <Sparkles className="h-4 w-4" strokeWidth={1.5} />
             Powerful Features
           </div>
 

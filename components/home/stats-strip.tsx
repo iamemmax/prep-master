@@ -32,10 +32,10 @@ export default function StatsStrip() {
                   <Icon className="h-5 w-5" />
                 </div>
                 <div className="min-w-0">
-                  <div className="truncate text-xl font-jarkata tracking-wide font-semibold text-white sm:text-xl">
+                  <div className="truncate text-xl font-jarkata tracking-wide font-semibold text-white sm:text-[32px]">
                     {s.value}
                   </div>
-                  <div className="truncate text-[9px] sm:text-xs font-inter text-white/65">
+                  <div className="truncate text-[10px] sm:text-xs font-inter text-[#90A1B9]">
                     {s.label}
                   </div>
                 </div>
