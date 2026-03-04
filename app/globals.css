@@ -218,3 +218,8 @@ opacity: 0.6;
 filter: blur(329.735px);
 
 }
+
+.auth-bg{
+  background: url('/assets/svg/auth-bg.svg') no-repeat ;
+  background-position: top left;
+}
