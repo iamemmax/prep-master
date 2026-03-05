@@ -32,7 +32,7 @@ const LEFT_POINTS = [
       "Your account and study data are protected with secure-by-default controls.",
   },
 ]
-
+// 
 export default function AuthShell({ children }: AuthShellProps) {
   return (
     <div className="grid relative auth-bg h-screen lg:grid-cols-[600px_1fr] font-inter">
