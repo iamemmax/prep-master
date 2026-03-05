@@ -3,7 +3,7 @@ import {
   CheckCircle2,
   Globe,
   ShieldCheck,
-  Sparkles,
+  
   Target,
   Users,
 } from "lucide-react"
@@ -37,7 +37,7 @@ export default function AuthShell({ children }: AuthShellProps) {
   return (
     <div className="grid relative auth-bg h-screen lg:grid-cols-[600px_1fr] font-inter">
       <aside className="hidden lg:block sticky top-0 h-full px-10 py-12 text-white">
-        <div className=" flex justify-between h-full flex-col max-w-[380px] mx-auto">
+        <div className=" flex justify-between h-full flex-col max-w-95 mx-auto">
           <div>
             <Link href="/" className="inline-flex items-center gap-2">
               <span className="grid h-8 w-8 place-items-center rounded-full bg-primary/20 text-primary ring-1 ring-primary/40">
@@ -62,7 +62,7 @@ export default function AuthShell({ children }: AuthShellProps) {
             {LEFT_POINTS.map((point) => {
               const Icon = point.icon
               return (
-                <div key={point.title} className="max-w-[280px]">
+                <div key={point.title} className="max-w-70">
                   <Icon className="h-4 w-4 text-primary" />
 
                   <div className="mt-3 text-base">{point.title}</div>
