@@ -1,10 +1,14 @@
+"use client"
 import Link from "next/link"
 import { Check, Info } from "lucide-react"
 
 import AuthStepHeader from "@/components/auth/auth-step-header"
 import { Button } from "@/components/ui/button"
+import { useSearchParams } from "next/navigation"
 
 export default function ForgotPasswordCheckEmailPage() {
+  const search = useSearchParams()
+  const email = search.get("email")
   return (
     <>
       <AuthStepHeader backHref="/signin" backLabel="Back to login" showProgress={false} />
@@ -16,7 +20,7 @@ export default function ForgotPasswordCheckEmailPage() {
 
         <h1 className="mt-5 text-4xl font-semibold text-[#0F172A]">Check your email</h1>
         <p className="mt-2 text-sm leading-relaxed text-[#64748B]">
-          We sent a reset link to <span className="font-medium text-[#0F172A]">name@email.com</span>,
+          We sent a reset link to <span className="font-medium text-[#0F172A]">{email??""}</span>,
           check your inbox and follow the link to reset your password.
         </p>
 

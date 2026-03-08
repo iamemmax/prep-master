@@ -1,33 +1,49 @@
 "use client"
 
 import Link from "next/link"
-import { useMemo, useState } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
+import { Controller, useForm } from "react-hook-form"
+import { zodResolver } from "@hookform/resolvers/zod"
+// import z from "zod"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import AuthStepHeader from "@/components/auth/auth-step-header"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import {  Step1Data, step1Schema } from "../../schema/signup/userInfoSchema"
+import { useOnboardingStore } from "@/app/store/onboardingStore"
 
 const COUNTRIES = ["Nigeria", "Ghana", "Kenya", "South Africa", "United Kingdom", "United States"]
 const EXAMS = ["WAEC", "JAMB", "NECO", "SAT", "IELTS", "TOEFL", "CPA", "PMP", "Other"]
 
+
+
+
 export default function SignupExamsPage() {
   const router = useRouter()
-  const [country, setCountry] = useState("")
-  const [exam, setExam] = useState("")
-  const [otherExam, setOtherExam] = useState("")
-  const [examDate, setExamDate] = useState("")
+  const { setExamData,examData } = useOnboardingStore() // save to shared store
+const search = useSearchParams()
+const email=search.get("email")
+  const {
+    register,
+    handleSubmit,
+    control,
+    watch,
+    formState: { errors },
+  } = useForm<Step1Data>({
+    resolver: zodResolver(step1Schema),
+    defaultValues: {
+     country: examData?.country ?? "",
+    preparing_for_exam: examData?.preparing_for_exam ?? "",
+    other_exam: examData?.other_exam ?? "",
+    exam_date: examData?.exam_date ?? "",
+    },
+  })
 
-  const canContinue = useMemo(() => {
-    if (!country || !exam) return false
-    if (exam === "Other" && otherExam.trim().length < 2) return false
-    return true
-  }, [country, exam, otherExam])
+  const selectedExam = watch("preparing_for_exam")
 
-  function handleSubmit(event: React.FormEvent) {
-    event.preventDefault()
-    if (!canContinue) return
+  function onSubmit(data: Step1Data) {
+    setExamData({...data, email:String(email)}) // persist to store
     router.push("/signup/target")
   }
 
@@ -41,97 +57,118 @@ export default function SignupExamsPage() {
       />
 
       <section className="rounded-2xl border border-border bg-white p-6 sm:p-8">
-        <h1 className="text-[24px] font-semibold text-[#0F172B]">Which exams are you preparing for ?</h1>
+        <h1 className="text-[24px] font-semibold text-[#0F172B]">Which exams are you preparing for?</h1>
         <p className="mt-1 text-sm text-[#64748B]">
           Tell us the exams you&apos;re preparing for and we&apos;ll tailor your experience
         </p>
 
-        <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
-          <div>
-            <label className="mb-2 block text-xs font-medium text-[#0F172A]">
-              Which country are you taking exams from ?
-            </label>
-            <Select
-              value={country}
-              onValueChange={(value) => setCountry(value)}
-            >
-              <SelectTrigger className="placeholder:text-[8px] h-11 w-full rounded-md border border-input bg-[#F8FAFC] px-3 text-sm text-[#0F172A] outline-none focus-visible:border-ring focus-visible:ring-[1px] focus-visible:ring-ring/50">
-                <SelectValue placeholder="Select country" className="text-xs" />
-              </SelectTrigger>
-              <SelectContent>
-                {COUNTRIES.map((option) => (
-                  <SelectItem key={option} value={option}>
-                    {option}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+        <form className="mt-6 space-y-4" onSubmit={handleSubmit(onSubmit)}>
 
+          {/* Country */}
           <div>
             <label className="mb-2 block text-xs font-medium text-[#0F172A]">
-              What exams are you preparing for ?
+              Which country are you taking exams from?
             </label>
-            <Select
-              value={exam}
-              onValueChange={(value) => setExam(value)}
-            >
-              <SelectTrigger className="h-11 w-full rounded-md border border-input bg-[#F8FAFC] px-3 text-sm text-[#0F172A] outline-none focus-visible:border-ring focus-visible:ring-[1px] focus-visible:ring-ring/50">
-                <SelectValue placeholder="Select exam" />
-              </SelectTrigger>
-              <SelectContent>
-                {EXAMS.map((option) => (
-                  <SelectItem key={option} value={option}>
-                    {option}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div>
-            <label className="mb-2 block text-xs font-medium text-[#0F172A]">
-              Other exam (Optional)
-            </label>
-            <Input
-              value={otherExam}
-              onChange={(e) => setOtherExam(e.target.value)}
-              className="h-11 bg-[#F8FAFC] placeholder:text-xs "
-              placeholder="e.g. CPA, PMP, IELTS..."
+            <Controller
+              name="country"
+              control={control}
+              render={({ field }) => (
+                <Select value={field.value} onValueChange={field.onChange}>
+                  <SelectTrigger
+                    className={`h-11 w-full bg-[#F8FAFC] text-sm ${
+                      errors.country ? "border-red-500" : "border-input"
+                    } ${!field.value ? "text-muted-foreground" : "text-[#0F172A]"}`}
+                  >
+                    <SelectValue placeholder="Select country" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {COUNTRIES.map((c) => (
+                      <SelectItem key={c} value={c}>{c}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
             />
+            {errors.country && (
+              <p className="mt-1 text-xs text-red-400">{errors.country.message}</p>
+            )}
           </div>
 
+          {/* Exam */}
           <div>
             <label className="mb-2 block text-xs font-medium text-[#0F172A]">
-              When is your exams ? (Optional)
+              What exams are you preparing for?
+            </label>
+            <Controller
+              name="preparing_for_exam"
+              control={control}
+              render={({ field }) => (
+                <Select value={field.value} onValueChange={field.onChange}>
+                  <SelectTrigger
+                    className={`h-11 w-full bg-[#F8FAFC] text-sm ${
+                      errors.preparing_for_exam ? "border-red-500" : "border-input"
+                    } ${!field.value ? "text-muted-foreground" : "text-[#0F172A]"}`}
+                  >
+                    <SelectValue placeholder="Select exam" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {EXAMS.map((e) => (
+                      <SelectItem key={e} value={e}>{e}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            />
+            {errors.preparing_for_exam && (
+              <p className="mt-1 text-xs text-red-400">{errors.preparing_for_exam.message}</p>
+            )}
+          </div>
+
+          {/* Other exam — only shown when "Other" is selected */}
+          {selectedExam === "Other" && (
+            <div>
+              <label className="mb-2 block text-xs font-medium text-[#0F172A]">
+                Please specify your exam
+              </label>
+              <Input
+                {...register("other_exam")}
+                className="h-11 bg-[#F8FAFC] placeholder:text-xs"
+                placeholder="e.g. CPA, PMP, IELTS..."
+              />
+              {errors.other_exam && (
+                <p className="mt-1 text-xs text-red-400">{errors.other_exam.message}</p>
+              )}
+            </div>
+          )}
+
+          {/* Exam date */}
+          <div>
+            <label className="mb-2 block text-xs font-medium text-[#0F172A]">
+              When is your exam? (Optional)
             </label>
             <Input
+              {...register("exam_date")}
               type="date"
-              value={examDate}
-              onChange={(e) => setExamDate(e.target.value)}
-              className="h-11 bg-[#F8FAFC] placeholder:text-xs "
+              className="h-11 bg-[#F8FAFC] placeholder:text-xs"
             />
+            {errors.exam_date && (
+              <p className="mt-1 text-xs text-red-400">{errors.exam_date.message}</p>
+            )}
           </div>
 
-          <Button type="submit" disabled={!canContinue} className="mt-2 h-12 w-full rounded-lg text-base font-semibold text-white disabled:opacity-60">
+          <Button
+            type="submit"
+            className="mt-2 h-12 w-full rounded-lg text-base font-semibold text-white disabled:opacity-60"
+          >
             Continue
           </Button>
         </form>
 
         <p className="mt-8 text-center text-xs text-[#94A3B8]">
-          Already have an account ?{" "}
-          <Link href="/signin" className="font-medium text-primary">
-            Login
-          </Link>
+          Already have an account?{" "}
+          <Link href="/signin" className="font-medium text-primary">Login</Link>
         </p>
       </section>
-
-      <p className="mt-8 text-center text-xs text-[#94A3B8]">
-        Having an issues,{" "}
-        <Link href="/support" className="font-medium text-primary underline underline-offset-2">
-          speak with support
-        </Link>
-      </p>
     </>
   )
 }

@@ -26,7 +26,7 @@ export default function AuthStepHeader({
           {backLabel}
         </Link>
         {stepLabel ? (
-          <span className="rounded-full border border-border bg-muted/40 px-3 py-1 text-xs font-medium text-muted-foreground">
+          <span className="rounded-full border-[0.2px] border-[#99A1AD]/10 font-inter bg-muted/40 px-3 py-1.5 text-[10px] font-medium  text-[#99A1ADE5]/90">
             {stepLabel}
           </span>
         ) : null}
@@ -35,14 +35,18 @@ export default function AuthStepHeader({
       {showProgress ? (
         <div className="mt-4 flex items-center gap-2">
           {Array.from({ length: 3 }).map((_, idx) => (
-            <span
-              key={idx}
-              className={[
-                "transition",
-                idx < safe ? "bg-primary w-[32px] h-[6px] rounded" : "bg-[#E2E8F0] w-[8px] h-[6px] rounded-full",
-              ].join(" ")}
-            />
-          ))}
+  <span
+    key={idx}
+    className={[
+      "transition-all duration-300 h-1.5 rounded-[6px]",
+      idx === safe - 1  // ✅ only the active step is longer
+        ? "bg-primary w-6"
+        : idx < safe - 1
+        ? "bg-primary w-2"  // completed steps — shorter but filled
+        : "bg-[#E2E8F0] w-2", // upcoming steps
+    ].join(" ")}
+  />
+))}
         </div>
       ) : null}
     </div>

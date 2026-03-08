@@ -1,37 +1,91 @@
 "use client"
 
 import Link from "next/link"
-import { useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
-
+import { Controller, useForm } from "react-hook-form"
+import { zodResolver } from "@hookform/resolvers/zod"
 import { Button } from "@/components/ui/button"
 import AuthStepHeader from "@/components/auth/auth-step-header"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Slider } from "@/components/ui/slider"
+import {  Step2Data, step2Schema } from "../../schema/signup/userInfoSchema"
+// import { useCompleteOnboarding } from "../../apis/signup/verifyUser"
+import { useOnboardingStore } from "@/app/store/onboardingStore"
+import { useCompleteOnboarding } from "../../apis/signup/completeOnbaording"
+import { useErrorModalState } from "@/hooks"
+import { formatAxiosErrorMessage } from "@/utils"
+import { AxiosError } from "axios"
+import { ErrorModal } from "@/components/ui/ErrorModal"
 
 const STUDY_SLOTS = ["30 mins", "1+ hrs", "2+ hrs", "3+ hrs", "4+ hrs"] as const
 const LEVELS = ["Beginner", "Intermediate", "Advanced"] as const
 
+
+
+
+
+
 export default function SignupTargetPage() {
+     const {
+        isErrorModalOpen,
+        setErrorModalState,
+        openErrorModalWithMessage,
+        errorModalMessage,
+      } = useErrorModalState();
   const router = useRouter()
-  const [targetScore, setTargetScore] = useState(1400)
-  const [studySlot, setStudySlot] = useState<(typeof STUDY_SLOTS)[number] | "">("1+ hrs")
-  const [level, setLevel] = useState<(typeof LEVELS)[number] | "">("Intermediate")
-  const [weeklyEmail, setWeeklyEmail] = useState(true)
+  const { examData,targetData,setExamData,setTargetData } = useOnboardingStore() // retrieve step 1 data
+  const { mutate: submitOnboarding, isPending } = useCompleteOnboarding()
 
-  const scorePercent = useMemo(() => {
-    const min = 400
-    const max = 1600
-    return ((targetScore - min) / (max - min)) * 100
-  }, [targetScore])
+  const {
+    handleSubmit,
+    control,
+    formState: { errors },
+  } = useForm<Step2Data>({
+    resolver: zodResolver(step2Schema),
+    defaultValues: {
+      target_score: targetData?.target_score ?? "1400",
+    daily_study_hours: targetData?.daily_study_hours ?? 1,
+    current_level: targetData?.current_level ?? "Intermediate",
+    send_progress_report: targetData?.send_progress_report ?? true,
+    },
+  })
 
-  const canContinue = !!studySlot && !!level
+ function onSubmit(data: Step2Data) {
+  const fullPayload = {
+    ...examData,
+    ...data,
+    email: String(examData?.email),
+  }
+
+  // ✅ Guard ensures required fields exist before submitting
+  if (!fullPayload.country || !fullPayload.preparing_for_exam || !fullPayload.exam_date) {
+    router.push("/signup/exams") // send back if step 1 data is missing
+    return
+  }
+
+  submitOnboarding(fullPayload as Required<typeof fullPayload>, {
+    onSuccess: () =>{
+      setExamData({country:"",email:"",exam_date:"",preparing_for_exam:"",other_exam:""})
+      setTargetData({current_level:"",daily_study_hours:1,send_progress_report:false,target_score:""})
+      router.push("/signup/success")
+    },
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    onError:(error:any)=>{
+           const errorMessage = error?.response?.data?.errors?.message
+                      || error?.response?.data?.message
+                      || formatAxiosErrorMessage(error as AxiosError)
+                      || 'An error occurred. Please try again.';
+                  openErrorModalWithMessage(String(errorMessage));
+                openErrorModalWithMessage(String(errorMessage));
+        },
+  })
+}
 
   return (
     <>
       <AuthStepHeader
         backHref="/signup/exams"
-        backLabel="Back to home"
+        backLabel="Back"
         stepLabel="Step 3 of 3 · Personalize your study plan"
         progress={3}
       />
@@ -40,99 +94,131 @@ export default function SignupTargetPage() {
         <h1 className="text-[24px] font-semibold text-[#0F172B]">Set your target</h1>
         <p className="mt-1 text-sm text-[#64748B]">We&apos;ll build a study plan around your goals.</p>
 
-        <div className="mt-6">
-          <div className="text-xs font-medium text-[#0F172A]">Target score</div>
-          <div className="mt-2 rounded-md bg-[#F8FAFC] px-4 py-3">
-            <div className="flex items-center justify-between">
-              <div className="text-[24px] font-semibold text-[#0F172A]">{targetScore}</div>
-              <span className="text-xs text-[#94A3B8]">SAT</span>
-            </div>
-            <Slider
-              min={400}
-              max={1600}
-              step={10}
-              value={[targetScore]}
-              onValueChange={(value: number[]) => setTargetScore(value[0])}
-              className="mt-3 w-full accent-(--color-accent) h-1.5 rounded-full bg-[#E2E8F0] [&_input]:w-full [&_input]:h-1.5 [&_input]:rounded-full [&_input]:bg-[#E2E8F0] [&_input]:accent-(--color-accent)"
+        <form className="mt-6 space-y-5" onSubmit={handleSubmit(onSubmit)}>
+
+          {/* Target score slider */}
+          <div>
+            <div className="text-xs font-medium text-[#0F172A]">Target score</div>
+            <Controller
+              name="target_score"
+              control={control}
+              render={({ field }) => (
+                <div className="mt-2 rounded-md bg-[#F8FAFC] px-4 py-3">
+                  <div className="flex items-center justify-between">
+                    <div className="text-[24px] font-semibold text-[#0F172A]">{field.value}</div>
+                    <span className="text-xs text-[#94A3B8]">SAT</span>
+                  </div>
+                  <Slider
+                    min={400}
+                    max={1600}
+                    step={10}
+                    value={[Number(field.value)]}
+                    onValueChange={(val) => field.onChange(String(val[0]))}
+                    className="mt-3 w-full"
+                  />
+                </div>
+              )}
             />
           </div>
-        </div>
 
-        <div className="mt-5">
-          <div className="text-xs font-medium text-[#0F172A]">Daily study hours</div>
-          <div className="mt-2 grid grid-cols-5 gap-2">
-            {STUDY_SLOTS.map((slot) => (
-              <button
-                key={slot}
-                type="button"
-                onClick={() => setStudySlot(slot)}
-                aria-pressed={studySlot === slot}
-                className={[
-                  "rounded-md border px-2 py-2 text-xs font-medium",
-                  studySlot === slot
-                    ? "border-primary/40 bg-primary/10 text-[#B7791F]"
-                    : "border-border bg-[#F8FAFC] text-[#64748B]",
-                ].join(" ")}
-              >
-                {slot}
-              </button>
-            ))}
+          {/* Daily study hours */}
+          <div>
+            <div className="text-xs font-medium text-[#0F172A]">Daily study hours</div>
+            <Controller
+              name="daily_study_hours"
+              control={control}
+              render={({ field }) => (
+                <div className="mt-2 grid grid-cols-5 gap-2">
+                  {STUDY_SLOTS.map((slot, i) => (
+                    <button
+                      key={slot}
+                      type="button"
+                      onClick={() => field.onChange(i + 1)} // 1-5 mapped to slots
+                      className={[
+                        "rounded-md border px-2 py-2 text-xs font-medium transition-colors",
+                        field.value === i + 1
+                          ? "border-primary/40 bg-primary/10 text-[#B7791F]"
+                          : "border-border bg-[#F8FAFC] text-[#64748B]",
+                      ].join(" ")}
+                    >
+                      {slot}
+                    </button>
+                  ))}
+                </div>
+              )}
+            />
+            {errors.daily_study_hours && (
+              <p className="mt-1 text-xs text-red-400">{errors.daily_study_hours.message}</p>
+            )}
           </div>
-        </div>
 
-        <div className="mt-5">
-          <div className="text-xs font-medium text-[#0F172A]">Current level</div>
-          <div className="mt-2 grid grid-cols-3 gap-2">
-            {LEVELS.map((currentLevel) => (
-              <button
-                key={currentLevel}
-                type="button"
-                onClick={() => setLevel(currentLevel)}
-                aria-pressed={level === currentLevel}
-                className={[
-                  "rounded-md border px-2 py-2 text-xs font-medium",
-                  level === currentLevel
-                    ? "border-primary/40 bg-primary/10 text-[#B7791F]"
-                    : "border-border bg-[#F8FAFC] text-[#64748B]",
-                ].join(" ")}
-              >
-                {currentLevel}
-              </button>
-            ))}
+          {/* Current level */}
+          <div>
+            <div className="text-xs font-medium text-[#0F172A]">Current level</div>
+            <Controller
+              name="current_level"
+              control={control}
+              render={({ field }) => (
+                <div className="mt-2 grid grid-cols-3 gap-2">
+                  {LEVELS.map((lvl) => (
+                    <button
+                      key={lvl}
+                      type="button"
+                      onClick={() => field.onChange(lvl)}
+                      className={[
+                        "rounded-md border px-2 py-2 text-xs font-medium transition-colors",
+                        field.value === lvl
+                          ? "border-primary/40 bg-primary/10 text-[#B7791F]"
+                          : "border-border bg-[#F8FAFC] text-[#64748B]",
+                      ].join(" ")}
+                    >
+                      {lvl}
+                    </button>
+                  ))}
+                </div>
+              )}
+            />
+            {errors.current_level && (
+              <p className="mt-1 text-xs text-red-400">{errors.current_level.message}</p>
+            )}
           </div>
-        </div>
 
-        <label className="mt-5 inline-flex items-center gap-2 text-xs text-[#94A3B8]">
-          <Checkbox
-            checked={weeklyEmail}
-            onCheckedChange={(checked) => setWeeklyEmail(checked === true)}
-            className="h-3.5 w-3.5 rounded border-border"
+          {/* Progress report checkbox */}
+          <Controller
+            name="send_progress_report"
+            control={control}
+            render={({ field }) => (
+              <label className="inline-flex items-center gap-2 text-xs text-[#94A3B8]">
+                <Checkbox
+                  checked={field.value}
+                  onCheckedChange={(checked) => field.onChange(checked === true)}
+                  className="h-3.5 w-3.5 rounded border-border"
+                />
+                Send me weekly progress reports by email
+              </label>
+            )}
           />
-          Send me weekly progress reports by email
-        </label>
 
-        <Button
-          disabled={!canContinue}
-          onClick={() => router.push("/signup/success")}
-          className="mt-6 h-12 w-full rounded-lg text-base font-semibold text-white disabled:opacity-60"
-        >
-          Continue
-        </Button>
+          <Button
+            type="submit"
+            disabled={isPending}
+            className="h-12 w-full rounded-lg text-base font-semibold text-white disabled:opacity-60"
+          >
+            {isPending ? "Submitting..." : "Continue"}
+          </Button>
+        </form>
 
         <p className="mt-8 text-center text-xs text-[#94A3B8]">
-          Already have an account ?{" "}
-          <Link href="/signin" className="font-medium text-primary">
-            Login
-          </Link>
+          Already have an account?{" "}
+          <Link href="/signin" className="font-medium text-primary">Login</Link>
         </p>
       </section>
 
-      <p className="mt-8 text-center text-xs text-[#94A3B8]">
-        Having an issues,{" "}
-        <Link href="/support" className="font-medium text-primary underline underline-offset-2">
-          speak with support
-        </Link>
-      </p>
+      <ErrorModal
+                  isErrorModalOpen={isErrorModalOpen}
+                  setErrorModalState={() => setErrorModalState(false)}
+                  subheading={errorModalMessage || "Please check your inputs and try again."}
+                />
     </>
   )
 }

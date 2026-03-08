@@ -14,6 +14,12 @@ type AuthShellProps = {
 
 const LEFT_POINTS = [
   {
+    icon: CheckCircle2,
+    title: "Start your exam prepping for free",
+    description:
+      "No credit card required.",
+  },
+  {
     icon: Users,
     title: "Access unlimited questions",
     description:
@@ -35,9 +41,9 @@ const LEFT_POINTS = [
 // auth layout
 export default function AuthShell({ children }: AuthShellProps) {
   return (
-    <div className="grid relative auth-bg h-screen lg:grid-cols-[600px_1fr] font-inter">
-      <aside className="hidden lg:block sticky top-0 h-full px-10 py-12 text-white">
-        <div className=" flex justify-between h-full flex-col max-w-95 mx-auto">
+    <div className="grid relative auth-bg h-screen md:grid-cols-[1fr_1fr] font-inter">
+      <aside className="hidden md:block sticky top-0 h-full px-10 xl:px-20 py-12 text-white">
+        <div className=" flex justify-between h-full flex-col max-w-2xl mx-auto">
           <div>
             <Link href="/" className="inline-flex items-center gap-2">
               <span className="grid h-8 w-8 place-items-center rounded-full bg-primary/20 text-primary ring-1 ring-primary/40">
@@ -49,26 +55,33 @@ export default function AuthShell({ children }: AuthShellProps) {
               </span>
             </Link>
 
-            <h2 className="mt-10 text-[28px] font-semibold leading-tight">
+            {/* <h2 className="mt-10 text-[28px] font-semibold leading-tight">
               Start your exam prepping for free
             </h2>
             <div className="mt-1 inline-flex items-center gap-2 text-sm text-[#8996A9]">
               <CheckCircle2 className="h-4 w-4" />
               No credit card required
-            </div>
+            </div> */}
           </div>
 
-          <div className=" space-y-9">
-            {LEFT_POINTS.map((point) => {
+          <div className=" space-y-12">
+            {LEFT_POINTS?.map((point) => {
               const Icon = point.icon
               return (
-                <div key={point.title} className="max-w-70">
-                  <Icon className="h-4 w-4 text-primary" />
+                <div key={point.title} className="flex items-start gap-5 ">
+                  <div className="bg-[#4b462b5c] w-10 h-10 shrink-0 rounded-full flex justify-center items-center">
+                  <Icon className="h-5 w-5 text-primary" />
 
-                  <div className="mt-3 text-base">{point.title}</div>
-                  <p className="mt-1.5 text-xs leading-normal text-[#8996A9]">
+                  </div>
+
+                  <div className= "text-sm lg:text-xl max-w-sm">
+                    <h2 className="font-inter ">
+                    {point.title}
+                    </h2>
+                  <p className="mt-1.5 text-xs md:text-sm leading-normal font-inter text-[#8996A9]">
                     {point.description}
                   </p>
+                    </div>
                 </div>
               )
             })}
@@ -97,9 +110,9 @@ export default function AuthShell({ children }: AuthShellProps) {
         </div>
       </aside>
      
-      <main className="h-full w-full bg-white flex flex-col md:flex-row md:items-center md:justify-center overflow-y-auto">
-        <div className="lg:hidden p-4">
-        <Link href="/" className="inline-flex items-center gap-2">
+      <main className="h-full w-full bg-white flex flex-col md:flex-row md:items-start pt-6 lg:pt-14.5 md:justify-center overflow-y-auto">
+        <div className="md:hidden p-4">
+        <Link href="/" className="inline-flex items-center flex-wrap gap-2">
           <span className="grid h-8 w-8 place-items-center rounded-full bg-primary/20 text-primary ring-1 ring-primary/40">
             <Target className="h-4 w-4" />
           </span>
@@ -109,7 +122,7 @@ export default function AuthShell({ children }: AuthShellProps) {
           </span>
         </Link>
         </div>
-        <div className="mx-auto w-full max-w-2xl p-3 lg:p-10">{children}</div>
+        <div className="mx-auto w-full max-w-2xl ">{children}</div>
       </main>
     </div>
   )
