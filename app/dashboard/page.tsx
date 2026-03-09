@@ -2,83 +2,83 @@
 
 
 import {
-
   Flame,
   Trophy,
-  Target,
-  Clock,
-  TrendingUp,
-  Star,
-  ArrowRight,
-  CheckCircle2,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
+// import { cn } from "@/lib/utils";
 import DashboardHeader from "./components/dashboard/DashboardHeader";
 import DashboardLeft from "./components/dashboard/DashboardLeft";
+import PrepLogo from "@/utils/icons/logos/PrepLogo";
+import RibbonIcon from "@/utils/icons/RibbonIcon";
 
 
-interface RecommendedCourse {
+interface RecommendedExam {
   name: string;
-  tag: string;
-  level: "Beginner" | "Intermediate" | "Advanced";
-  rating: number;
+  questions: number;
+  freeCount: number;
+  emoji: string;
 }
 
-// ─── Data ────────────────────────────────────────────────────────────────────
-
-
-
-const recommended: RecommendedCourse[] = [
-  { name: "SAT", tag: "Math", level: "Advanced", rating: 4.8 },
-  { name: "GMAT", tag: "Quant", level: "Intermediate", rating: 4.6 },
-  { name: "GRE", tag: "Verbal", level: "Beginner", rating: 4.7 },
-  { name: "CPA", tag: "Finance", level: "Advanced", rating: 4.5 },
-  { name: "PMP", tag: "Mgmt", level: "Intermediate", rating: 4.4 },
-  { name: "DSAT", tag: "Digital", level: "Beginner", rating: 4.9 },
+const recommendedExams: RecommendedExam[] = [
+  { name: "GRE",  questions: 3200, freeCount: 50, emoji: "🎓" },
+  { name: "SAT",  questions: 2500, freeCount: 50, emoji: "📚" },
+  { name: "GMAT", questions: 2800, freeCount: 40, emoji: "💼" },
+  { name: "CIPM", questions: 3200, freeCount: 50, emoji: "🎓" },
+  { name: "CIS",  questions: 2500, freeCount: 50, emoji: "📚" },
+  { name: "PMP 2",questions: 3200, freeCount: 50, emoji: "🎓" },
+  { name: "CIBN", questions: 2500, freeCount: 50, emoji: "📚" },
 ];
 
-const levelColor: Record<string, string> = {
-  Beginner: "bg-emerald-100 text-emerald-700",
-  Intermediate: "bg-amber-100 text-amber-700",
-  Advanced: "bg-rose-100 text-rose-700",
-};
-
 // ─── Sub-components ───────────────────────────────────────────────────────────
+
+const STATS = [
+  { icon: <Trophy size={28} />,  value: "72%", label: "Your Average Score",   accent: "#F59E0B" },
+  { icon: <PrepLogo color="#2B7FFF" />,  value: "145", label: "Questions Answered",   accent: "#0EA5E9" },
+  { icon: <RibbonIcon />,  value: "12",  label: "Total Attempts",       accent: "#A855F7" },
+  { icon: <Flame  size={28} />,  value: "72%", label: "Day Streak",           accent: "#FF6900" },
+];
+
+const DAILY_TIP = "Practice in timed mode to simulate real exam conditions. This helps build speed and confidence!";
 
 function StatCard({
   icon,
   label,
   value,
-  sub,
   accent,
 }: {
   icon: React.ReactNode;
   label: string;
   value: string;
-  sub?: string;
   accent: string;
 }) {
   return (
-    <div className="bg-white rounded-2xl px-5 py-4 flex items-center gap-4 shadow-sm border border-slate-100 hover:shadow-md transition-shadow">
-      <div
-        className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
-        style={{ background: `${accent}15` }}
-      >
-        <span style={{ color: accent }}>{icon}</span>
-      </div>
-      <div>
-        <p className="text-2xl font-bold text-slate-800 leading-none">{value}</p>
-        <p className="text-xs text-slate-500 mt-0.5">{label}</p>
-        {sub && <p className="text-xs font-medium mt-0.5" style={{ color: accent }}>{sub}</p>}
-      </div>
+    <div className="bg-white rounded-[14px] px-4 py-4.5 flex items-center gap-3  border-[1.2px] border-[#E2E8F0] hover:shadow-md transition-shadow">
+      <div className="flex items-start gap-3">
+      <span style={{ color: accent }} className="shrink-0">{icon}</span>
+          <div className="">
+
+        <p className="text-xl font-bold text-slate-800 leading-none">{value}</p>
+        <p className="text-xs text-slate-500 mt-1">{label}</p>
+          </div>
+
+        </div>
     </div>
   );
 }
 
-
-
-// ─── Navbar ───────────────────────────────────────────────────────────────────
-
+function DailyTipCard({ tip }: { tip: string }) {
+  return (
+    <div className="bg-linear-to-r max-sm:col-span-2 from-[#EFF6FF] to-[#EEF2FF] border border-[#BEDBFF] rounded-[14px]  px-4 py-4.5 flex items-start gap-3 shadow-sm min-w-45">
+      <div className="w-7 h-7 rounded-lg bg-[#2B5080] flex items-center justify-center shrink-0 mt-0.5">
+        <span className="text-white text-xs">💡</span>
+      </div>
+      <div>
+        <p className="text-sm font-semibold font-inter text-[#0F172B] leading-tight mb-1">Daily Study Tip</p>
+        <p className="text-[10px] text-[#314158] font-inter">{tip}</p>
+      </div>
+    </div>
+  );
+}
 
 
 // ─── Main Dashboard ───────────────────────────────────────────────────────────
@@ -86,107 +86,84 @@ function StatCard({
 export default function Dashboard() {
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-white">
       <DashboardHeader />
 
-      <main className="max-w-400 mx-auto px-4 sm:px-6 py-8">
+      <main className="max-w-400 mx-auto max-md:px-4  py-8">
         {/* Welcome header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
           <div>
-            <h1 className="text-2xl font-bold text-slate-900">
+            <h1 className="sm:text-2xl text-lg lg:text-[1.875rem] font-semibold font-inter text-[#0F172B]">
               Welcome back, Sarah! 👋
             </h1>
-            <p className="text-sm text-slate-500 mt-1">
+            <p className="text-sm lg:text-base text-[#45556C] font-inter ">
               You&apos;re on a 4-day study streak. Keep it up!
             </p>
           </div>
           <div className="flex gap-3">
-            <button className="px-4 py-2.5 rounded-xl border border-indigo-200 text-indigo-700 text-sm font-semibold bg-indigo-50 hover:bg-indigo-100 transition-colors">
+            <button  className="px-4 lg:px-6 py-2.5 rounded-[.625rem] border border-[#BEDBFF] font-inter bg-[#EFF6FF] text-sm  font-semibold text-[#4E49F6] hover:scale-95 cursor-pointer transition-colors">
               View Progress
             </button>
-            <button className="px-4 py-2.5 rounded-xl bg-linear-to-r from-indigo-600 to-violet-600 text-white text-sm font-bold shadow-sm hover:shadow-lg hover:shadow-indigo-200 transition-all">
+            <button className="px-4 lg:px-6 py-2.5 rounded-[.625rem] bg-[#4E49F6] text-white font-inter text-sm  font-bold  hover:scale-95 hover:shadow-indigo-200 cursor-pointer transition-all">
               Start Practice
             </button>
           </div>
         </div>
 
         {/* Stats row */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-          <StatCard icon={<TrendingUp size={18} />} label="Avg. Practice Score" value="72%" accent="#6366F1" />
-          <StatCard icon={<CheckCircle2 size={18} />} label="Questions Answered" value="145" accent="#0EA5E9" />
-          <StatCard icon={<Trophy size={18} />} label="Total Sessions" value="12" accent="#F59E0B" />
-          <StatCard icon={<Flame size={18} />} label="Easy Streak" value="72%" sub="+3 this week" accent="#EF4444" />
-        </div>
-
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
+      {STATS.map((s) => (
+        <StatCard key={s.label} {...s} />
+      ))}
+      <DailyTipCard tip={DAILY_TIP} />
+    </div>
         {/* Main 3-col grid */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Left col: Unlock + Tests */}
         <DashboardLeft/>
 
           {/* Right col */}
-          <div className="flex flex-col gap-6">
-            {/* Daily Study Tip */}
-            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
-              <div className="flex items-center gap-2 mb-3">
-                <div className="w-7 h-7 rounded-lg bg-indigo-100 flex items-center justify-center">
-                  <Target size={14} className="text-indigo-600" />
-                </div>
-                <h3 className="font-bold text-slate-800 text-sm">Daily Study Tip</h3>
-              </div>
-              <p className="text-xs text-slate-600 leading-relaxed">
-                Focus on eliminating wrong answers first. On SAT multiple choice, 2 options are usually obviously wrong — narrow it down, then decide.
-              </p>
-              <div className="mt-3 flex items-center gap-2">
-                <Clock size={12} className="text-slate-400" />
-                <span className="text-xs text-slate-400">5 min read</span>
-              </div>
-            </div>
+        <div className="bg-white rounded-2xl border border-slate-100 p-5">
+  {/* Header */}
+  <div className="flex items-center justify-between mb-4">
+    <h2 className="font-semibold font-inter text-[#0F172B] text-sm">Recommended Exams</h2>
+    <button className="text-xs font-semibold text-indigo-600 hover:text-indigo-800">
+      Browse All
+    </button>
+  </div>
 
-            {/* Recommended Courses */}
-            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 flex-1">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="font-bold text-slate-900">Recommended</h2>
-                <button className="text-xs font-semibold text-indigo-600 hover:text-indigo-800 flex items-center gap-1">
-                  All <ArrowRight size={12} />
-                </button>
-              </div>
-
-              <div className="space-y-1">
-                {recommended.map((course) => (
-                  <div
-                    key={course.name}
-                    className="flex items-center justify-between py-2.5 border-b border-slate-50 last:border-0 hover:bg-slate-50 rounded-lg px-2 -mx-2 cursor-pointer transition-colors group"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-lg bg-linear-to-br from-indigo-500 to-violet-600 flex items-center justify-center text-white text-xs font-bold shrink-0">
-                        {course.name.slice(0, 2)}
-                      </div>
-                      <div>
-                        <p className="text-sm font-semibold text-slate-800 group-hover:text-indigo-700 transition-colors">
-                          {course.name}
-                        </p>
-                        <p className="text-xs text-slate-400">{course.tag}</p>
-                      </div>
-                    </div>
-                    <div className="flex flex-col items-end gap-1">
-                      <span
-                        className={cn(
-                          "text-[10px] font-bold px-2 py-0.5 rounded-full",
-                          levelColor[course.level]
-                        )}
-                      >
-                        {course.level}
-                      </span>
-                      <div className="flex items-center gap-1">
-                        <Star size={10} className="text-amber-400 fill-amber-400" />
-                        <span className="text-xs font-semibold text-slate-600">{course.rating}</span>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
+  {/* List */}
+  <div className="space-y-0">
+    {recommendedExams.map((exam) => (
+      <div
+        key={exam.name}
+        className="flex items-center justify-between py-3 border-b border-[#E2E8F0] last:border-0 cursor-pointer hover:bg-slate-50  px-1 -mx-1 transition-colors"
+      >
+        {/* Left: icon + text */}
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-xl bg-slate-100 flex items-center justify-center text-lg shrink-0">
+            {exam.emoji}
           </div>
+          <div>
+            <p className="text-sm font-semibold text-[#0F172B] font-inter">{exam.name}</p>
+            <p className="text-[.6875rem] text-[#6B7485] font-inter">{exam.questions.toLocaleString()} questions</p>
+            <p className="text-[.6875rem] text-[#6B7485] font-inter">Premium for full access</p>
+          </div>
+        </div>
+
+        {/* Right: free pill */}
+        <span className="text-xs font-bold px-3 py-1.5 font-inter text-[10px] rounded-[.6875rem] bg-[#E2F9F0] text-[#10B97D] shrink-0 whitespace-nowrap">
+          {exam.freeCount} free
+        </span>
+      </div>
+    ))}
+  </div>
+
+  {/* Footer link */}
+  <button className="mt-4 text-sm font-semibold text-indigo-600 hover:text-indigo-800 flex items-center gap-1">
+    Browse All Exams →
+  </button>
+</div>
         </div>
       </main>
     </div>

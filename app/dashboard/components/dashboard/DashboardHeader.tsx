@@ -1,176 +1,174 @@
-import * as NavigationMenu from "@radix-ui/react-navigation-menu";
+"use client";
 
+import { useState } from "react";
+import Link from "next/link";
 import * as Avatar from "@radix-ui/react-avatar";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { useAuth } from "@/context/authentication";
+import { useRouter, usePathname } from "next/navigation";
+import { Crown, Menu, X } from "lucide-react";
+import PrepLogo from "@/utils/icons/logos/PrepLogo";
 
-import { useRouter } from "next/navigation";
-import { BarChart3, Bell, BookOpen, ChevronDown, LayoutDashboard, Zap } from "lucide-react";
+const NAV_LINKS = [
+  { label: "Dashboard", href: "/dashboard" },
+  { label: "Practice",  href: "/dashboard/practice"  },
+  { label: "Progress",  href: "/progress"  },
+];
 
-const DashboardHeader = ()=> {
-    const router = useRouter()
-    const {authDispatch,authState:{user}}=useAuth()
-     const handleLogout =()=>{
-    authDispatch({type:"LOGOUT"})
-    router.replace("/signin")
-  }
+const DashboardHeader = () => {
+  const router = useRouter();
+  const pathname = usePathname();
+  const { authDispatch, authState: { user } } = useAuth();
+  const [mobileOpen, setMobileOpen] = useState(false);
+
+  const handleLogout = () => {
+    authDispatch({ type: "LOGOUT" });
+    router.replace("/signin");
+  };
+
+  const initials = user?.full_name
+    ?.split(" ")
+    .map((n) => n[0])
+    .join("")
+    .slice(0, 2) ?? "EA";
+
   return (
-    <nav className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-slate-100 px-6 py-3">
-      <div className="max-w-400 mx-auto flex items-center justify-between">
-        {/* Logo */}
-        <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-xl bg-linear-to-br from-indigo-500 to-violet-600 flex items-center justify-center">
-            <BookOpen size={15} className="text-white" />
+    <header className="sticky top-0 z-50 bg-white border-b border-slate-100">
+
+      {/* Main bar */}
+      <div className="px-6 py-3">
+        <div className="max-w-400 mx-auto flex items-center justify-between">
+
+          {/* Logo */}
+          <div className="flex items-center gap-2.5">
+            <div className="w-10 h-10 rounded-[.625rem] bg-linear-to-tr from-[#155DFC] to-[#4F39F6] flex items-center justify-center">
+              <PrepLogo />
+            </div>
+            <div className="flex flex-col">
+              <span className="text-[#0F172B] text-xl font-semibold font-inter">
+                Prep<span>Master</span>
+              </span>
+              <span className="text-xs text-[#0F172B] font-inter font-medium -mt-1">by Upstage</span>
+            </div>
           </div>
-          <span className="font-bold text-slate-800 text-lg tracking-tight">
-            Prep<span className="text-indigo-600">Master</span>
-          </span>
-        </div>
 
-        {/* Navigation */}
-        <NavigationMenu.Root className="hidden md:flex">
-          <NavigationMenu.List className="flex items-center gap-1">
-            {/* Dashboard */}
-            <NavigationMenu.Item>
-              <NavigationMenu.Link
-                href="#"
-                className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-indigo-600 bg-indigo-50"
-              >
-                <LayoutDashboard size={15} />
-                Dashboard
-              </NavigationMenu.Link>
-            </NavigationMenu.Item>
+          {/* Desktop Navigation */}
+          <nav className="hidden md:flex items-center gap-1">
+            {NAV_LINKS.map(({ label, href }) => {
+              const isActive = pathname === href;
+              return (
+                <Link
+                  key={href}
+                  href={href}
+                  className={`px-4 py-2 rounded-lg font-inter text-sm lg:text-base transition-colors ${
+                    isActive
+                      ? "font-semibold text-[#155DFC]"
+                      : "font-medium text-[#45556C] hover:text-slate-900"
+                  }`}
+                >
+                  {label}
+                </Link>
+              );
+            })}
+          </nav>
 
-            {/* Practice dropdown */}
-            <NavigationMenu.Item>
-              <NavigationMenu.Trigger className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors data-[state=open]:bg-slate-50 data-[state=open]:text-slate-900 group">
-                <BookOpen size={15} />
-                Practice
-                <ChevronDown
-                  size={14}
-                  className="transition-transform duration-200 group-data-[state=open]:rotate-180"
-                />
-              </NavigationMenu.Trigger>
-              <NavigationMenu.Content className="absolute top-full left-0 mt-2 w-64 bg-white rounded-2xl shadow-xl shadow-slate-200/80 border border-slate-100 p-2 z-50">
-                {[
-                  { label: "SAT Practice", sub: "Full-length tests", icon: "📝" },
-                  { label: "Math Drills", sub: "Targeted skill building", icon: "🔢" },
-                  { label: "Reading & Writing", sub: "Comprehension focus", icon: "📖" },
-                  { label: "Quick Quiz", sub: "10-minute sessions", icon: "⚡" },
-                ].map((item) => (
-                  <NavigationMenu.Link
-                    key={item.label}
-                    href="#"
-                    className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-indigo-50 transition-colors group"
-                  >
-                    <span className="text-lg">{item.icon}</span>
-                    <div>
-                      <p className="text-sm font-semibold text-slate-800 group-hover:text-indigo-700">
-                        {item.label}
-                      </p>
-                      <p className="text-xs text-slate-500">{item.sub}</p>
-                    </div>
-                  </NavigationMenu.Link>
-                ))}
-              </NavigationMenu.Content>
-            </NavigationMenu.Item>
+          {/* Right side */}
+          <div className="flex items-center gap-3">
 
-            {/* Progress dropdown */}
-            <NavigationMenu.Item>
-              <NavigationMenu.Trigger className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors data-[state=open]:bg-slate-50 data-[state=open]:text-slate-900 group">
-                <BarChart3 size={15} />
-                Progress
-                <ChevronDown
-                  size={14}
-                  className="transition-transform duration-200 group-data-[state=open]:rotate-180"
-                />
-              </NavigationMenu.Trigger>
-              <NavigationMenu.Content className="absolute top-full left-0 mt-2 w-64 bg-white rounded-2xl shadow-xl shadow-slate-200/80 border border-slate-100 p-2 z-50">
-                {[
-                  { label: "Score History", sub: "Track improvements", icon: "📈" },
-                  { label: "Skill Breakdown", sub: "Strengths & weaknesses", icon: "🎯" },
-                  { label: "Study Streaks", sub: "Consistency metrics", icon: "🔥" },
-                ].map((item) => (
-                  <NavigationMenu.Link
-                    key={item.label}
-                    href="#"
-                    className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-indigo-50 transition-colors group"
-                  >
-                    <span className="text-lg">{item.icon}</span>
-                    <div>
-                      <p className="text-sm font-semibold text-slate-800 group-hover:text-indigo-700">
-                        {item.label}
-                      </p>
-                      <p className="text-xs text-slate-500">{item.sub}</p>
-                    </div>
-                  </NavigationMenu.Link>
-                ))}
-              </NavigationMenu.Content>
-            </NavigationMenu.Item>
+            {/* Upgrade — hidden on mobile */}
+            <button className="hidden sm:flex items-center gap-1.5 px-4 py-2 rounded-[.5275rem] bg-linear-to-r from-[#FE9A00] to-[#FF6900] text-white text-sm lg:text-base font-inter font-bold shadow-sm hover:shadow-md transition-shadow">
+              <Crown size={15} />
+              Upgrade
+            </button>
 
-            <NavigationMenu.Indicator className="top-full flex h-1.5 items-end justify-center overflow-hidden z-50">
-              <div className="relative top-[60%] h-2 w-2 rotate-45 rounded-tl-sm bg-white shadow-md" />
-            </NavigationMenu.Indicator>
-          </NavigationMenu.List>
+            {/* User dropdown */}
+            <DropdownMenu.Root>
+              <DropdownMenu.Trigger asChild>
+                <button className="flex items-center gap-4 py-1 rounded-xl cursor-pointer transition-colors">
+                  <div className="text-right hidden sm:block">
+                    <p className="text-sm font-semibold text-slate-700 leading-tight">
+                      {user?.full_name ?? "Emmanuel Ayodeji"}
+                    </p>
+                    <p className="text-xs text-slate-400">Free Account</p>
+                  </div>
+                  <Avatar.Root className="w-10 h-10 rounded-full overflow-hidden">
+                    <Avatar.Fallback className="w-full h-full bg-linear-to-tr font-inter font-semibold text-base from-[#2B7FFF] to-[#615FFF] flex items-center justify-center text-white">
+                      {initials}
+                    </Avatar.Fallback>
+                  </Avatar.Root>
+                </button>
+              </DropdownMenu.Trigger>
 
-          <NavigationMenu.Viewport className="absolute top-full left-0 mt-1 w-full" />
-        </NavigationMenu.Root>
-
-        {/* Right side */}
-        <div className="flex items-center gap-3">
-          <button className="relative p-2 rounded-xl hover:bg-slate-100 transition-colors">
-            <Bell size={18} className="text-slate-600" />
-            <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-rose-500 rounded-full" />
-          </button>
-
-          {/* User dropdown */}
-          <DropdownMenu.Root>
-            <DropdownMenu.Trigger asChild>
-              <button className="flex items-center gap-2.5 pl-1 pr-3 py-1 rounded-xl hover:bg-slate-100 transition-colors">
-                <Avatar.Root className="w-8 h-8 rounded-xl overflow-hidden">
-                  <Avatar.Fallback className="w-full h-full bg-linear-to-br from-indigo-500 to-violet-600 flex items-center justify-center text-white text-xs font-bold">
-                   {user?.full_name?.split(" ")[0]}    {user?.full_name?.split(" ")[1]}
-                  </Avatar.Fallback>
-                </Avatar.Root>
-                <span className="text-sm font-semibold text-slate-700 hidden sm:block">
-                  {user?.full_name}
-                </span>
-                <ChevronDown size={14} className="text-slate-400" />
-              </button>
-            </DropdownMenu.Trigger>
-
-            <DropdownMenu.Portal>
-              <DropdownMenu.Content
-                className="w-52 bg-white rounded-2xl shadow-xl shadow-slate-200/80 border border-slate-100 p-2 z-50 mt-2"
-                sideOffset={5}
-                align="end"
-              >
-                {["Profile"].map((item) => (
-                  <DropdownMenu.Item
-                    key={item}
-                    className="px-3 py-2.5 text-sm text-slate-700 font-medium rounded-xl hover:bg-indigo-50 hover:text-indigo-700 cursor-pointer outline-none transition-colors"
-                  >
-                    {item}
+              <DropdownMenu.Portal>
+                <DropdownMenu.Content
+                  className="w-52 bg-white rounded-2xl shadow-xl shadow-slate-200/80 border border-slate-100 p-2 z-50 mt-2"
+                  sideOffset={5}
+                  align="end"
+                >
+                  <DropdownMenu.Item className="px-3 py-2.5 text-sm text-slate-700 font-medium rounded-xl hover:bg-indigo-50 hover:text-indigo-700 cursor-pointer outline-none transition-colors">
+                    Profile
                   </DropdownMenu.Item>
-                ))}
-                <DropdownMenu.Separator className="my-1 h-px bg-slate-100" />
-                <DropdownMenu.Item className="px-3 py-2.5 text-sm text-rose-600 font-medium rounded-xl hover:bg-rose-50 cursor-pointer outline-none transition-colors" onClick={handleLogout}>
-                  Sign out
-                </DropdownMenu.Item>
-              </DropdownMenu.Content>
-            </DropdownMenu.Portal>
-          </DropdownMenu.Root>
+                  <DropdownMenu.Separator className="my-1 h-px bg-slate-100" />
+                  <DropdownMenu.Item
+                    className="px-3 py-2.5 text-sm text-rose-600 font-medium rounded-xl hover:bg-rose-50 cursor-pointer outline-none transition-colors"
+                    onClick={handleLogout}
+                  >
+                    Sign out
+                  </DropdownMenu.Item>
+                </DropdownMenu.Content>
+              </DropdownMenu.Portal>
+            </DropdownMenu.Root>
 
-          {/* Upgrade */}
-          <button className="hidden sm:flex items-center gap-1.5 px-4 py-2 rounded-xl bg-linear-to-r from-amber-400 to-orange-500 text-white text-sm font-bold shadow-sm hover:shadow-md transition-shadow">
-            <Zap size={13} />
-            Upgrade
-          </button>
+            {/* Hamburger — mobile only */}
+            <button
+              className="md:hidden p-2 rounded-lg text-slate-600 hover:bg-slate-100 transition-colors"
+              onClick={() => setMobileOpen((prev) => !prev)}
+              aria-label="Toggle menu"
+            >
+              {mobileOpen ? <X size={20} /> : <Menu size={20} />}
+            </button>
+          </div>
         </div>
       </div>
-    </nav>
+
+      {/* Mobile drawer */}
+      <div
+        className={`md:hidden overflow-hidden transition-all duration-300 ease-in-out ${
+          mobileOpen ? "max-h-64 opacity-100" : "max-h-0 opacity-0"
+        }`}
+      >
+        <nav className="px-4 pb-4 pt-1 flex flex-col gap-1 border-t border-slate-100">
+          {NAV_LINKS.map(({ label, href }, i) => {
+            const isActive = pathname === href;
+            return (
+              <Link
+                key={href}
+                href={href}
+                onClick={() => setMobileOpen(false)}
+                style={{ transitionDelay: mobileOpen ? `${i * 60}ms` : "0ms" }}
+                className={`px-4 py-3 rounded-xl font-inter text-sm font-medium transition-all duration-300 ${
+                  mobileOpen ? "translate-y-0 opacity-100" : "-translate-y-2 opacity-0"
+                } ${
+                  isActive
+                    ? "text-[#155DFC] bg-blue-50 font-semibold"
+                    : "text-[#45556C] hover:bg-slate-50 hover:text-slate-900"
+                }`}
+              >
+                {label}
+              </Link>
+            );
+          })}
+
+          {/* Upgrade on mobile */}
+          <button className="mt-1 flex items-center justify-center gap-1.5 px-4 py-3 rounded-xl bg-linear-to-r from-[#FE9A00] to-[#FF6900] text-white text-sm font-inter font-bold">
+            <Crown size={15} />
+            Upgrade to Pro
+          </button>
+        </nav>
+      </div>
+
+    </header>
   );
-}
+};
 
-
-export default DashboardHeader
+export default DashboardHeader;
