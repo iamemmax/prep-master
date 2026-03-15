@@ -1,10 +1,10 @@
-import { TOTAL_QUESTIONS } from "../../practice/start-practice/page";
 
 // ── outside PracticeExamUI ──────────────────────────────────────────────────
 export interface RightPanelProps {
   answered: Set<number>;
   flagged: Set<number>;
   current: number;
+  total: number;
   seconds: number;
   totalSecs: number;
   timerDisplay: string;
@@ -15,19 +15,20 @@ export interface RightPanelProps {
   getDotClass: (i: number) => string;
   setCurrent: (i: number) => void;
   setShowPanel: (v: boolean) => void;
+  onEnd: () => void;
 }
 
 const PracticeRightPanel =({
-  answered, flagged, current, timerDisplay, timerPct,
+  answered, flagged, total, timerDisplay, timerPct,
   avgPaceSecs, avgPaceLabel, topicProgress, getDotClass,
-  setCurrent, setShowPanel,
+  setCurrent, setShowPanel, onEnd,
 }: RightPanelProps)=> {
   return (
     <div className="bg-white flex flex-col h-full overflow-hidden">
       {/* header */}
       <div className="px-4 pt-4 pb-2 border-b border-slate-100 shrink-0">
         <p className="text-xs font-bold text-slate-800 mb-0.5">Session Progress</p>
-        <p className="text-[10px] text-slate-400 font-mono">SAT · Q {answered.size} of {TOTAL_QUESTIONS}</p>
+        <p className="text-[10px] text-slate-400 font-mono">SAT · Q {answered.size} of {total}</p>
       </div>
 
       {/* stats */}
@@ -35,7 +36,7 @@ const PracticeRightPanel =({
         {[
           { value: answered.size,                   label: "Answered",  color: "text-slate-800" },
           { value: flagged.size,                    label: "Flagged",   color: "text-amber-500" },
-          { value: TOTAL_QUESTIONS - answered.size, label: "Remaining", color: "text-slate-300" },
+          { value: total - answered.size, label: "Remaining", color: "text-slate-300" },
         ].map(({ value, label, color }, i) => (
           <div key={label} className={`px-3 py-3 ${i < 2 ? "border-r border-slate-100" : ""}`}>
             <p className={`text-xl font-bold leading-none ${color}`}>{value}</p>
@@ -60,7 +61,7 @@ const PracticeRightPanel =({
           ))}
         </div>
         <div className="grid grid-cols-6 gap-1">
-          {Array.from({ length: TOTAL_QUESTIONS }, (_, i) => (
+          {Array.from({ length: total }, (_, i) => (
             <button key={i} onClick={() => { setCurrent(i); setShowPanel(false); }}
               className={`w-8 h-8 rounded-lg text-[10px] font-semibold border transition-all hover:scale-110 ${getDotClass(i)}`}>
               {i + 1}
@@ -110,7 +111,7 @@ const PracticeRightPanel =({
 
       {/* end session */}
       <div className="p-4 border-t border-slate-100 shrink-0">
-        <button className="w-full py-2.5 rounded-xl border border-red-200 text-red-500 text-[11px] font-semibold bg-red-50 hover:bg-red-100 transition-colors">
+        <button onClick={onEnd} className="w-full py-2.5 rounded-xl border border-red-200 text-red-500 text-[11px] font-semibold bg-red-50 hover:bg-red-100 transition-colors">
           End Session
         </button>
       </div>

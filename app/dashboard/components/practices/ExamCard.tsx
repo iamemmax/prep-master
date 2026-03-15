@@ -25,8 +25,8 @@ const ExamCard = ({ exam, isPremiumLocked,onStart }: ExamCardProps) => {
     const handleStart = ()=>{
       if(btnLabel === "Start Practice" ){
         onStart()
-      }else if(btnLabel === "Continue Practice"){
-        router.push("/dashboard/practice/start-practice")
+      }else if(btnLabel === "Continue Practice" && exam?.id){
+        router.push(`/dashboard/practice/start-practice/${exam.id}`)
       }
     }
   return (

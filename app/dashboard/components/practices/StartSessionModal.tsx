@@ -56,7 +56,7 @@ const SESSION_MODES = [
 ] as const;
 
 // ─── Component ───────────────────────────────────────────────────────────────
-export default function SessionSetupModal({ onClose, examName = "SAT", examDesc = "Standardized Test for College Admissions", open, onSubmit: onSubmitProp }: {
+export default function SessionSetupModal({ onClose, examName = "SAT", examDesc = "Standardized Test for College Admissions", open,  }: {
   onClose?: () => void;
   examName?: string;
   examDesc?: string;
@@ -89,11 +89,10 @@ const {
 });
 const router = useRouter()
 const {mutate:handleStart,isPending} = useStartPracticeExam()
-// onSubmit now receives the OUTPUT type (with defaults applied)
 const onSubmit = (data: z.output<typeof sessionSchema>) => {
   handleStart(data,{
-    onSuccess:()=>{
-       router.push("/dashboard/practice/start-practice")
+    onSuccess:(res)=>{
+       router.push(`/dashboard/practice/start-practice/${res.data.id}`)
     },
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 onError: (error: any) => {

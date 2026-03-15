@@ -8,6 +8,9 @@ import DebounceInput from "../util/shared/DebounceInput";
 import UnlockSectionBanner from "../components/practices/UnlockSection";
 import SessionSetupModal from "../components/practices/StartSessionModal";
 import { X, SlidersHorizontal } from "lucide-react";
+import { useGetPracticeExamList } from "../util/apis/practice/examsList";
+import { useGetAvailableExamsDetails } from "../util/apis/practice/availableExamsDetails";
+import { availableData } from "../util/types/dashboard/examlisttypes";
 
 export interface Exam {
   id: number;
@@ -24,6 +27,7 @@ export interface Exam {
   access: "free" | "premium";
   difficulty_level: "easy" | "medium" | "hard";
   started: boolean;
+  sessionId?: number;
 }
 
 export interface Filters {
@@ -55,16 +59,26 @@ export function getBorderClass(difficulty_level: Exam["difficulty_level"]): stri
   }
 }
 
-const EXAMS: Exam[] = [
-  { id: 1, name: "SAT", description: "Standardized Test for College Admissions", questions: 3200, topics: 4, difficulty: "Medium", freeAccess: 50, lastScore: 75, progress: 75, badge: "Most Popular", category: "SAT", access: "free", difficulty_level: "medium", started: true },
-  { id: 2, name: "GRE", description: "Graduate Record Examination", questions: 5200, topics: 6, difficulty: "Hard", freeAccess: 50, lastScore: 45, progress: 45, badge: "Top Rated", category: "GRE", access: "free", difficulty_level: "hard", started: true },
-  { id: 3, name: "GMAT", description: "Graduate Management Admission Test", questions: 3200, topics: 4, difficulty: "Hard", freeAccess: 50, lastScore: null, progress: 0, badge: "Premium", category: "GMAT", access: "premium", difficulty_level: "hard", started: false },
-  { id: 4, name: "PMP", description: "Project Management Professional", questions: 7800, topics: 6, difficulty: "Hard", freeAccess: 50, lastScore: null, progress: 0, badge: null, category: "PMP", access: "free", difficulty_level: "hard", started: false },
-  { id: 5, name: "CPA", description: "Certified Public Accountant", questions: 7800, topics: 6, difficulty: "Hard", freeAccess: 50, lastScore: null, progress: 0, badge: null, category: "CPA", access: "free", difficulty_level: "hard", started: false },
-  { id: 6, name: "LSAT", description: "Law School Admission Test", questions: 7800, topics: 6, difficulty: "Hard", freeAccess: 50, lastScore: null, progress: 0, badge: null, category: "LSAT", access: "free", difficulty_level: "hard", started: false },
-  { id: 7, name: "CIS", description: "Certified Information Systems", questions: 7800, topics: 6, difficulty: "Medium", freeAccess: 50, lastScore: null, progress: 0, badge: null, category: "CIS", access: "free", difficulty_level: "medium", started: false },
-  { id: 8, name: "ICAN", description: "Institute of Chartered Accountants", questions: 7800, topics: 6, difficulty: "Easy", freeAccess: 50, lastScore: null, progress: 0, badge: null, category: "ICAN", access: "free", difficulty_level: "easy", started: false },
-];
+function mapToExam(d: availableData): Exam {
+  const diff = (d.available_difficulties?.[0] ?? "medium").toLowerCase() as Exam["difficulty_level"];
+  return {
+    id: d.id,
+    name: d.name,
+    description: d.description,
+    questions: d.total_questions,
+    topics: d.total_topics,
+    difficulty: diff.charAt(0).toUpperCase() + diff.slice(1),
+    freeAccess: 50,
+    lastScore: d.previous_score_percentage ?? null,
+    progress: d.previous_score_percentage ?? 0,
+    badge: d.is_premium ? "Premium" : null,
+    category: d.name,
+    access: d.is_premium ? "premium" : "free",
+    difficulty_level: diff,
+    started: (d.previous_score_percentage ?? 0) > 0,
+    sessionId: undefined,
+  };
+}
 
 function ContinueBanner() {
   return (
@@ -103,17 +117,29 @@ export default function PracticeExamsPage() {
   const [filters, setFilters] = useState<Filters>({ category: "All Exams", access: "All", difficulty: "Any Level" });
   const [search, setSearch] = useState<string>("");
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [selectedExamRef, setSelectedExamRef] = useState<string | null>(null);
+
+  const { data: listResponse, isLoading: listLoading } = useGetPracticeExamList();
+  const { data: detailResponse, isLoading: detailLoading } = useGetAvailableExamsDetails(selectedExamRef ?? "");
+
+  const isLoading = selectedExamRef ? detailLoading : listLoading;
+
+  const apiExams = useMemo<Exam[]>(() => {
+    if (selectedExamRef) {
+      return detailResponse?.data ? [mapToExam(detailResponse.data)] : [];
+    }
+    return Array.isArray(listResponse?.data) ? listResponse.data.map(mapToExam) : [];
+  }, [selectedExamRef, listResponse, detailResponse]);
 
   const filtered = useMemo<Exam[]>(() => {
-    return EXAMS.filter(exam => {
-      if (filters.category !== "All Exams" && exam.category !== filters.category) return false;
+    return apiExams.filter(exam => {
       if (filters.access === "Free" && exam.access !== "free") return false;
       if (filters.access === "Premium" && exam.access !== "premium") return false;
       if (filters.difficulty !== "Any Level" && exam.difficulty_level !== filters.difficulty.toLowerCase()) return false;
       if (search && !exam.name.toLowerCase().includes(search.toLowerCase()) && !exam.description.toLowerCase().includes(search.toLowerCase())) return false;
       return true;
     });
-  }, [filters, search]);
+  }, [apiExams, filters, search]);
 
   const clearAll = () => { setFilters({ category: "All Exams", access: "All", difficulty: "Any Level" }); setSearch(""); };
 
@@ -125,7 +151,7 @@ export default function PracticeExamsPage() {
     <div className="bg-white font-inter min-h-screen">
       <DashboardHeader />
 
-      <div className="max-w-[1600px] mx-auto px-4 sm:px-6 py-6">
+      <div className="max-w-400 mx-auto px-4 sm:px-6 py-6">
         <ContinueBanner />
 
         <div className="flex gap-6 items-start">
@@ -133,7 +159,12 @@ export default function PracticeExamsPage() {
           {/* ── Desktop Sidebar ── */}
           <div className="hidden lg:block self-start sticky top-6 shrink-0">
             <div className="max-h-[calc(100vh-3rem)] overflow-y-auto">
-              <FilterSidebar filters={filters} setFilters={setFilters} />
+              <FilterSidebar
+                filters={filters}
+                setFilters={setFilters}
+                onExamSelect={setSelectedExamRef}
+                selectedExamRef={selectedExamRef}
+              />
             </div>
           </div>
 
@@ -148,7 +179,12 @@ export default function PracticeExamsPage() {
                     <X size={18} />
                   </button>
                 </div>
-                <FilterSidebar filters={filters} setFilters={setFilters} />
+                <FilterSidebar
+                  filters={filters}
+                  setFilters={setFilters}
+                  onExamSelect={setSelectedExamRef}
+                  selectedExamRef={selectedExamRef}
+                />
               </div>
             </div>
           )}
@@ -162,8 +198,7 @@ export default function PracticeExamsPage() {
                 <h1 className="text-xl sm:text-2xl font-bold text-slate-900">All Practice Exams</h1>
                 <p className="text-sm text-slate-400 mt-0.5">{filtered.length} exams available for your account</p>
               </div>
-              <div className="flex items-center  gap-2 sm:gap-3">
-                {/* Mobile filter button */}
+              <div className="flex items-center gap-2 sm:gap-3">
                 <button
                   onClick={() => setSidebarOpen(true)}
                   className="lg:hidden flex items-center gap-1.5 text-sm font-semibold px-3 py-2.5 rounded-[10px] border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors shrink-0"
@@ -207,7 +242,13 @@ export default function PracticeExamsPage() {
             )}
 
             {/* Exam grid */}
-            {filtered.length === 0 ? (
+            {isLoading ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <div key={i} className="h-52 rounded-[.875rem] bg-slate-100 animate-pulse" />
+                ))}
+              </div>
+            ) : filtered.length === 0 ? (
               <div className="text-center py-20 bg-white rounded-2xl border border-slate-200">
                 <p className="text-4xl mb-3">🔍</p>
                 <p className="text-slate-600 font-semibold">No exams match your filters</p>

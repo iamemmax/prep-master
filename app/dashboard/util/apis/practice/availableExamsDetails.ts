@@ -12,6 +12,7 @@ export const useGetAvailableExamsDetails = (id:string) => {
   return useQuery({
     queryKey: [QUERYKEY.PRACTICE_AVAILABLE_EXAMS_DETAILS,id],
     queryFn: ()=>getAvailableExamsDetails(id),
+    enabled: !!id,
     staleTime: 1000 * 60,
     retry: 2,
     refetchOnWindowFocus: false,

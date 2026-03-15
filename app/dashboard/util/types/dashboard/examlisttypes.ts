@@ -1,22 +1,9 @@
 export interface examsListTypes {
   status: string;
-  data: Datum[];
+  data: availableData[];
   message: string;
 }
 
-interface Datum {
-  id: number;
-  reference: string;
-  name: string;
-  description: string;
-  subjects: Subject[];
-}
-
-interface Subject {
-  id: number;
-  reference: string;
-  name: string;
-}
 
 
 export interface availableExamDetails {
@@ -24,6 +11,11 @@ export interface availableExamDetails {
   data: availableData;
   message: string;
 }
+
+
+
+
+
 
 export interface availableData {
   id: number;

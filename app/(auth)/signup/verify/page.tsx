@@ -139,7 +139,7 @@ function handleResend() {
 }
 
   return (
-    <div className="max-xl:px-5">
+    <div className="px-5">
       <AuthStepHeader backHref="/signup" backLabel="Back to sign up" progress={1} />
 
       <section className="rounded-2xl border border-border bg-white p-6 sm:p-8 mt-10">

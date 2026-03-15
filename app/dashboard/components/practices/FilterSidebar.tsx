@@ -11,6 +11,8 @@ interface ProgressBarEntry {
 interface FilterSidebarProps {
   filters: Filters;
   setFilters: React.Dispatch<React.SetStateAction<Filters>>;
+  onExamSelect?: (ref: string | null) => void;
+  selectedExamRef?: string | null;
 }
 
 const ACCESS_OPTIONS: string[]     = ["All", "Free", "Premium"];
@@ -30,7 +32,7 @@ function SidebarGroupLabel({ children }: { children: React.ReactNode }) {
   );
 }
 
-const FilterSidebar = ({ filters, setFilters }: FilterSidebarProps) => {
+const FilterSidebar = ({ filters, setFilters, onExamSelect, selectedExamRef }: FilterSidebarProps) => {
   const { category, access, difficulty } = filters;
   const { data: response, isLoading } = useGetPracticeExamList();
 
@@ -51,7 +53,7 @@ const FilterSidebar = ({ filters, setFilters }: FilterSidebarProps) => {
         <SidebarBtn
           label="All Exams"
           active={category === "All Exams"}
-          onClick={() => set("category")("All Exams")}
+          onClick={() => { set("category")("All Exams"); onExamSelect?.(null); }}
         />
 
         {isLoading ? (
@@ -65,7 +67,7 @@ const FilterSidebar = ({ filters, setFilters }: FilterSidebarProps) => {
               <SidebarBtn
                 label={exam.name}
                 active={category === exam.name}
-                onClick={() => set("category")(exam.name)}
+                onClick={() => { set("category")(exam.name); onExamSelect?.(exam.reference); }}
               />
 
               {/* Subjects indented below */}
