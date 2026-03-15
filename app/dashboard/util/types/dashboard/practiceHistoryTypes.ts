@@ -4,7 +4,7 @@ export interface practiceHistoryTypes {
   message: string;
 }
 
-interface practiceHistoryData {
+export interface practiceHistoryData {
   id: number;
   reference: string;
   is_active: boolean;

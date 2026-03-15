@@ -1,26 +1,14 @@
 "use client"
-import React from 'react'
-import { Star, Calendar, Clock } from 'lucide-react';
+import React, { useState } from 'react'
+import { Star, Calendar, Clock, X } from 'lucide-react';
 import * as Progress from "@radix-ui/react-progress";
 import Unlockicon from '@/utils/icons/UnlockIcon';
 import { getScoreAccent } from '@/utils/color/getPercentageColor';
 import PrepLogo from '@/utils/icons/logos/PrepLogo';
 import { useGetPracticeHistory } from '../../util/apis/dashboard/practiceHistory';
 import { dashboardOverviewData } from '../../util/types/dashboard/dashbaordOverview';
-
-// interface RecentTest {
-//   name: string;
-//   date: string;
-//   duration: string;
-//   tags: string[];
-//   score: number;
-//   total: number;
-// }
-// const recentTests: RecentTest[] = [
-//   { name: "SAT Practice Test", date: "Feb 17, 2025", duration: "30m", tags: ["Math (Calc)", "Reading"], score: 85, total: 20 },
-//   { name: "SAT Math Focus", date: "Feb 15, 2025", duration: "20m", tags: ["Math (Calc)"], score: 70, total: 15 },
-//   { name: "GRE Verbal Practice", date: "Feb 12, 2025", duration: "25m", tags: ["Verbal"], score: 78, total: 20 },
-// ];
+import { practiceHistoryData } from '../../util/types/dashboard/practiceHistoryTypes';
+import { useRouter } from 'next/navigation';
 
 function ScoreBar({ score }: { score: number }) {
   const accent = getScoreAccent(score);
@@ -29,34 +17,102 @@ function ScoreBar({ score }: { score: number }) {
       <Progress.Indicator
         className="h-full rounded-full transition-all duration-700"
         style={{ width: `${score}%`, background: accent }}
-        />
+      />
     </Progress.Root>
   );
 }
 
-interface prop{
+function TestCard({ test }: { test:practiceHistoryData }) {
+  const subjectNames = test.subjects_selected.map((s) => s.name).join(", ");
+  const topicNames   = test.topics_selected.map((t) => t.name).join(", ");
+  const date         = new Date(test.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+  const score        = test.score ?? 0;
+  const duration     = test.time_limit_minutes ? `${test.time_limit_minutes} mins` : "—";
+const router = useRouter()
+  return (
+    <div className="cursor-pointer group rounded-2xl border mb-3 border-[#E2E8F0] hover:scale-95 transition-all p-5"
+    onClick={()=>router.push(`/dashboard/practice/start-practice/${test.id}`)}
+    >
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex-1 min-w-0">
+          <p className="text-sm lg:text-base font-medium text-[#0F172B] truncate">{subjectNames}</p>
+          <p className="text-xs text-[#45556C] mt-0.5 mb-2">{date}</p>
+          <div className="flex items-center font-inter gap-3 flex-wrap">
+            <span className="flex items-center gap-1 text-xs xl:text-sm text-[#45556C]">
+              <Clock size={18} />{duration}
+            </span>
+            <span className="flex items-center gap-1 text-xs xl:text-sm text-[#45556C]">
+              <PrepLogo color="#45556C" width={18} height={18} />{topicNames}
+            </span>
+            <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full capitalize ${
+              test.status === "completed" ? "bg-emerald-50 text-emerald-600" : "bg-amber-50 text-amber-600"
+            }`}>
+              {test.status.replace("_", " ")}
+            </span>
+          </div>
+        </div>
+        <div className="text-right shrink-0">
+          {test.status === "completed" ? (
+            <p className="text-2xl font-bold text-[#0F172B] font-inter leading-none">{score?.toFixed(0)}%</p>
+          ) : (
+            <p className="text-xs text-[#45556C] font-medium">In Progress</p>
+          )}
+          <p className="text-[10px] text-[#45556C] mt-1 capitalize">{test.difficulty_level}</p>
+        </div>
+      </div>
+      {test.status === "completed" && <ScoreBar score={score} />}
+    </div>
+  );
+}
+
+function SkeletonCard() {
+  return (
+    <div className="rounded-2xl border mb-3 border-[#E2E8F0] p-5 animate-pulse">
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex-1 min-w-0 space-y-2">
+          <div className="h-4 bg-slate-100 rounded-full w-2/3" />
+          <div className="h-3 bg-slate-100 rounded-full w-1/3" />
+          <div className="flex items-center gap-3 mt-2">
+            <div className="h-3 bg-slate-100 rounded-full w-16" />
+            <div className="h-3 bg-slate-100 rounded-full w-24" />
+            <div className="h-5 bg-slate-100 rounded-full w-16" />
+          </div>
+        </div>
+        <div className="shrink-0 space-y-1.5 text-right">
+          <div className="h-7 bg-slate-100 rounded-full w-12 ml-auto" />
+          <div className="h-3 bg-slate-100 rounded-full w-10 ml-auto" />
+        </div>
+      </div>
+      <div className="h-1.5 bg-slate-100 rounded-full w-full mt-4" />
+    </div>
+  );
+}
+
+interface prop {
   overview: dashboardOverviewData | undefined
 }
-const DashboardLeft = ({overview}:prop) => {
-  const {data,isLoading}=useGetPracticeHistory()
-  
+
+const DashboardLeft = ({ overview }: prop) => {
+  const { data, isLoading } = useGetPracticeHistory()
+  const [showAllModal, setShowAllModal] = useState(false)
+
+  const allTests    = data?.data ?? []
+  const recentTests = allTests.slice(0, 5)
+
   return (
     <div className="lg:col-span-2 flex flex-col gap-6">
 
       {/* Cards row */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
 
-        {/* Unlock Your Full Potential */}
+        {/* Unlock card */}
         <div
           className="relative border border-[#FEE685] rounded-2xl p-8 overflow-hidden"
-          style={{ background: "linear-gradient(to right, #FFFBEB, #FFF7ED)", border: "1px solid #FEE685" }}
+          style={{ background: "linear-gradient(to right, #FFFBEB, #FFF7ED)" }}
         >
-          {/* Decorative faded illustration */}
           <div className="absolute right-0 h-full w-full bottom-0 opacity-80 pointer-events-none select-none flex items-end justify-end pr-2 pb-2">
-            {/* <BookOpen size={96} className="text-amber-400" /> */}
             <Unlockicon className='' />
           </div>
-
           <div className="flex items-center gap-2 mb-2">
             <Star size={15} className="text-amber-500 fill-amber-400" />
             <h3 className="font-bold text-[#314158] text-sm lg:text-base">Unlock Your Full Potential</h3>
@@ -65,70 +121,42 @@ const DashboardLeft = ({overview}:prop) => {
             Get unlimited access to all 17,000 questions, advanced analytics, and personalized study plans with Premium.
           </p>
           <ul className="space-y-1.5 mb-4">
-            {[
-              "Unlimited practice attempts",
-              "Access to all premium questions",
-              "Detailed performance analytics",
-              "Custom study plans",
-            ].map((f) => (
+            {["Unlimited practice attempts", "Access to all premium questions", "Detailed performance analytics", "Custom study plans"].map(f => (
               <li key={f} className="flex items-center font-inter gap-3 text-xs text-slate-600">
-                <span className="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0" />
-                {f}
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0" />{f}
               </li>
             ))}
           </ul>
-          <button className="px-5 py-2 rounded-[.5275rem] bg-linear-to-r from-[#FE9A00] to-[#FF6900] text-white text-xs font-bold hover:shadow-md transition-shadow">
+          <button className="px-5 py-2 rounded-[.5275rem] bg-gradient-to-r from-[#FE9A00] to-[#FF6900] text-white text-xs font-bold hover:shadow-md transition-shadow">
             Upgrade Now
           </button>
         </div>
 
-        {/* SAT Exam Countdown */}
-        <div className="bg-linear-to-br from-indigo-500 to-violet-600 rounded-2xl p-5 text-white"
-
-          style={{ paddingTop: "34px" }}>
-          {/* Header */}
+        {/* Countdown card */}
+        <div className="bg-gradient-to-br from-indigo-500 to-violet-600 rounded-2xl p-5 text-white" style={{ paddingTop: "34px" }}>
           <div className="flex items-center gap-2 mb-6">
             <Calendar size={16} className="text-indigo-200" />
             <p className="text-base font-inter font-semibold text-white">SAT Exam Countdown</p>
           </div>
-
-          {/* Main section */}
           <div className="flex items-center gap-6">
-
-            {/* Left - Days */}
             <div>
-              <h2 className="text-4xl font-inter text-white font-bold leading-none">{overview?.days_remaining??0}</h2>
-              <p className="text-xs text-white/70 font-inter  tracking-wide mt-1">
-                days remaining
-              </p>
+              <h2 className="text-4xl font-inter text-white font-bold leading-none">{overview?.days_remaining ?? 0}</h2>
+              <p className="text-xs text-white/70 font-inter tracking-wide mt-1">days remaining</p>
             </div>
-
-            {/* Divider */}
-            <div className="w-1 h-16 bg-white/20" style={{ width: "1px" }}></div>
-
-            {/* Readiness */}
+            <div className="w-px h-16 bg-white/20" />
             <div className="flex-1">
-              <p className="text-xs text-white/65 font-inter" style={{ fontSize: "10px" }}>Overall Readiness</p>
+              <p className="text-[10px] text-white/65 font-inter">Overall Readiness</p>
               <div className="flex items-center justify-between relative">
                 <p className="text-3xl font-inter font-semibold">{overview?.overall_readiness}%</p>
-                <span className=" text-xs text-white/70 font-inter absolute right-0 bottom-0 whitespace-nowrap" style={{ fontSize: "10px" }}>
-                  Keep it up! 🎯
-                </span>
+                <span className="text-[10px] text-white/70 font-inter absolute right-0 bottom-0 whitespace-nowrap">Keep it up! 🎯</span>
               </div>
               <Progress.Root className="h-1.5 rounded-full bg-white/20 overflow-hidden mt-2">
-                <Progress.Indicator
-                  className="h-full rounded-full bg-white transition-all duration-700"
-                  style={{ width: `${overview?.average_score}%` }}
-                />
+                <Progress.Indicator className="h-full rounded-full bg-white transition-all duration-700" style={{ width: `${overview?.average_score}%` }} />
               </Progress.Root>
             </div>
           </div>
-
-          {/* Divider line */}
-          <div className="border-t border-white/20 mt-6"></div>
-
-          {/* Bottom section */}
-          <div className="flex gap-10  flex-1 py-3 items-center mt-4">
+          <div className="border-t border-white/20 mt-6" />
+          <div className="flex gap-10 flex-1 py-3 items-center mt-4">
             <div>
               <p className="text-xs text-white/65 mb-1 font-inter">Exam Date</p>
               <p className="text-sm lg:text-base font-semibold font-inter text-white">05, march 2026</p>
@@ -145,147 +173,54 @@ const DashboardLeft = ({overview}:prop) => {
       <div className="bg-white rounded-2xl border border-[#E2E8F0] max-md:p-4 p-6">
         <div className="flex items-center justify-between mb-5">
           <h2 className="font-semibold font-inter text-[#0F172B] text-base">Recent Practice Test</h2>
-          <button className="text-sm font-inter cursor-pointer text-[#155DFC] hover:text-indigo-800 transition-colors flex items-center gap-1">
-            View All 
-          </button>
-        </div>
-
-        {/* <div className="divide-y divide-slate-100">
-          {data?.data?.map((test) => (
-            <div
-              key={`${test.id}-${test.updated_at}`}
-              className=" cursor-pointer group rounded-2xl border mb-3 border-[#E2E8F0] hover:scale-95 transition-all p-5"
+          {allTests.length > 5 && (
+            <button
+              onClick={() => setShowAllModal(true)}
+              className="text-sm font-inter cursor-pointer text-[#155DFC] hover:text-indigo-800 transition-colors flex items-center gap-1"
             >
-              <div className="flex items-start justify-between gap-4">
-             
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm lg:text-base font-medium text-[#0F172B] truncate  transition-colors">
-                    {test.}
-                  </p>
-                  <p className="text-xs text-[#45556C] mt-0.5 mb-2">{test.date}</p>
-                  <div className="flex items-center font-inter gap-3">
-                    <span className="flex items-center gap-1 text-xs xl:text-sm text-[#45556C]">
-                      <Clock size={18} />
-                      {test.duration}
-                    </span>
-                    <span className="flex items-center gap-1 text-xs xl:text-sm text-[#45556C]">
-                      <PrepLogo color='#45556C' width={18} height={18}  />
-                      {test.tags.join(", ")}
-                    </span>
-                  </div>
-                </div>
+              View All ({allTests.length})
+            </button>
+          )}
+        </div>
 
-               
-                <div className="text-right shrink-0">
+        {isLoading ? (
+          <div>{Array.from({ length: 5 }).map((_, i) => <SkeletonCard key={i} />)}</div>
+        ) : recentTests.length === 0 ? (
+          <div className="text-center py-10">
+            <p className="text-sm text-slate-400">No practice tests yet</p>
+          </div>
+        ) : (
+          <div>{recentTests.map(test => <TestCard key={`${test.id}-${test.updated_at}`} test={test} />)}</div>
+        )}
+      </div>
 
-                  <p className="text-2xl font-bold text-[#0F172B] font-inter leading-none" >
-                    {test.score}%
-                  </p>
+      {/* ── View All Modal ── */}
+      {showAllModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl flex flex-col max-h-[85vh]">
 
-                </div>
+            {/* modal header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 shrink-0">
+              <div>
+                <h2 className="text-base font-bold text-slate-800">All Practice Tests</h2>
+                <p className="text-xs text-slate-400 mt-0.5">{allTests.length} sessions total</p>
               </div>
-
-          
-              <ScoreBar score={test.score} />
-
+              <button
+                onClick={() => setShowAllModal(false)}
+                className="text-slate-400 hover:text-slate-600 p-1.5 rounded-lg hover:bg-slate-100 transition-colors"
+              >
+                <X size={18} />
+              </button>
             </div>
-          ))}
-        </div> */}
 
-{isLoading ? (
-  <div className="divide-y divide-slate-100">
-    {Array.from({ length: 5 }).map((_, i) => (
-      <div key={i} className="rounded-2xl border mb-3 border-[#E2E8F0] p-5 animate-pulse">
-        <div className="flex items-start justify-between gap-4">
-          {/* Left */}
-          <div className="flex-1 min-w-0 space-y-2">
-            <div className="h-4 bg-slate-100 rounded-full w-2/3" />
-            <div className="h-3 bg-slate-100 rounded-full w-1/3" />
-            <div className="flex items-center gap-3 mt-2">
-              <div className="h-3 bg-slate-100 rounded-full w-16" />
-              <div className="h-3 bg-slate-100 rounded-full w-24" />
-              <div className="h-5 bg-slate-100 rounded-full w-16" />
+            {/* modal body */}
+            <div className="overflow-y-auto flex-1 px-6 py-4">
+              {allTests.map(test => <TestCard key={`modal-${test.id}-${test.updated_at}`} test={test} />)}
             </div>
-          </div>
-          {/* Right */}
-          <div className="shrink-0 space-y-1.5 text-right">
-            <div className="h-7 bg-slate-100 rounded-full w-12 ml-auto" />
-            <div className="h-3 bg-slate-100 rounded-full w-10 ml-auto" />
+
           </div>
         </div>
-        {/* progress bar */}
-        <div className="h-1.5 bg-slate-100 rounded-full w-full mt-4" />
-      </div>
-    ))}
-  </div>
-) : (
-        <div className="divide-y divide-slate-100">
-  {data?.data?.map((test) => {
-    const subjectNames = test.subjects_selected.map(s => s.name).join(", ");
-    const topicNames = test.topics_selected.map(t => t.name).join(", ");
-    const date = new Date(test.created_at).toLocaleDateString("en-GB", {
-      day: "numeric", month: "short", year: "numeric"
-    });
-    const score = test.score ?? 0;
-    const duration = test.time_limit_minutes
-      ? `${test.time_limit_minutes} mins`
-      : "—";
-
-    return (
-      <div
-        key={`${test.id}-${test.updated_at}`}
-        className="cursor-pointer group rounded-2xl border mb-3 border-[#E2E8F0] hover:scale-95 transition-all p-5"
-      >
-        <div className="flex items-start justify-between gap-4">
-          {/* Left */}
-          <div className="flex-1 min-w-0">
-            <p className="text-sm lg:text-base font-medium text-[#0F172B] truncate">
-              {subjectNames}
-            </p>
-            <p className="text-xs text-[#45556C] mt-0.5 mb-2">{date}</p>
-            <div className="flex items-center font-inter gap-3 flex-wrap">
-              <span className="flex items-center gap-1 text-xs xl:text-sm text-[#45556C]">
-                <Clock size={18} />
-                {duration}
-              </span>
-              <span className="flex items-center gap-1 text-xs xl:text-sm text-[#45556C]">
-                <PrepLogo color="#45556C" width={18} height={18} />
-                {topicNames}
-              </span>
-              <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full capitalize ${
-                test.status === "completed"
-                  ? "bg-emerald-50 text-emerald-600"
-                  : "bg-amber-50 text-amber-600"
-              }`}>
-                {test.status.replace("_", " ")}
-              </span>
-            </div>
-          </div>
-
-          {/* Right: score */}
-          <div className="text-right shrink-0">
-            {test.status === "completed" ? (
-              <p className="text-2xl font-bold text-[#0F172B] font-inter leading-none">
-                {score}%
-              </p>
-            ) : (
-              <p className="text-xs text-[#45556C] font-medium">In Progress</p>
-            )}
-            <p className="text-[10px] text-[#45556C] mt-1 capitalize">
-              {test.difficulty_level}
-            </p>
-          </div>
-        </div>
-
-        {/* Progress bar — only show if completed */}
-        {test.status === "completed" && <ScoreBar score={score} />}
-      </div>
-    );
-  })}
-</div>
-)}
-
-      </div>
+      )}
 
     </div>
   );
