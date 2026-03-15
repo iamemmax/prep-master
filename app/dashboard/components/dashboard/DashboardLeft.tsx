@@ -1,23 +1,26 @@
+"use client"
 import React from 'react'
-import { Star, Calendar, ArrowRight, Clock, LayoutGrid } from 'lucide-react';
+import { Star, Calendar, Clock } from 'lucide-react';
 import * as Progress from "@radix-ui/react-progress";
 import Unlockicon from '@/utils/icons/UnlockIcon';
 import { getScoreAccent } from '@/utils/color/getPercentageColor';
 import PrepLogo from '@/utils/icons/logos/PrepLogo';
+import { useGetPracticeHistory } from '../../util/apis/dashboard/practiceHistory';
+import { dashboardOverviewData } from '../../util/types/dashboard/dashbaordOverview';
 
-interface RecentTest {
-  name: string;
-  date: string;
-  duration: string;
-  tags: string[];
-  score: number;
-  total: number;
-}
-const recentTests: RecentTest[] = [
-  { name: "SAT Practice Test", date: "Feb 17, 2025", duration: "30m", tags: ["Math (Calc)", "Reading"], score: 85, total: 20 },
-  { name: "SAT Math Focus", date: "Feb 15, 2025", duration: "20m", tags: ["Math (Calc)"], score: 70, total: 15 },
-  { name: "GRE Verbal Practice", date: "Feb 12, 2025", duration: "25m", tags: ["Verbal"], score: 78, total: 20 },
-];
+// interface RecentTest {
+//   name: string;
+//   date: string;
+//   duration: string;
+//   tags: string[];
+//   score: number;
+//   total: number;
+// }
+// const recentTests: RecentTest[] = [
+//   { name: "SAT Practice Test", date: "Feb 17, 2025", duration: "30m", tags: ["Math (Calc)", "Reading"], score: 85, total: 20 },
+//   { name: "SAT Math Focus", date: "Feb 15, 2025", duration: "20m", tags: ["Math (Calc)"], score: 70, total: 15 },
+//   { name: "GRE Verbal Practice", date: "Feb 12, 2025", duration: "25m", tags: ["Verbal"], score: 78, total: 20 },
+// ];
 
 function ScoreBar({ score }: { score: number }) {
   const accent = getScoreAccent(score);
@@ -26,12 +29,17 @@ function ScoreBar({ score }: { score: number }) {
       <Progress.Indicator
         className="h-full rounded-full transition-all duration-700"
         style={{ width: `${score}%`, background: accent }}
-      />
+        />
     </Progress.Root>
   );
 }
 
-const DashboardLeft = () => {
+interface prop{
+  overview: dashboardOverviewData | undefined
+}
+const DashboardLeft = ({overview}:prop) => {
+  const {data,isLoading}=useGetPracticeHistory()
+  
   return (
     <div className="lg:col-span-2 flex flex-col gap-6">
 
@@ -89,7 +97,7 @@ const DashboardLeft = () => {
 
             {/* Left - Days */}
             <div>
-              <h2 className="text-4xl font-inter text-white font-bold leading-none">21</h2>
+              <h2 className="text-4xl font-inter text-white font-bold leading-none">{overview?.days_remaining??0}</h2>
               <p className="text-xs text-white/70 font-inter  tracking-wide mt-1">
                 days remaining
               </p>
@@ -102,7 +110,7 @@ const DashboardLeft = () => {
             <div className="flex-1">
               <p className="text-xs text-white/65 font-inter" style={{ fontSize: "10px" }}>Overall Readiness</p>
               <div className="flex items-center justify-between relative">
-                <p className="text-3xl font-inter font-semibold">68%</p>
+                <p className="text-3xl font-inter font-semibold">{overview?.overall_readiness}%</p>
                 <span className=" text-xs text-white/70 font-inter absolute right-0 bottom-0 whitespace-nowrap" style={{ fontSize: "10px" }}>
                   Keep it up! 🎯
                 </span>
@@ -110,7 +118,7 @@ const DashboardLeft = () => {
               <Progress.Root className="h-1.5 rounded-full bg-white/20 overflow-hidden mt-2">
                 <Progress.Indicator
                   className="h-full rounded-full bg-white transition-all duration-700"
-                  style={{ width: "68%" }}
+                  style={{ width: `${overview?.average_score}%` }}
                 />
               </Progress.Root>
             </div>
@@ -123,11 +131,11 @@ const DashboardLeft = () => {
           <div className="flex gap-10  flex-1 py-3 items-center mt-4">
             <div>
               <p className="text-xs text-white/65 mb-1 font-inter">Exam Date</p>
-              <p className="text-sm lg:text-base font-semibold font-inter text-white">March 13, 2025</p>
+              <p className="text-sm lg:text-base font-semibold font-inter text-white">05, march 2026</p>
             </div>
             <div>
               <p className="text-xs text-white/65 mb-1 font-inter">Target Score</p>
-              <p className="text-sm lg:text-base font-semibold font-inter text-white">1400 / 1600</p>
+              <p className="text-sm lg:text-base font-semibold font-inter text-white">{overview?.total_attempts}/{overview?.target_score}</p>
             </div>
           </div>
         </div>
@@ -142,17 +150,17 @@ const DashboardLeft = () => {
           </button>
         </div>
 
-        <div className="divide-y divide-slate-100">
-          {recentTests.map((test) => (
+        {/* <div className="divide-y divide-slate-100">
+          {data?.data?.map((test) => (
             <div
-              key={`${test.name}-${test.date}`}
+              key={`${test.id}-${test.updated_at}`}
               className=" cursor-pointer group rounded-2xl border mb-3 border-[#E2E8F0] hover:scale-95 transition-all p-5"
             >
               <div className="flex items-start justify-between gap-4">
-                {/* Left: name, date, meta */}
+             
                 <div className="flex-1 min-w-0">
                   <p className="text-sm lg:text-base font-medium text-[#0F172B] truncate  transition-colors">
-                    {test.name}
+                    {test.}
                   </p>
                   <p className="text-xs text-[#45556C] mt-0.5 mb-2">{test.date}</p>
                   <div className="flex items-center font-inter gap-3">
@@ -167,7 +175,7 @@ const DashboardLeft = () => {
                   </div>
                 </div>
 
-                {/* Right: score */}
+               
                 <div className="text-right shrink-0">
 
                   <p className="text-2xl font-bold text-[#0F172B] font-inter leading-none" >
@@ -177,12 +185,106 @@ const DashboardLeft = () => {
                 </div>
               </div>
 
-              {/* Full-width progress bar */}
+          
               <ScoreBar score={test.score} />
 
             </div>
           ))}
+        </div> */}
+
+{isLoading ? (
+  <div className="divide-y divide-slate-100">
+    {Array.from({ length: 5 }).map((_, i) => (
+      <div key={i} className="rounded-2xl border mb-3 border-[#E2E8F0] p-5 animate-pulse">
+        <div className="flex items-start justify-between gap-4">
+          {/* Left */}
+          <div className="flex-1 min-w-0 space-y-2">
+            <div className="h-4 bg-slate-100 rounded-full w-2/3" />
+            <div className="h-3 bg-slate-100 rounded-full w-1/3" />
+            <div className="flex items-center gap-3 mt-2">
+              <div className="h-3 bg-slate-100 rounded-full w-16" />
+              <div className="h-3 bg-slate-100 rounded-full w-24" />
+              <div className="h-5 bg-slate-100 rounded-full w-16" />
+            </div>
+          </div>
+          {/* Right */}
+          <div className="shrink-0 space-y-1.5 text-right">
+            <div className="h-7 bg-slate-100 rounded-full w-12 ml-auto" />
+            <div className="h-3 bg-slate-100 rounded-full w-10 ml-auto" />
+          </div>
         </div>
+        {/* progress bar */}
+        <div className="h-1.5 bg-slate-100 rounded-full w-full mt-4" />
+      </div>
+    ))}
+  </div>
+) : (
+        <div className="divide-y divide-slate-100">
+  {data?.data?.map((test) => {
+    const subjectNames = test.subjects_selected.map(s => s.name).join(", ");
+    const topicNames = test.topics_selected.map(t => t.name).join(", ");
+    const date = new Date(test.created_at).toLocaleDateString("en-GB", {
+      day: "numeric", month: "short", year: "numeric"
+    });
+    const score = test.score ?? 0;
+    const duration = test.time_limit_minutes
+      ? `${test.time_limit_minutes} mins`
+      : "—";
+
+    return (
+      <div
+        key={`${test.id}-${test.updated_at}`}
+        className="cursor-pointer group rounded-2xl border mb-3 border-[#E2E8F0] hover:scale-95 transition-all p-5"
+      >
+        <div className="flex items-start justify-between gap-4">
+          {/* Left */}
+          <div className="flex-1 min-w-0">
+            <p className="text-sm lg:text-base font-medium text-[#0F172B] truncate">
+              {subjectNames}
+            </p>
+            <p className="text-xs text-[#45556C] mt-0.5 mb-2">{date}</p>
+            <div className="flex items-center font-inter gap-3 flex-wrap">
+              <span className="flex items-center gap-1 text-xs xl:text-sm text-[#45556C]">
+                <Clock size={18} />
+                {duration}
+              </span>
+              <span className="flex items-center gap-1 text-xs xl:text-sm text-[#45556C]">
+                <PrepLogo color="#45556C" width={18} height={18} />
+                {topicNames}
+              </span>
+              <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full capitalize ${
+                test.status === "completed"
+                  ? "bg-emerald-50 text-emerald-600"
+                  : "bg-amber-50 text-amber-600"
+              }`}>
+                {test.status.replace("_", " ")}
+              </span>
+            </div>
+          </div>
+
+          {/* Right: score */}
+          <div className="text-right shrink-0">
+            {test.status === "completed" ? (
+              <p className="text-2xl font-bold text-[#0F172B] font-inter leading-none">
+                {score}%
+              </p>
+            ) : (
+              <p className="text-xs text-[#45556C] font-medium">In Progress</p>
+            )}
+            <p className="text-[10px] text-[#45556C] mt-1 capitalize">
+              {test.difficulty_level}
+            </p>
+          </div>
+        </div>
+
+        {/* Progress bar — only show if completed */}
+        {test.status === "completed" && <ScoreBar score={score} />}
+      </div>
+    );
+  })}
+</div>
+)}
+
       </div>
 
     </div>

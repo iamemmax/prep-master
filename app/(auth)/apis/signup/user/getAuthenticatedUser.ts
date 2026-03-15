@@ -1,4 +1,4 @@
-import { User } from "@/context/authentication";
+import {  userDetailsTypes } from "@/context/authentication";
 import { QUERYKEY } from "@/key/queryKey";
 import { adminAxios } from "@/lib/axios";
 import { useQuery } from "@tanstack/react-query";
@@ -8,8 +8,8 @@ import { useQuery } from "@tanstack/react-query";
 
 
 export const getAuthenticatedUser = async () => {
-  const response = await adminAxios.get(`/api/v1/examiners/me`);
-  return response?.data as User;
+  const response = await adminAxios.get(`/api/v1/prep-master/me/`);
+  return response?.data as userDetailsTypes;
 };
 
 export const useUser = () =>{

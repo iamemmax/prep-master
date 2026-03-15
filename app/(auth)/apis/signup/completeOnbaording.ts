@@ -20,6 +20,29 @@ interface prop {
   send_progress_report: boolean;
 }
 
+
+// interface RootObject {
+//   status: string;
+//   data: Data;
+//   message: string;
+// }
+
+// interface Data {
+//   user: User;
+//   profile: Profile;
+//   access_token: string;
+//   refresh_token: string;
+// }
+
+// interface Profile {
+//   country: string;
+// }
+
+// interface User {
+//   id: number;
+//   email: string;
+//   user_type: string;
+// }
 const completeOnboarding = async (payload: prop) => {
   const response = await tokenlessAxios.post('/api/v1/prep-master/onboarding/complete/', payload);
   return response?.data;

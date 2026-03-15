@@ -23,7 +23,13 @@ export function ErrorModal({
 }: ErrorModalProps) {
   return (
     <Dialog open={isErrorModalOpen} onOpenChange={setErrorModalState}>
-      <DialogContent className="bg-[#150130] border-none max-w-lg text-white z-99999999999999999999999!" showCloseButton={false}>
+      <DialogContent className="bg-[#150130] border-none max-w-lg text-white " showCloseButton={false}
+      // <DialogContent
+  // className="bg-[#150130] border-none max-w-lg text-white"
+  style={{ zIndex: 99999 }}
+  // showCloseButton={false}
+>
+      
         <DialogHeader className="bg-[#150130] w-full flex justify-between items-enter">
           <div className=" flex justify-between items-start">
            <svg width="54" height="54" viewBox="0 0 54 54" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -58,6 +64,7 @@ export function ErrorModal({
 
               className="grow bg-[#7E3CE0] cursor-pointer px-1.5 sm:text-sm w-full md:px-12.75"
               size="lg"
+              // icon={false}
               type="button"
               onClick={() => {
                 setErrorModalState(false);

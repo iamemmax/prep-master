@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
 import React, { createContext, useContext, useEffect, useReducer } from "react";
@@ -12,46 +13,50 @@ import { getAuthenticatedUser } from "@/app/(auth)/apis/signup/user/getAuthentic
 // import { assesmentAxios, setGlobalLogoutHandler } from "@/utils/axios";
 
 
-
-
-
-export interface User {
-  email: string;
-  username: string;
-  full_name: string;
-  id: number;
-  role: string;
-  user_type: "EXAMINER" | "EXAMINEE",
+export interface userDetailsTypes {
   status: string;
-  is_active: boolean;
-  created_at: string;
+  data: UserProfile;
+  message: string;
+}
+
+export interface UserProfile {
+  user: User;
   profile: Profile;
+  exam_config: Examconfig;
+}
+
+interface Examconfig {
+  preparing_for_exam: string;
+  other_exam: null;
+  exam_date: null;
+  target_score: null;
+  daily_study_hours: null;
+  current_level: null;
+  send_progress_report: boolean;
 }
 
 interface Profile {
-  id: number;
-  user_id: number;
-  organization_name: string;
-  type_of_professional_body: string;
   country: string;
-  organization_size: string;
-  phone_number: string;
-  agree_to_terms_and_conditions: boolean;
-  is_verified: boolean;
-  verification_date: null;
-  created_at: string;
+}
+
+interface User {
+  id: number;
+  email: string;
+  first_name: string;
+  last_name: string;
+  user_type: string;
 }
 export interface AuthState {
   isAuthenticated: boolean;
-  user: User | null;
+  user: UserProfile | null;  // ← was User | null
   isLoading: boolean;
 }
 
 type AuthAction =
-  | { type: "LOGIN"; payload: User }
+  | { type: "LOGIN"; payload: UserProfile }
   | { type: "LOGOUT" }
   | { type: "STOP_LOADING" }
-  | { type: "UPDATE_USER"; payload: Partial<User> };
+  | { type: "UPDATE_USER"; payload: Partial<UserProfile> };
 
 interface AuthContextType {
   authState: AuthState;
@@ -83,12 +88,12 @@ const authReducer = (state: AuthState, action: AuthAction): AuthState => {
           isLoading: false,
         };
 
-      case "UPDATE_USER":
-        const updatedUser = state.user
-          ? { ...state.user, ...action.payload }
-          : null;
-        if (updatedUser) tokenStorage.setUser(updatedUser);
-        return { ...state, user: updatedUser };
+     case "UPDATE_USER":
+  const updatedUser = state.user
+    ? { ...state.user, ...action.payload }
+    : null;
+  if (updatedUser) tokenStorage.setUser(updatedUser);
+  return { ...state, user: updatedUser };
 
       case "LOGOUT":
         try {
@@ -171,24 +176,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         }
 
         // Refresh user from API only if token exists
-        if (token) {
-          try {
-            const user = await getAuthenticatedUser();
-            authDispatch({ type: "LOGIN", payload: user });
-            tokenStorage.setUser(user);
-            console.log("🔁 User refreshed from API");
-          } catch (err) {
-            console.error("❌ Failed to refresh user:", err);
-            tokenStorage.clearToken();
-            deleteAxiosDefaultToken();
-            authDispatch({ type: "LOGOUT" });
-          }
-        } else {
-          console.log("⚠️ No token found, skipping user refresh");
-          tokenStorage.clearToken();
-          deleteAxiosDefaultToken();
-          authDispatch({ type: "LOGOUT" });
-        }
+       if (token) {
+  try {
+    const user = await getAuthenticatedUser();
+    authDispatch({ type: "LOGIN", payload: user?.data });
+    tokenStorage.setUser(user?.data); // ← store user.data not the full response
+  } catch (err: any) {
+    console.error("❌ Failed to refresh user:", err);
+    // only clear token on 401, not on network errors
+    if (err?.response?.status === 401) {
+      tokenStorage.clearToken();
+      deleteAxiosDefaultToken();
+      authDispatch({ type: "LOGOUT" });
+    } else {
+      // network error — keep existing token and stored user
+      console.warn("⚠️ Network error during refresh, keeping existing session");
+      authDispatch({ type: "STOP_LOADING" });
+    }
+  }
+} else {
+  // no token — just stop loading, don't clear anything
+  authDispatch({ type: "STOP_LOADING" });
+}
       } finally {
         // ✅ Always stop loading, even if something fails
         authDispatch({ type: "STOP_LOADING" });

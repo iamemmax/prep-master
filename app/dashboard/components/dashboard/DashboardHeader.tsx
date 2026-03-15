@@ -26,11 +26,7 @@ const DashboardHeader = () => {
     router.replace("/signin");
   };
 
-  const initials = user?.full_name
-    ?.split(" ")
-    .map((n) => n[0])
-    .join("")
-    .slice(0, 2) ?? "EA";
+const initials = `${user?.user?.first_name?.charAt(0) ?? ""}${user?.user?.last_name?.charAt(0) ?? ""}`.toUpperCase();
 
   return (
     <header className="sticky top-0 z-50 bg-white border-b border-slate-100">
@@ -87,7 +83,7 @@ const DashboardHeader = () => {
                 <button className="flex items-center gap-4 py-1 rounded-xl cursor-pointer transition-colors">
                   <div className="text-right hidden sm:block">
                     <p className="text-sm font-semibold text-slate-700 leading-tight">
-                      {user?.full_name ?? "Emmanuel Ayodeji"}
+                      {`${user?.user?.first_name ??""}  ${user?.user?.last_name ??""}`}
                     </p>
                     <p className="text-xs text-slate-400">Free Account</p>
                   </div>

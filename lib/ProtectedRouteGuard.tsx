@@ -21,7 +21,7 @@ export default function ProtectedRouteGuard({
 
   // Define protected routes
   const protectedRoutes = [
-   "/"
+   "/",
     
   ];
 

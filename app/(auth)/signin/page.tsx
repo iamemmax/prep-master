@@ -57,22 +57,23 @@ export default function SigninPage() {
        
       },
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      onError: (error: any) => {
-        const errorMessage = error?.response?.data?.errors?.message
-          || error?.response?.data?.message
-          || formatAxiosErrorMessage(error as AxiosError)
-          || 'An error occurred. Please try again.';
-        openErrorModalWithMessage(String(errorMessage));
-        console.log(error?.response?.data.errors.message);
-      }
+     onError: (error: any) => {
+  const errorMessage = 
+    error?.response?.data?.data?.non_field_errors?.[0]
+    || error?.response?.data?.message
+    || formatAxiosErrorMessage(error as AxiosError)
+    || 'An error occurred. Please try again.';
+  openErrorModalWithMessage(String(errorMessage));
+}
     })
   }
 
   return (
-    <div className="bg-white max-md:p-5">
+    <div className="bg-white  h-[90vh] max-md:p-5 flex flex-col justify-center">
       <AuthStepHeader backHref="/" backLabel="Back to home" showProgress={false} />
 
-      <section className="rounded-2xl border border-border p-6 sm:p-8 mt-5">
+        <div className=" flex-1 h-full ">
+      <section className="rounded-2xl border border-borderp-6 sm:p-8 mt-5">
         <h1 className="text-[24px] font-semibold text-[#0F172B]">Welcome back.</h1>
         <p className="mt-1 text-sm text-[#64748B]">Your progress is waiting. Let&apos;s pick up where you left off.</p>
 
@@ -156,7 +157,9 @@ export default function SigninPage() {
         </p>
       </section>
 
-      <p className="mt-8 text-center text-sm text-[#94A3B8]">
+        </div>
+
+      <p className="text-center text-sm text-[#94A3B8]">
         Having an issue?{" "}
         <Link href="/support" className="font-medium text-primary underline underline-offset-2">
           speak with support

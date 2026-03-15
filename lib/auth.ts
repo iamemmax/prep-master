@@ -1,4 +1,4 @@
-import { User } from "@/context/authentication";
+import { UserProfile } from "@/context/authentication";
 
 const TOKEN_KEY = 'PREPMASTER_TOKEN';
 const USER_KEY = 'PREPMASTER_USER';
@@ -27,7 +27,7 @@ export const tokenStorage = {
     }
   },
 
-  setUser: (user: User) => {
+  setUser: (user: UserProfile) => {
     if (typeof window !== 'undefined') {
       window.localStorage.setItem(USER_KEY, JSON.stringify(user));
     }

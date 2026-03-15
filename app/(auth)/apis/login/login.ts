@@ -7,9 +7,17 @@ import { adminAxios, setAxiosDefaultToken, tokenlessAxios } from "@/lib/axios";
 import { LoginData } from "../../signin/page";
 
 
+
+
 interface TokenResponse {
-  access_token: string;
-  token_type: string;
+  status: string;
+  data: Data;
+  message: string;
+}
+
+interface Data {
+  refresh: string;
+  access: string;
 }
 const login = (loginDto: LoginData): Promise<AxiosResponse<TokenResponse>> =>
   tokenlessAxios.post("/api/v1/auth/login/", loginDto, {
@@ -28,8 +36,7 @@ export const useLogin = () => {
       const { data } = response;
       
       // Get the access token from the nested data object
-      const token = data?.access_token;
-      console.log(token);
+      const token = data?.data?.access;
       
       
       if (!token) {
@@ -45,7 +52,7 @@ export const useLogin = () => {
             const user = await getAuthenticatedUser();
                   if (authDispatch) {
                     // Update auth state with user data
-                    authDispatch({ type: "LOGIN", payload: user });
+                    authDispatch({ type: "LOGIN", payload: user?.data });
                     authDispatch({ type: "STOP_LOADING" });
                   }
                   console.log(user);

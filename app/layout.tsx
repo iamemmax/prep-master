@@ -8,6 +8,7 @@ import { AuthProvider } from "@/context/authentication";
 import ProtectedRouteGuard from "@/lib/ProtectedRouteGuard";
 import { Suspense } from "react";
 import PageLoader from "@/lib/PageLoader";
+import { Toaster } from "react-hot-toast";
 
 const jarkataSans = Plus_Jakarta_Sans({
   variable: "--font-jakarta-sans",
@@ -75,6 +76,17 @@ export default function RootLayout({
           easing="ease"
           speed={200}
           shadow="0 0 10px #7C3AED,0 0 5px #7C3AED"
+        />
+         <Toaster
+          containerStyle={{
+            zIndex: 99999,
+          }}
+          position="top-center"
+          toastOptions={{
+            style: {
+              zIndex: 999999,
+            },
+          }}
         />
            <ReactQueryProvider>
           <AuthProvider>
