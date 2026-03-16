@@ -52,7 +52,7 @@ export default function HowItWorks() {
           </p>
         </MotionReveal>
 
-        <div className="mx-auto mt-10 grid max-w-375 grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="mx-auto mt-10 grid max-w-375  gap-6 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4">
           {STEPS.map((s, idx) => {
             // const Icon = s.icon
             return (
