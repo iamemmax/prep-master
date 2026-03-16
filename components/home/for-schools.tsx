@@ -14,10 +14,10 @@ const CHIPS = [
 export default function ForSchools() {
   return (
     <section className="bg-[#F2F2F2] font-inter">
-      <div className=" px-4 py-10 sm:px-16 lg:px-16">
-        <div className=" px-6 py-8 sm:px-10 sm:py-10">
+      <div className=" max-sm:px-4 py-10  max-w-375 mx-auto">
+        <div className=" px-6 py-8 max-sm:px-10 sm:py-10">
           <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
-            <MotionReveal className="max-w-7xl">
+            <MotionReveal className="max-w-375 ">
               <Badge
                 variant="secondary"
                 className="bg-primary/5 text-primary ring-1 ring-primary/80 text-xs  py-1.5 px-5"
@@ -25,10 +25,10 @@ export default function ForSchools() {
                 For Schools
               </Badge>
 
-              <h2 className="mt-4 text-balance text-2xl font-semibold font-jarkata tracking-tight text-[#0E1525] sm:text-[46px]">
+              <h2 className="mt-4 text-balance text-2xl font-inter font-semibold font-jarkata tracking-tight text-[#0E1525] sm:text-[46px]">
                 Bring PrepMaster to your institution.
               </h2>
-              <p className="mt-3 text-sm leading-relaxed text-muted-foreground sm:text-base">
+              <p className="mt-3 text-sm leading-relaxed font-inter text-muted-foreground sm:text-base">
                 Give students and educators a powerful, customizable platform for exam preparation
                 and <br/> performance tracking — all from one dashboard.
               </p>
@@ -48,7 +48,7 @@ export default function ForSchools() {
             {CHIPS.map((c) => (
               <span
                 key={c}
-                className="rounded-full border border-accent/80 bg-accent/10 px-4 py-2.5 font-jarkata text-xs font-semibold text-[#202630]"
+                className="rounded-full font-inter border border-accent/80 bg-accent/10 px-4 py-2.5 font-jarkata text-xs font-semibold text-[#202630]"
               >
                 {c}
               </span>

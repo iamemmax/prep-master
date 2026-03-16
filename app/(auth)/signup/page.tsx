@@ -87,7 +87,7 @@ export default function SignupPage() {
                 <Input
                   {...register("first_name")}
                   // onChange={(e) => updateField("firstName", e.target.value)}
-                  className={`w-full px-4 py-3 border outline-none rounded-lg pl-9 font-sans text-sm focus:outline-none focus:ring-0  focus:ring-transparent transition-all ${errors.first_name ? 'border-red-500' : 'border-gray-300'
+                  className={`w-full px-4 sm:py-3 py-2 max-sm:h-11 border outline-none rounded-lg pl-9 font-sans text-sm focus:outline-none focus:ring-0  focus:ring-transparent transition-all ${errors.first_name ? 'border-red-500' : 'border-gray-300'
                     }`}
                   placeholder="First name"
                 />
@@ -102,7 +102,7 @@ export default function SignupPage() {
                 <Image src="/assets/svg/user-right.svg" alt="User" width={16} height={16} className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#94A3B8]" />
                 <Input
                   {...register("last_name")}
-                  className={`w-full px-4 py-3 border outline-none rounded-lg pl-9 font-sans text-sm focus:outline-none focus:ring-0  focus:ring-transparent transition-all ${errors.last_name ? 'border-red-500' : 'border-gray-300'
+                  className={`w-full px-4 sm:py-3 py-2 max-sm:h-11 border outline-none rounded-lg pl-9 font-sans text-sm focus:outline-none focus:ring-0  focus:ring-transparent transition-all ${errors.last_name ? 'border-red-500' : 'border-gray-300'
                     }`}
                   placeholder="Last name"
                 />
@@ -119,7 +119,7 @@ export default function SignupPage() {
               <Image src="/assets/svg/mail.svg" alt="Mail" width={16} height={16} className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#94A3B8]" />
               <Input
                 {...register("email")}
-                className={`w-full px-4 py-3 border outline-none rounded-lg pl-9 font-sans text-sm focus:outline-none focus:ring-0  focus:ring-transparent transition-all ${errors.email ? 'border-red-500' : 'border-gray-300'
+                className={`w-full px-4 sm:py-3 py-2 max-sm:h-11 border outline-none rounded-lg pl-9 font-sans text-sm focus:outline-none focus:ring-0  focus:ring-transparent transition-all ${errors.email ? 'border-red-500' : 'border-gray-300'
                   }`}
                 placeholder="Email"
               />
@@ -146,7 +146,7 @@ export default function SignupPage() {
                 {...register("password")}
                 // value={form.password}
                 // onChange={(e) => updateField("password", e.target.value)}
-                className={`w-full px-4 py-3 border outline-none rounded-lg pl-9 font-sans text-sm focus:outline-none focus:ring-0  focus:ring-transparent transition-all ${errors.password ? 'border-red-500' : 'border-gray-300'
+                className={`w-full px-4 sm:py-3 py-2 max-sm:h-11 border outline-none rounded-lg pl-9 font-sans text-sm focus:outline-none focus:ring-0  focus:ring-transparent transition-all ${errors.password ? 'border-red-500' : 'border-gray-300'
                   }`}
                 placeholder="Password"
               />
@@ -163,7 +163,7 @@ export default function SignupPage() {
           </Button>
         </form>
 
-        <p className="mt-5 text-sm leading-relaxed text-[#94A3B8]">
+        <p className="mt-5 text-xs md:text-sm leading-relaxed text-[#94A3B8]">
           By creating an account, you agree to the{" "}
           <Link href="/terms" className="underline underline-offset-2">
             Terms of Service

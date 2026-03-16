@@ -1,12 +1,7 @@
 import Link from "next/link"
 import {
   ArrowRight,
-  Briefcase,
-  GraduationCap,
-  Microscope,
-  Sparkles,
   Globe,
-  BookCopy,
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -61,7 +56,7 @@ const CATEGORIES: Category[] = [
 export default function ExamCategories() {
   return (
     <section id="exams" className="bg-[#FAFAFA] font-inter">
-      <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8 lg:py-24">
+      <div className="mx-auto max-w-375 px-4 py-16 sm:px-6 lg:px-8 lg:py-24">
         <MotionReveal className="mx-auto max-w-3xl text-center">
           <div className="inline-flex items-center gap-2 rounded-full border border-border bg-[#F1F5F9] px-4 py-2 text-xs font-semibold text-muted-foreground">
             <Globe className="h-4 w-4 text-[#62748E]" strokeWidth={1.5} />
@@ -72,11 +67,11 @@ export default function ExamCategories() {
             Practice for Any Exam
           </h2>
           <p className="mx-auto mt-3 max-w-2xl text-pretty text-sm leading-relaxed text-[#667085] sm:mt-4 sm:text-base">
-            From local to international, academic to professional — we've got comprehensive coverage
+            From local to international, academic to professional — we&apos;ve got comprehensive coverage
           </p>
         </MotionReveal>
 
-        <div className="mx-auto mt-12 grid max-w-6xl grid-cols-1 gap-6 md:grid-cols-3 lg:mt-14">
+        <div className="mx-auto mt-12 grid max-w-375 grid-cols-1 gap-6 md:grid-cols-3 lg:mt-14">
           {CATEGORIES.map((c, idx) => {
             return (
               <MotionReveal

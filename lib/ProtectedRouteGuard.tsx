@@ -22,6 +22,7 @@ export default function ProtectedRouteGuard({
   // Define protected routes
   const protectedRoutes = [
    "/dashboard",
+   "/dashboard/practice"
     
   ];
 

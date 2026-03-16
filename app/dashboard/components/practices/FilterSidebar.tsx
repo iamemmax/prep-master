@@ -15,12 +15,12 @@ interface FilterSidebarProps {
   selectedExamRef?: string | null;
 }
 
-const ACCESS_OPTIONS: string[]     = ["All", "Free", "Premium"];
+const ACCESS_OPTIONS: string[] = ["All", "Free", "Premium"];
 const DIFFICULTY_OPTIONS: string[] = ["Any Level", "Easy", "Medium", "Hard"];
 
 const MY_PROGRESS: ProgressBarEntry[] = [
-  { label: "SAT",  pct: 72, color: "#6366F1" },
-  { label: "GRE",  pct: 45, color: "#3B82F6" },
+  { label: "SAT", pct: 72, color: "#6366F1" },
+  { label: "GRE", pct: 45, color: "#3B82F6" },
   { label: "LSAT", pct: 12, color: "#8B5CF6" },
 ];
 
@@ -32,7 +32,7 @@ function SidebarGroupLabel({ children }: { children: React.ReactNode }) {
   );
 }
 
-const FilterSidebar = ({ filters, setFilters, onExamSelect, selectedExamRef }: FilterSidebarProps) => {
+const FilterSidebar = ({ filters, setFilters, onExamSelect }: FilterSidebarProps) => {
   const { category, access, difficulty } = filters;
   const { data: response, isLoading } = useGetPracticeExamList();
 
@@ -71,18 +71,18 @@ const FilterSidebar = ({ filters, setFilters, onExamSelect, selectedExamRef }: F
               />
 
               {/* Subjects indented below */}
-            {exam.subjects?.length > 0 && (
-  <div className="mt-0.5 space-y-0.5">
-    {exam.subjects.map((subject) => (
-      <SidebarBtn
-        key={subject.reference}
-        label={subject.name}
-        active={category === subject.name}
-        onClick={() => set("category")(subject.name)}
-      />
-    ))}
-  </div>
-)}
+              {exam.subjects?.length > 0 && (
+                <div className="mt-0.5 space-y-0.5">
+                  {exam.subjects.map((subject) => (
+                    <SidebarBtn
+                      key={subject.reference}
+                      label={subject.name}
+                      active={category === subject.name}
+                      onClick={() => { set("category")(subject.name); onExamSelect?.(subject.reference); }}
+                    />
+                  ))}
+                </div>
+              )}
             </div>
           ))
         )}

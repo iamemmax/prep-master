@@ -245,7 +245,35 @@ export default function PracticeExamsPage() {
             {isLoading ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
                 {Array.from({ length: 6 }).map((_, i) => (
-                  <div key={i} className="h-52 rounded-[.875rem] bg-slate-100 animate-pulse" />
+                  <div key={i} className="bg-white rounded-[.875rem] border border-[#E2E8F0] py-4 flex flex-col gap-3">
+                    {/* Name + badge */}
+                    <div className="px-4 border-b border-[#EEF0F4] pb-3 space-y-2">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="h-4 w-24 rounded bg-slate-100 animate-pulse" />
+                        <div className="h-5 w-16 rounded-full bg-slate-100 animate-pulse" />
+                      </div>
+                      <div className="h-3 w-full rounded bg-slate-100 animate-pulse" />
+                      <div className="h-3 w-3/4 rounded bg-slate-100 animate-pulse" />
+                    </div>
+                    {/* Stats grid */}
+                    <div className="grid grid-cols-4 border-b border-[#EEF0F4] pb-3 px-4 gap-2">
+                      {Array.from({ length: 4 }).map((_, j) => (
+                        <div key={j} className="space-y-1.5">
+                          <div className="h-4 w-8 rounded bg-slate-100 animate-pulse" />
+                          <div className="h-3 w-10 rounded bg-slate-100 animate-pulse" />
+                        </div>
+                      ))}
+                    </div>
+                    {/* Progress */}
+                    <div className="px-4 space-y-1.5">
+                      <div className="h-3 w-20 rounded bg-slate-100 animate-pulse" />
+                      <div className="h-1.5 w-full rounded-full bg-slate-100 animate-pulse" />
+                    </div>
+                    {/* Button */}
+                    <div className="px-4">
+                      <div className="h-9 w-full rounded-[.625rem] bg-slate-100 animate-pulse mt-3" />
+                    </div>
+                  </div>
                 ))}
               </div>
             ) : filtered.length === 0 ? (

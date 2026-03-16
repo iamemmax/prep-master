@@ -21,7 +21,7 @@ const LEGAL = [
 export default function Footer() {
   return (
     <footer className="bg-[#1F2327] font-inter text-white">
-      <div className="mx-auto max-w-7xl px-4 py-[69px] sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-375 px-4 py-17.25 sm:px-6 lg:px-8">
         <div className="flex flex-col gap-10 lg:flex-row lg:items-start lg:justify-between">
           <MotionReveal className="max-w-sm">
             <Link href="/" className="flex items-center gap-2.5">

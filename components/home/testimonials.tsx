@@ -79,7 +79,7 @@ export default function Testimonials() {
           </p>
         </MotionReveal>
 
-        <div className="marquee relative mt-12">
+        <div className="marquee relative max-w-375 mx-auto mt-12">
           <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-16 bg-linear-to-r from-white to-transparent" />
           <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-16 bg-linear-to-l from-white to-transparent" />
 

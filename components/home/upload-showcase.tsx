@@ -68,8 +68,8 @@ function Bullet({
         <span className="h-1.5 w-1.5 rounded-full bg-primary" />
       </div>
       <div>
-        <div className="text-sm font-semibold text-white">{title}</div>
-        <div className="mt-0.5 text-xs leading-relaxed text-white/65 sm:text-sm">
+        <div className="text-sm font-inter font-semibold text-white">{title}</div>
+        <div className="mt-0.5 font-inter text-xs leading-relaxed text-white/65 sm:text-sm">
           {description}
         </div>
       </div>
@@ -116,9 +116,9 @@ export default function UploadShowcase() {
           "bg-[radial-gradient(900px_550px_at_85%_30%,rgba(236,178,46,0.18),transparent_60%)] ellipse-bottom"
         )}
       />
-      <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8 lg:py-24 relative ">
-        <div className="absolute w-[255px] h-[255px] bg-[#ECB22E] -left-30 top-[18px] opacity-10 blur-2xl rounded-full"></div>
-        <div className="absolute w-[455px] h-[455px] bg-[#ECB22E] -right-30 bottom-0 opacity-10 blur-2xl rounded-full"></div>
+      <div className="mx-auto max-w-375 px-4 py-16 sm:px-6 lg:px-8 lg:py-24 relative ">
+        <div className="absolute w-63.75 h-63.75 bg-[#ECB22E] -left-30 top-4.5 opacity-10 blur-2xl rounded-full"></div>
+        <div className="absolute w-113.75 h-113.75 bg-[#ECB22E] -right-30 bottom-0 opacity-10 blur-2xl rounded-full"></div>
         <div className="grid items-center gap-12 lg:grid-cols-2 lg:gap-16">
           {/* Left */}
           <MotionReveal className="font-inter">
@@ -140,7 +140,7 @@ export default function UploadShowcase() {
               content and generates relevant, exam-style questions in seconds.
             </p>
 
-            <div className="mt-8 space-y-5">
+            <div className="mt-8 space-y-7">
               <Bullet
                 title="Multiple Format Support"
                 description="Upload PDF, Word, PowerPoint, images, and more"
@@ -158,7 +158,7 @@ export default function UploadShowcase() {
             <div className="mt-10">
               <Button
                 asChild
-                className="h-14 rounded-[14px] px-6 min-w-[230px] font-semibold text-foreground "
+                className="h-14 rounded-[14px] px-6 min-w-57.5 font-semibold text-foreground "
               >
                 <Link href="/upload">
                   Try AI Upload Now <ArrowRight className="h-4 w-4" />

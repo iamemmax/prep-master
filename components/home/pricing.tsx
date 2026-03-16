@@ -56,14 +56,14 @@ export default function Pricing() {
             Simple Pricing
           </Badge>
           <h2 className="mt-5 text-balance text-3xl font-extrabold tracking-tight text-[#101828] sm:text-[48px]">
-            Start free. Upgrade when you're ready.
+            Start free. Upgrade when you&apos;re ready.
           </h2>
           <p className="mx-auto mt-3 max-w-2xl text-pretty text-sm leading-relaxed text-[#667085] sm:mt-4 sm:text-base">
             No lock-ins · Cancel anytime
           </p>
         </MotionReveal>
 
-        <div className="mx-auto mt-12 grid max-w-4xl grid-cols-1 gap-6 lg:mt-14 lg:grid-cols-2">
+        <div className="mx-auto mt-12 grid max-w-375 grid-cols-1 gap-6 lg:mt-14 lg:grid-cols-2">
           {PLANS.map((p, idx) => (
             <MotionReveal
               key={p.name}

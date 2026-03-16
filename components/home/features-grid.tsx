@@ -4,7 +4,7 @@ import MotionReveal from "@/components/shared/motion-reveal"
 type Feature = {
   title: string
   description: string
-  icon: React.ComponentType<{ className?: string, strokeWidth?: number }>
+  icon: React.ComponentType<{ className?: string; strokeWidth?: number }>
 }
 
 const FEATURES: Feature[] = [
@@ -37,23 +37,23 @@ const FEATURES: Feature[] = [
 export default function FeaturesGrid() {
   return (
     <section id="features" className="bg-white font-inter">
-      <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8 lg:py-24">
+      <div className="mx-auto max-w-375 px-4 py-16 sm:px-6 lg:px-8 lg:py-24">
         <MotionReveal className="mx-auto max-w-3xl text-center">
           <div className="inline-flex items-center gap-2 rounded-full border border-border bg-muted/40 px-4 py-2 text-xs font-semibold text-muted-foreground">
             <Sparkles className="h-4 w-4" strokeWidth={1.5} />
             Powerful Features
           </div>
 
-          <h2 className="mt-5 text-balance text-3xl font-extrabold tracking-tight text-[#292D32] sm:text-4xl">
+          <h2 className="mt-5 text-balance text-3xl font-extrabold tracking-tight text-[#292D32] sm:text-4xl lg:text-5xl">
             Everything You Need to Succeed
           </h2>
-          <p className="mx-auto mt-3 max-w-2xl text-pretty text-sm leading-relaxed text-muted-foreground sm:mt-4 sm:text-base">
+          <p className="mx-auto mt-3 max-w-xl text-pretty text-sm leading-relaxed text-muted-foreground sm:mt-4 sm:text-base">
             Comprehensive tools powered by cutting-edge AI technology designed to help you master
             any exam
           </p>
         </MotionReveal>
 
-        <div className="w-full md:max-w-4xl mx-auto mt-12 grid grid-cols-1 gap-6 md:grid-cols-[repeat(2,minmax(300px,1fr))] lg:mt-14">
+        <div className="mx-auto mt-12 grid grid-cols-1 gap-6 md:grid-cols-2 lg:mt-14">
           {FEATURES.map((f, idx) => {
             const Icon = f.icon
             return (
@@ -61,16 +61,16 @@ export default function FeaturesGrid() {
                 key={f.title}
                 delay={idx * 0.06}
                 y={14}
-                className="group rounded-2xl border border-[#E2E8F0] bg-white p-6 transition-shadow hover:shadow-sm"
+                className="group rounded-2xl border border-[#E2E8F0] bg-white p-8 transition-shadow hover:shadow-md"
               >
-                <div className="grid h-12 w-12 place-items-center rounded-xl bg-[#F1F5F9] text-[#314158] ring-1 ring-border">
+                <div className="grid h-12 w-12 place-items-center rounded-xl bg-[#F1F5F9] ring-1 ring-border">
                   <Icon className="h-5 w-5 text-[#314158]" strokeWidth={1.5} />
                 </div>
 
-                <h3 className="mt-4 text-base font-semibold text-[#292D32] sm:text-lg">
+                <h3 className="mt-5 text-base font-semibold text-[#292D32] sm:text-lg">
                   {f.title}
                 </h3>
-                <p className="mt-2 text-sm leading-relaxed text-[#45556C]">
+                <p className="mt-2 text-sm md:text-base leading-relaxed max-w-xl text-[#45556C]">
                   {f.description}
                 </p>
               </MotionReveal>

@@ -42,7 +42,7 @@ const STEPS: Step[] = [
 export default function HowItWorks() {
   return (
     <section id="how-it-works" className="bg-[#F8FAFC] font-inter">
-      <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8 lg:py-24">
+      <div className="mx-auto max-w-375 px-4 py-16 sm:px-6 lg:px-8 lg:py-24">
         <MotionReveal className="mx-auto max-w-5xl text-center">
           <h2 className="text-balance text-3xl font-extrabold tracking-tight text-[#101828] sm:text-[48px]">
             Your Path to Success
@@ -52,9 +52,9 @@ export default function HowItWorks() {
           </p>
         </MotionReveal>
 
-        <div className="mx-auto mt-10 grid max-w-7xl grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="mx-auto mt-10 grid max-w-375 grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
           {STEPS.map((s, idx) => {
-            const Icon = s.icon
+            // const Icon = s.icon
             return (
               <MotionReveal key={s.step} delay={idx * 0.05} className="relative">
                 {idx < STEPS.length - 1 ? (
@@ -71,9 +71,9 @@ export default function HowItWorks() {
                     <span className="text-2xl leading-none font-bold">{s.step}</span>
                   </div>
 
-                  <div className="mt-5 grid h-12 w-12 place-items-center rounded-2xl border border-[#E5E7DA] bg-[#F1F0E6] text-[#E9950A]">
+                  {/* <div className="mt-5 grid h-12 w-12 place-items-center rounded-2xl border border-[#E5E7DA] bg-[#F1F0E6] text-[#E9950A]">
                     <Icon className="h-5 w-5" strokeWidth={1.7} />
-                  </div>
+                  </div> */}
 
                   <div className="mt-6 text-[20px] leading-none font-semibold tracking-tight text-[#292D32]">
                     {s.title}

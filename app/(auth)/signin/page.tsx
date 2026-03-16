@@ -69,11 +69,13 @@ export default function SigninPage() {
   }
 
   return (
-    <div className="bg-white  h-[90vh] max-md:p-5 flex flex-col justify-center">
-      <AuthStepHeader backHref="/" backLabel="Back to home" showProgress={false} />
+ <div className="bg-white h-[90vh] max-md:p-5 flex flex-col">
+  <AuthStepHeader backHref="/" backLabel="Back to home" showProgress={false} />
 
-        <div className=" flex-1 h-full ">
-      <section className="rounded-2xl border border-borderp-6 sm:p-8 mt-5">
+  <div className="flex flex-col flex-1">
+    <div className=" flex mt-10 md:mt-18.75 justify-center">
+      <section className="rounded-2xl border border-border p-4 sm:p-8 w-full">
+        
         <h1 className="text-[24px] font-semibold text-[#0F172B]">Welcome back.</h1>
         <p className="mt-1 text-sm text-[#64748B]">Your progress is waiting. Let&apos;s pick up where you left off.</p>
 
@@ -149,7 +151,7 @@ export default function SigninPage() {
           </Link>
         </p>
 
-        <p className="mt-8 text-center text-sm text-[#94A3B8]">
+        <p className="text-center mt-12 md:mt-24.5 text-sm text-[#94A3B8]">
           Don&apos;t have an account?{" "}
           <Link href="/signup" className="font-medium text-primary">
             Register
@@ -158,13 +160,15 @@ export default function SigninPage() {
       </section>
 
         </div>
+     <p className="mt-auto text-center text-sm text-[#94A3B8] pb-4">
+  Having an issue?{" "}
+  <Link href="/support" className="font-medium text-primary underline underline-offset-2">
+    speak with support
+  </Link>
+</p>
 
-      <p className="text-center text-sm text-[#94A3B8]">
-        Having an issue?{" "}
-        <Link href="/support" className="font-medium text-primary underline underline-offset-2">
-          speak with support
-        </Link>
-      </p>
+</div>
+
 
 
        <ErrorModal
