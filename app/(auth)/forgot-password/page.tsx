@@ -44,20 +44,20 @@ export default function ForgotPasswordPage() {
   const {mutate:handleForget, isPending}=useForgetPassword()
 
   function onSubmit(data: ForgotPasswordData) {
-    console.log(data)
+    // console.log(data)
     handleForget(data,{
       onSuccess: (data) => {
         // console.log(data);
-        router.push(`/forgot-password/check-email?email=${data.email}`)
+        router.push(`/forgot-password/check-email?email=${data?.data?.email}`)
       },
                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
                  onError: (error:any) => {
-                    const errorMessage = error?.response?.data?.errors?.message
-                             || error?.response?.data?.message
-                             || formatAxiosErrorMessage(error as AxiosError)
-                             || 'An error occurred. Please try again.';
-                         openErrorModalWithMessage(String(errorMessage));
-                       openErrorModalWithMessage(String(errorMessage));
+                   const errorMessage = 
+    error?.response?.data?.data?.non_field_errors?.[0]
+    || error?.response?.data?.message
+    || formatAxiosErrorMessage(error as AxiosError)
+    || 'An error occurred. Please try again.';
+  openErrorModalWithMessage(String(errorMessage));
                  },
                })
                console.log('Form submitted:', data)
@@ -70,7 +70,10 @@ export default function ForgotPasswordPage() {
 
   return (
     <>
+    <div className="max-2xl:px-6">
+
       <AuthStepHeader backHref="/signin" backLabel="Back to login" showProgress={false} />
+    </div>
 
       <section className="rounded-2xl border border-border bg-white p-6 sm:p-8">
         <div className="grid h-14 w-14 place-items-center rounded-full border border-primary/35 bg-primary/5 text-primary">

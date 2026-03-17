@@ -11,7 +11,10 @@ export default function ForgotPasswordCheckEmailPage() {
   const email = search.get("email")
   return (
     <>
+    <div className="max-2xl:px-6">
+
       <AuthStepHeader backHref="/signin" backLabel="Back to login" showProgress={false} />
+    </div>
 
       <section className="rounded-2xl border border-border bg-white p-6 sm:p-8">
         <div className="grid h-14 w-14 place-items-center rounded-full bg-emerald-600/15 text-emerald-600 ring-1 ring-emerald-600/30">

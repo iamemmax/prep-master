@@ -47,7 +47,7 @@ export default function Hero() {
         />
 
         {/* ── Hero content ── */}
-        <div className="relative z-10 font-inter mx-auto max-w-375 px-4 pb-0 pt-5 sm:px-6  lg:px-8 lg:pt-10">
+        <div className="relative z-10 font-inter mx-auto max-w-375 px-3 pb-0 pt-5 sm:px-6  lg:px-8 lg:pt-10">
           <div className="mx-auto max-w-4xl text-center">
 
             <MotionReveal>
@@ -58,7 +58,7 @@ export default function Hero() {
             </MotionReveal>
 
             <MotionReveal delay={0.08}>
-              <h1 className="mt-7 font-bold leading-[1.15] tracking-tight text-[#1a1f2e] text-[32px] sm:text-[42px] lg:text-[56px]">
+              <h1 className="mt-7 font-bold  sm:leading-[1.15] tracking-tight text-[#1a1f2e] text-[23px] sm:text-[42px] lg:text-[56px]">
                 Ace any exams with{" "}
                 <strong className="text-primary underline decoration-[3px] underline-offset-[6px]">
                   AI-powered
@@ -69,27 +69,39 @@ export default function Hero() {
             </MotionReveal>
 
             <MotionReveal delay={0.14}>
-              <p className="mx-auto mt-2 max-w-2xl text-base leading-relaxed text-[#64748b] sm:text-lg">
+              <p className="mx-auto mt-2 max-w-2xl text-sm leading-relaxed text-[#64748b] sm:text-lg">
                 From WAEC to SAT, professional certifications to school exams. Upload your study
                 materials and get instant AI-generated practice questions.
               </p>
             </MotionReveal>
 
-            <MotionReveal delay={0.2}>
-              <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row sm:gap-4">
-                <Button asChild className="h-12 rounded-full min-w-52.5 font-semibold text-[#1a1f2e] btn-glow shadow-md">
-                  <Link href="/signup">
-                    Start Practicing Free <ArrowRight className="h-4 w-4" />
-                  </Link>
-                </Button>
-                <Button asChild variant="outline" className="h-12 rounded-full bg-white border-[#CAD5E2] min-w-52.5 font-semibold text-[#1a1f2e]">
-                  <Link href="/upload">
-                    <Upload className="h-4 w-4" />
-                    Upload Materials
-                  </Link>
-                </Button>
-              </div>
-            </MotionReveal>
+        <MotionReveal delay={0.2}>
+  <div className="mt-8 flex items-center max-sm:px-3 justify-center gap-2 sm:gap-4">
+    
+    <Button
+      asChild
+      size={"lg"}
+      className="h-12 sm:px-6! px-5! rounded-full font-semibold max-sm:text-xs text-[#1a1f2e] btn-glow shadow-md flex items-center gap-2"
+    >
+      <Link href="/signup">
+        Start Practicing Free
+        <ArrowRight className="h-4 w-4" />
+      </Link>
+    </Button>
+
+    <Button
+      asChild
+      variant="outline"
+      className="h-12 sm:px-6! px-5! rounded-full bg-white border-[#CAD5E2] max-sm:text-xs font-semibold text-[#1a1f2e] flex items-center gap-2"
+    >
+      <Link href="/upload">
+        <Upload className="h-4 w-4" />
+        Upload Materials
+      </Link>
+    </Button>
+
+  </div>
+</MotionReveal>
 
             <MotionReveal delay={0.26}>
               <div className="mt-6 flex flex-wrap items-center justify-center gap-x-5 gap-y-2">
@@ -119,9 +131,9 @@ export default function Hero() {
         </div>
 
         {/* ── Stats Strip — flush inside same section, no gap ── */}
-        <div className="relative z-10 bg-[#292D32] -mt-14">
-          <div className="mx-auto max-w-375 borde ">
-            <div className="flex justify-between items-center flex-wrap gap-3 ">
+        <div className="relative z-10 bg-[#292D32] -mt-12">
+          <div className="mx-auto max-w-375  ">
+            <div className="flex sm:justify-between items-center flex-wrap gap-3 ">
               {STATS.map((s, idx) => {
                 const Icon = s.icon
                 return (
@@ -129,13 +141,13 @@ export default function Hero() {
                     key={s.label}
                     delay={idx * 0.06}
                     y={10}
-                    className="flex items-center gap-3.5 px-6 py-7"
+                    className="flex items-center  gap-3.5 px-4 sm:px-6 py-7"
                   >
-                    <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-primary/15 text-primary ring-1 ring-primary/25">
-                      <Icon className="h-5 w-5" />
+                    <div className="grid h-8 w-8 sm:h-10 sm:w-10 shrink-0 place-items-center rounded-xl bg-primary/15 text-primary ring-1 ring-primary/25">
+                      <Icon className="sm:h-5 h-4 sm:w-5 w-4" />
                     </div>
                     <div className="min-w-0">
-                      <div className="text-2xl font-bold tracking-tight text-white sm:text-[32px]">
+                      <div className="sm:text-2xl  text-xlfont-bold tracking-tight text-white sm:text-[32px]">
                         {s.value}
                       </div>
                       <div className="mt-0.5 text-[11px] font-medium text-[#90A1B9] sm:text-xs">

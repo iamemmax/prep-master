@@ -2,6 +2,9 @@ export interface examsListTypes {
   status: string;
   data: availableData[];
   message: string;
+  next: string | null;
+  previous: string | null;
+  count: number;
 }
 
 

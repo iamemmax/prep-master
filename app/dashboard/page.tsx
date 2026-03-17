@@ -25,7 +25,7 @@ function StatCard({ icon, label, value, accent }: {
 
 function DailyTipCard({ tip }: { tip: string }) {
   return (
-    <div className="bg-gradient-to-r max-sm:col-span-2 from-[#EFF6FF] to-[#EEF2FF] border border-[#BEDBFF] rounded-[14px] px-4 py-4 flex items-start gap-3 shadow-sm">
+    <div className="bg-linear-to-r max-sm:col-span-2 from-[#EFF6FF] to-[#EEF2FF] border border-[#BEDBFF] rounded-[14px] px-4 py-4 flex items-start gap-3 shadow-sm">
       <div className="w-7 h-7 rounded-lg bg-[#2B5080] flex items-center justify-center shrink-0 mt-0.5">
         <span className="text-white text-xs">💡</span>
       </div>
@@ -40,7 +40,10 @@ function DailyTipCard({ tip }: { tip: string }) {
 export default function Dashboard() {
   const { data: response } = useGetDashboardOverview();
   const overview = response?.data?.overview;
-  const recommendedExams = response?.data?.recommended_exams ?? [];
+  // const recommendedExams = response?.data?.recommended_exams ?? [];
+  const recommendedExams = Array.isArray(response?.data?.recommended_exams)
+  ? response.data.recommended_exams
+  : [];
   const dailyTip = response?.data?.daily_tip ?? DAILY_TIP;
 
   const STATS = [
@@ -120,7 +123,7 @@ export default function Dashboard() {
               {recommendedExams.length === 0 ? (
                 <p className="text-xs text-slate-400 py-4 text-center">No recommendations yet</p>
               ) : (
-                recommendedExams.map((exam) => (
+                recommendedExams?.map((exam) => (
                   <div key={exam.reference}
                     className="flex items-center justify-between py-3 border-b border-[#E2E8F0] last:border-0 cursor-pointer hover:bg-slate-50 px-1 -mx-1 transition-colors">
                     <div className="flex items-center gap-3">

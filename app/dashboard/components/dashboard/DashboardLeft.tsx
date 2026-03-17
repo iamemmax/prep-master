@@ -93,11 +93,15 @@ interface prop {
 }
 
 const DashboardLeft = ({ overview }: prop) => {
-  const { data, isLoading } = useGetPracticeHistory()
   const [showAllModal, setShowAllModal] = useState(false)
+  const [page, setPage] = useState(1)
+  const { data, isLoading } = useGetPracticeHistory(page)
 
   const allTests    = data?.data ?? []
   const recentTests = allTests.slice(0, 5)
+  const totalCount  = data?.count ?? 0
+  const hasNext     = !!data?.next
+  const hasPrev     = !!data?.previous
 
   return (
     <div className="lg:col-span-2 flex flex-col gap-6">
@@ -173,18 +177,18 @@ const DashboardLeft = ({ overview }: prop) => {
       <div className="bg-white rounded-2xl border border-[#E2E8F0] max-md:p-4 p-6">
         <div className="flex items-center justify-between mb-5">
           <h2 className="font-semibold font-inter text-[#0F172B] text-base">Recent Practice Test</h2>
-          {allTests.length > 5 && (
+          {totalCount > 5 && (
             <button
               onClick={() => setShowAllModal(true)}
               className="text-sm font-inter cursor-pointer text-[#155DFC] hover:text-indigo-800 transition-colors flex items-center gap-1"
             >
-              View All ({allTests.length})
+              View All ({totalCount})
             </button>
           )}
         </div>
 
         {isLoading ? (
-          <div>{Array.from({ length: 5 }).map((_, i) => <SkeletonCard key={i} />)}</div>
+          <div>{Array.from({ length: 3 }).map((_, i) => <SkeletonCard key={i} />)}</div>
         ) : recentTests.length === 0 ? (
           <div className="text-center py-10">
             <p className="text-sm text-slate-400">No practice tests yet</p>
@@ -203,10 +207,10 @@ const DashboardLeft = ({ overview }: prop) => {
             <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 shrink-0">
               <div>
                 <h2 className="text-base font-bold text-slate-800">All Practice Tests</h2>
-                <p className="text-xs text-slate-400 mt-0.5">{allTests.length} sessions total</p>
+                <p className="text-xs text-slate-400 mt-0.5">{totalCount} sessions total</p>
               </div>
               <button
-                onClick={() => setShowAllModal(false)}
+                onClick={() => { setShowAllModal(false); setPage(1); }}
                 className="text-slate-400 hover:text-slate-600 p-1.5 rounded-lg hover:bg-slate-100 transition-colors"
               >
                 <X size={18} />
@@ -215,7 +219,29 @@ const DashboardLeft = ({ overview }: prop) => {
 
             {/* modal body */}
             <div className="overflow-y-auto flex-1 px-6 py-4">
-              {allTests.map(test => <TestCard key={`modal-${test.id}-${test.updated_at}`} test={test} />)}
+              {isLoading
+                ? Array.from({ length: 5 }).map((_, i) => <SkeletonCard key={i} />)
+                : allTests.map(test => <TestCard key={`modal-${test.id}-${test.updated_at}`} test={test} />)
+              }
+            </div>
+
+            {/* pagination footer */}
+            <div className="flex items-center justify-between px-6 py-3 border-t border-slate-100 shrink-0">
+              <button
+                onClick={() => setPage(p => p - 1)}
+                disabled={!hasPrev}
+                className="text-xs font-semibold px-4 py-2 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+              >
+                ← Previous
+              </button>
+              <span className="text-xs text-slate-400">Page {page}</span>
+              <button
+                onClick={() => setPage(p => p + 1)}
+                disabled={!hasNext}
+                className="text-xs font-semibold px-4 py-2 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+              >
+                Next →
+              </button>
             </div>
 
           </div>
