@@ -47,7 +47,7 @@ export default function Hero() {
         />
 
         {/* ── Hero content ── */}
-        <div className="relative z-10 font-inter mx-auto max-w-375 px-3 pb-0 pt-5 sm:px-6  lg:px-8 lg:pt-10">
+        <div className="relative z-10 font-inter mx-auto max-w-375 px-3 pb-0 pt-5 sm:px-6  lg:px-8 lg:pt-16">
           <div className="mx-auto max-w-4xl text-center">
 
             <MotionReveal>
@@ -115,23 +115,32 @@ export default function Hero() {
             </MotionReveal>
           </div>
 
-          {/* Hero image — overlaps into stats strip */}
-          <MotionReveal delay={0.32} y={24} className="mx-auto mt-5 max-w-375">
-  <div className="w-full relative h-96">
+<MotionReveal delay={0.32} y={24} className="mx-auto mt-5 grid grid-cols-2 max-w-6xl gap-4">
+  <div className="w-full overflow-hidden rounded-2xl">
     <Image
-      src="/assets/hero-mask.png"
-      alt="PrepMaster dashboard preview"
-      fill
-      priority
-      quality={100}
-      className="object-cover drop-shadow-2xl"
+      src="/assets/cards/cardImage1.png"
+      alt="PrepMaster dashboard preview 1"
+      width={0}
+      height={0}
+      sizes="(max-width: 768px) 100vw, 50vw"
+      className="w-full h-auto"
+    />
+  </div>
+  <div className="w-full overflow-hidden rounded-2xl">
+    <Image
+      src="/assets/cards/cardImage2.png"
+      alt="PrepMaster dashboard preview 2"
+      width={0}
+      height={0}
+      sizes="(max-width: 768px) 100vw, 50vw"
+      className="w-full h-auto"
     />
   </div>
 </MotionReveal>
         </div>
 
         {/* ── Stats Strip — flush inside same section, no gap ── */}
-        <div className="relative z-10 bg-[#292D32] -mt-12">
+        <div className="relative z-10 bg-[#292D32] -mt-10">
           <div className="mx-auto max-w-375  ">
             <div className="flex sm:justify-between items-center flex-wrap gap-3 ">
               {STATS.map((s, idx) => {
