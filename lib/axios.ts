@@ -14,14 +14,14 @@ export const setAdminGlobalLogoutHandler = (handler: () => void) => {
 
 export const adminAxios = Axios.create({
   baseURL: ADMIN_API_BASE_URL,
-  timeout: 15000, // 15 second timeout
+  // timeout: 15000, // 15 second timeout
   headers: {
     'Content-Type': 'application/json',
   },
 });
 export const tokenlessAxios = Axios.create({
   baseURL: ADMIN_API_BASE_URL,
-  timeout: 15000, // 15 second timeout
+  // timeout: 15000, // 15 second timeout
   headers: {
     'Content-Type': 'application/json',
   },
