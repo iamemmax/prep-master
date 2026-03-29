@@ -6,9 +6,11 @@ import Unlockicon from '@/utils/icons/UnlockIcon';
 import { getScoreAccent } from '@/utils/color/getPercentageColor';
 import PrepLogo from '@/utils/icons/logos/PrepLogo';
 import { useGetPracticeHistory } from '../../util/apis/dashboard/practiceHistory';
-import { dashboardOverviewData } from '../../util/types/dashboard/dashbaordOverview';
+// import { dashboardOverviewData } from '../../util/types/dashboard/dashbaordOverview';
 import { practiceHistoryData } from '../../util/types/dashboard/practiceHistoryTypes';
 import { useRouter } from 'next/navigation';
+import { dashboardOverviewData } from '../../util/types/dashboard/dashbaordOverview';
+import { useAuth } from '@/context/authentication';
 
 function ScoreBar({ score }: { score: number }) {
   const accent = getScoreAccent(score);
@@ -96,7 +98,7 @@ const DashboardLeft = ({ overview }: prop) => {
   const [showAllModal, setShowAllModal] = useState(false)
   const [page, setPage] = useState(1)
   const { data, isLoading } = useGetPracticeHistory(page)
-
+const {authState:{user}}=useAuth()
   const allTests    = data?.data ?? []
   const recentTests = allTests.slice(0, 5)
   const totalCount  = data?.count ?? 0
@@ -131,16 +133,16 @@ const DashboardLeft = ({ overview }: prop) => {
               </li>
             ))}
           </ul>
-          <button className="px-5 py-2 rounded-[.5275rem] bg-gradient-to-r from-[#FE9A00] to-[#FF6900] text-white text-xs font-bold hover:shadow-md transition-shadow">
+          <button className="px-5 py-2 rounded-[.5275rem] bg-linear-to-r from-[#FE9A00] to-[#FF6900] text-white text-xs font-bold hover:shadow-md transition-shadow">
             Upgrade Now
           </button>
         </div>
 
         {/* Countdown card */}
-        <div className="bg-gradient-to-br from-indigo-500 to-violet-600 rounded-2xl p-5 text-white" style={{ paddingTop: "34px" }}>
+        <div className="bg-linear-to-br from-indigo-500 to-violet-600 rounded-2xl p-5 text-white" style={{ paddingTop: "34px" }}>
           <div className="flex items-center gap-2 mb-6">
             <Calendar size={16} className="text-indigo-200" />
-            <p className="text-base font-inter font-semibold text-white">SAT Exam Countdown</p>
+            <p className="text-base font-inter font-semibold text-white">{user?.exam_config?.preparing_for_exam} Exam Countdown</p>
           </div>
           <div className="flex items-center gap-6">
             <div>

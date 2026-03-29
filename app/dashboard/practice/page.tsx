@@ -217,9 +217,9 @@ export default function PracticeExamsPage() {
                     iconPosition="left"
                   />
                 </div>
-                <button className="hidden sm:block bg-[#4E49F6] hover:bg-indigo-700 text-white font-medium text-sm px-5 py-3 cursor-pointer rounded-[10px] transition-all shadow-sm hover:shadow-md whitespace-nowrap shrink-0">
+                {/* <button className="hidden sm:block bg-[#4E49F6] hover:bg-indigo-700 text-white font-medium text-sm px-5 py-3 cursor-pointer rounded-[10px] transition-all shadow-sm hover:shadow-md whitespace-nowrap shrink-0">
                   Start an exam
-                </button>
+                </button> */}
               </div>
             </div>
 

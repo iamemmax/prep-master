@@ -32,7 +32,7 @@ export type SessionFormData = z.output<typeof sessionSchema>;
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const DIFFICULTIES = [
-  { label: "Mixed",  value: "mixed"  },
+  // { label: "Mixed",  value: "mixed"  },
   { label: "Easy",   value: "easy"   },
   { label: "Medium", value: "medium" },
   { label: "Hard",   value: "hard"   },
@@ -80,7 +80,7 @@ const {
     exam_type_id:                  open?.id ?? 1,
     number_of_questions:           30,
     session_mode:                  "timed",
-    difficulty_level:              "mixed",
+    difficulty_level:              "easy",
     time_limit_minutes:            45,
     subjects_selected:             [],
     topics_selected:               [],
@@ -92,7 +92,7 @@ const {mutate:handleStart,isPending} = useStartPracticeExam()
 const onSubmit = (data: z.output<typeof sessionSchema>) => {
   handleStart(data,{
     onSuccess:(res)=>{
-       router.push(`/dashboard/practice/start-practice/${res.data.id}`)
+       router.push(`/dashboard/practice/start-practice/${res?.data?.session.id}`)
     },
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 onError: (error: any) => {

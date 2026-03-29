@@ -29,6 +29,8 @@ const ExamCard = ({ exam, isPremiumLocked,onStart }: ExamCardProps) => {
         router.push(`/dashboard/practice/start-practice/${exam.id}`)
       }
     }
+    console.log(exam);
+    
   return (
     <div className={`bg-white rounded-[.875rem] cursor-pointer border py-4 flex flex-col gap-3 transition-all duration-200 hover:shadow-md border-[#E2E8F0]`}>
 

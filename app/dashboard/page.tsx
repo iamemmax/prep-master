@@ -40,10 +40,11 @@ function DailyTipCard({ tip }: { tip: string }) {
 export default function Dashboard() {
   const { data: response } = useGetDashboardOverview();
   const overview = response?.data?.overview;
-  // const recommendedExams = response?.data?.recommended_exams ?? [];
-  const recommendedExams = Array.isArray(response?.data?.recommended_exams)
-  ? response.data.recommended_exams
-  : [];
+  // const recommendedExams = Array.isArray(response?.data?.recommended_exams)
+  // // const recommendedExams = response?.data?.recommended_exams ?? [];
+  // ? response.data.recommended_exams
+  // : [];
+  const recommendedExams = response?.data?.recommended_exams?.data ?? [];
   const dailyTip = response?.data?.daily_tip ?? DAILY_TIP;
 
   const STATS = [
@@ -91,12 +92,12 @@ export default function Dashboard() {
             </p>
           </div>
           <div className="flex gap-3">
-            <button className="px-4 lg:px-6 py-2.5 rounded-[.625rem] border border-[#BEDBFF] bg-[#EFF6FF] text-sm font-semibold text-[#4E49F6] hover:scale-95 cursor-pointer transition-colors">
+            {/* <button className="px-4 lg:px-6 py-2.5 rounded-[.625rem] border border-[#BEDBFF] bg-[#EFF6FF] text-sm font-semibold text-[#4E49F6] hover:scale-95 cursor-pointer transition-colors">
               View Progress
             </button>
             <button className="px-4 lg:px-6 py-2.5 rounded-[.625rem] bg-[#4E49F6] text-white text-sm font-bold hover:scale-95 cursor-pointer transition-all">
               Start Practice
-            </button>
+            </button> */}
           </div>
         </div>
 

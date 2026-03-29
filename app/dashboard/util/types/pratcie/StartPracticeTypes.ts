@@ -5,6 +5,7 @@ export interface startPracticeType {
 }
 
 export interface SessionWithQuestions extends Session {
+  session: Session;
   questions: Question[];
 }
 
@@ -56,3 +57,5 @@ export interface Session {
   user: number;
   exam_type: number | string;
 }
+
+
