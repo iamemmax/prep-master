@@ -7,8 +7,8 @@ import FreeAccountBanner from "../components/practices/FreeAccountBanner";
 import DebounceInput from "../util/shared/DebounceInput";
 import UnlockSectionBanner from "../components/practices/UnlockSection";
 import SessionSetupModal from "../components/practices/StartSessionModal";
-import { X, SlidersHorizontal } from "lucide-react";
-import { useGetPracticeExamList } from "../util/apis/practice/examsList";
+import { X, SlidersHorizontal, ChevronLeft, ChevronRight } from "lucide-react";
+import { PAGE_SIZE, useGetPracticeExamList } from "../util/apis/practice/examsList";
 import { useGetAvailableExamsDetails } from "../util/apis/practice/availableExamsDetails";
 import { availableData } from "../util/types/dashboard/examlisttypes";
 
@@ -36,10 +36,7 @@ export interface Filters {
   difficulty: string;
 }
 
-interface ChipProps {
-  label: string;
-  onRemove: () => void;
-}
+interface ChipProps { label: string; onRemove: () => void; }
 
 export function getBadgeClass(badge: string | null): string {
   switch (badge) {
@@ -76,7 +73,7 @@ function mapToExam(d: availableData): Exam {
     access: d.is_premium ? "premium" : "free",
     difficulty_level: diff,
     started: (d.previous_score_percentage ?? 0) > 0,
-    sessionId: undefined,
+    sessionId: Number(d?.active_session_id),
   };
 }
 
@@ -112,15 +109,146 @@ function Chip({ label, onRemove }: ChipProps) {
   );
 }
 
-export default function PracticeExamsPage() {
-  const [sessionExam, setSessionExam] = useState<Exam | null>(null);
-  const [filters, setFilters] = useState<Filters>({ category: "All Exams", access: "All", difficulty: "Any Level" });
-  const [search, setSearch] = useState<string>("");
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [selectedExamRef, setSelectedExamRef] = useState<string | null>(null);
+// ─── Pagination ───────────────────────────────────────────────────────────────
+interface PaginationProps {
+  page:       number;
+  totalCount: number;
+  pageSize:   number;
+  hasNext:    boolean;
+  hasPrev:    boolean;
+  onChange:   (page: number) => void;
+  isLoading:  boolean;
+}
 
-  const { data: listResponse, isLoading: listLoading } = useGetPracticeExamList();
-  const { data: detailResponse, isLoading: detailLoading } = useGetAvailableExamsDetails(selectedExamRef ?? "");
+function Pagination({ page, totalCount, pageSize, hasNext, hasPrev, onChange, isLoading }: PaginationProps) {
+  const totalPages = Math.ceil(totalCount / pageSize);
+  if (totalPages <= 1 && !hasNext && !hasPrev) return null;
+
+  // Build visible page numbers: always show first, last, current ±1
+  function getPageNumbers(): (number | "…")[] {
+    const pages: (number | "…")[] = [];
+    const delta = 1;
+    const range: number[] = [];
+
+    for (let i = Math.max(2, page - delta); i <= Math.min(totalPages - 1, page + delta); i++) {
+      range.push(i);
+    }
+
+    if (range[0] > 2) pages.push(1, "…");
+    else pages.push(1);
+
+    pages.push(...range);
+
+    if (range[range.length - 1] < totalPages - 1) pages.push("…", totalPages);
+    else pages.push(totalPages);
+
+    return pages;
+  }
+
+  const btnBase = "flex items-center justify-center text-sm font-medium rounded-lg transition-all h-9 min-w-[36px] px-2";
+  const activeBtn = `${btnBase} bg-indigo-600 text-white`;
+  const idleBtn   = `${btnBase} border border-slate-200 text-slate-600 hover:bg-slate-50 hover:border-slate-300`;
+  const disabledBtn = `${btnBase} border border-slate-100 text-slate-300 cursor-not-allowed`;
+
+  const start = (page - 1) * pageSize + 1;
+  const end   = Math.min(page * pageSize, totalCount);
+
+  return (
+    <div className="flex flex-col sm:flex-row items-center justify-between gap-3 mt-8 pt-5 border-t border-slate-100">
+      {/* Count */}
+      <p className="text-xs text-slate-400 shrink-0">
+        Showing <span className="font-medium text-slate-600">{start}–{end}</span> of{" "}
+        <span className="font-medium text-slate-600">{totalCount}</span> exams
+      </p>
+
+      {/* Controls */}
+      <div className="flex items-center gap-1.5">
+        {/* Prev */}
+        <button
+          onClick={() => onChange(page - 1)}
+          disabled={!hasPrev || isLoading}
+          className={`flex items-center gap-1 ${hasPrev && !isLoading ? idleBtn : disabledBtn}`}
+        >
+          <ChevronLeft className="w-4 h-4" /> Prev
+        </button>
+
+        {/* Page numbers */}
+        {getPageNumbers().map((p, i) =>
+          p === "…" ? (
+            <span key={`ellipsis-${i}`} className="w-9 text-center text-slate-400 text-sm select-none">…</span>
+          ) : (
+            <button
+              key={p}
+              onClick={() => onChange(p as number)}
+              disabled={isLoading}
+              className={p === page ? activeBtn : idleBtn}
+            >
+              {p}
+            </button>
+          )
+        )}
+
+        {/* Next */}
+        <button
+          onClick={() => onChange(page + 1)}
+          disabled={!hasNext || isLoading}
+          className={`flex items-center gap-1 ${hasNext && !isLoading ? idleBtn : disabledBtn}`}
+        >
+          Next <ChevronRight className="w-4 h-4" />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ─── Skeleton ─────────────────────────────────────────────────────────────────
+function SkeletonGrid() {
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+      {Array.from({ length: 6 }).map((_, i) => (
+        <div key={i} className="bg-white rounded-[.875rem] border border-[#E2E8F0] py-4 flex flex-col gap-3">
+          <div className="px-4 border-b border-[#EEF0F4] pb-3 space-y-2">
+            <div className="flex items-center justify-between gap-2">
+              <div className="h-4 w-24 rounded bg-slate-100 animate-pulse" />
+              <div className="h-5 w-16 rounded-full bg-slate-100 animate-pulse" />
+            </div>
+            <div className="h-3 w-full rounded bg-slate-100 animate-pulse" />
+            <div className="h-3 w-3/4 rounded bg-slate-100 animate-pulse" />
+          </div>
+          <div className="grid grid-cols-4 border-b border-[#EEF0F4] pb-3 px-4 gap-2">
+            {Array.from({ length: 4 }).map((_, j) => (
+              <div key={j} className="space-y-1.5">
+                <div className="h-4 w-8 rounded bg-slate-100 animate-pulse" />
+                <div className="h-3 w-10 rounded bg-slate-100 animate-pulse" />
+              </div>
+            ))}
+          </div>
+          <div className="px-4 space-y-1.5">
+            <div className="h-3 w-20 rounded bg-slate-100 animate-pulse" />
+            <div className="h-1.5 w-full rounded-full bg-slate-100 animate-pulse" />
+          </div>
+          <div className="px-4">
+            <div className="h-9 w-full rounded-[.625rem] bg-slate-100 animate-pulse mt-3" />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ─── Page ─────────────────────────────────────────────────────────────────────
+// const PAGE_SIZE = 20;
+
+export default function PracticeExamsPage() {
+  const [sessionExam, setSessionExam]   = useState<Exam | null>(null);
+  const [filters, setFilters]           = useState<Filters>({ category: "All Exams", access: "All", difficulty: "Any Level" });
+  const [search, setSearch]             = useState<string>("");
+  const [sidebarOpen, setSidebarOpen]   = useState(false);
+  const [selectedExamRef, setSelectedExamRef] = useState<string | null>(null);
+  const [page, setPage]                 = useState(1);
+
+  const { data: listResponse, isLoading: listLoading, isFetching } = useGetPracticeExamList(page);
+  const { data: detailResponse, isLoading: detailLoading }         = useGetAvailableExamsDetails(selectedExamRef ?? "");
 
   const isLoading = selectedExamRef ? detailLoading : listLoading;
 
@@ -133,7 +261,7 @@ export default function PracticeExamsPage() {
 
   const filtered = useMemo<Exam[]>(() => {
     return apiExams.filter(exam => {
-      if (filters.access === "Free" && exam.access !== "free") return false;
+      if (filters.access === "Free"    && exam.access !== "free")    return false;
       if (filters.access === "Premium" && exam.access !== "premium") return false;
       if (filters.difficulty !== "Any Level" && exam.difficulty_level !== filters.difficulty.toLowerCase()) return false;
       if (search && !exam.name.toLowerCase().includes(search.toLowerCase()) && !exam.description.toLowerCase().includes(search.toLowerCase())) return false;
@@ -141,11 +269,27 @@ export default function PracticeExamsPage() {
     });
   }, [apiExams, filters, search]);
 
-  const clearAll = () => { setFilters({ category: "All Exams", access: "All", difficulty: "Any Level" }); setSearch(""); };
+  function handlePageChange(newPage: number) {
+    setPage(newPage);
+    // Scroll back to top of the exam grid smoothly
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  const clearAll = () => {
+    setFilters({ category: "All Exams", access: "All", difficulty: "Any Level" });
+    setSearch("");
+    setPage(1);
+  };
 
   const hasActiveFilters =
     filters.category !== "All Exams" || filters.access !== "All" ||
     filters.difficulty !== "Any Level" || !!search;
+
+  const totalCount    = listResponse?.count    ?? 0;
+  const hasNext       = !!listResponse?.next;
+  const hasPrev       = !!listResponse?.previous;
+  // Use actual items returned per page — server may ignore the requested page_size
+  const actualPageSize = listResponse?.data?.length || PAGE_SIZE;
 
   return (
     <div className="bg-white font-inter min-h-screen">
@@ -156,7 +300,7 @@ export default function PracticeExamsPage() {
 
         <div className="flex gap-6 items-start">
 
-          {/* ── Desktop Sidebar ── */}
+          {/* Desktop Sidebar */}
           <div className="hidden lg:block self-start sticky top-6 shrink-0">
             <div className="max-h-[calc(100vh-3rem)] overflow-y-auto">
               <FilterSidebar
@@ -168,7 +312,7 @@ export default function PracticeExamsPage() {
             </div>
           </div>
 
-          {/* ── Mobile Sidebar Drawer ── */}
+          {/* Mobile Sidebar Drawer */}
           {sidebarOpen && (
             <div className="lg:hidden fixed inset-0 z-50 flex">
               <div className="absolute inset-0 bg-black/40" onClick={() => setSidebarOpen(false)} />
@@ -189,14 +333,18 @@ export default function PracticeExamsPage() {
             </div>
           )}
 
-          {/* ── Main ── */}
+          {/* Main */}
           <div className="flex-1 min-w-0">
 
             {/* Header row */}
             <div className="flex flex-wrap flex-row sm:items-center justify-between mb-5 gap-3">
               <div>
                 <h1 className="text-xl sm:text-2xl font-bold text-slate-900">All Practice Exams</h1>
-                <p className="text-sm text-slate-400 mt-0.5">{filtered.length} exams available for your account</p>
+                <p className="text-sm text-slate-400 mt-0.5">
+                  {totalCount > 0
+                    ? `${totalCount} exams available for your account`
+                    : `${filtered.length} exams available for your account`}
+                </p>
               </div>
               <div className="flex items-center gap-2 sm:gap-3">
                 <button
@@ -209,7 +357,7 @@ export default function PracticeExamsPage() {
                 </button>
                 <div className="flex-1 sm:flex-none">
                   <DebounceInput
-                    onChange={(e) => setSearch(e)}
+                    onChange={(e) => { setSearch(e); setPage(1); }}
                     value={search}
                     placeHolder="Search for exams..."
                     className="bg-transparent w-full"
@@ -217,13 +365,9 @@ export default function PracticeExamsPage() {
                     iconPosition="left"
                   />
                 </div>
-                {/* <button className="hidden sm:block bg-[#4E49F6] hover:bg-indigo-700 text-white font-medium text-sm px-5 py-3 cursor-pointer rounded-[10px] transition-all shadow-sm hover:shadow-md whitespace-nowrap shrink-0">
-                  Start an exam
-                </button> */}
               </div>
             </div>
 
-            {/* Mobile start exam button */}
             <button className="sm:hidden w-full bg-[#4E49F6] hover:bg-indigo-700 text-white font-medium text-sm px-5 py-3 rounded-[10px] transition-all shadow-sm mb-4">
               Start an exam
             </button>
@@ -233,8 +377,8 @@ export default function PracticeExamsPage() {
             {/* Active filter chips */}
             {hasActiveFilters && (
               <div className="flex flex-wrap gap-2 mb-4 items-center">
-                {filters.category !== "All Exams" && <Chip label={filters.category} onRemove={() => setFilters(f => ({ ...f, category: "All Exams" }))} />}
-                {filters.access !== "All" && <Chip label={filters.access} onRemove={() => setFilters(f => ({ ...f, access: "All" }))} />}
+                {filters.category !== "All Exams"  && <Chip label={filters.category}  onRemove={() => setFilters(f => ({ ...f, category: "All Exams" }))} />}
+                {filters.access !== "All"          && <Chip label={filters.access}    onRemove={() => setFilters(f => ({ ...f, access: "All" }))} />}
                 {filters.difficulty !== "Any Level" && <Chip label={filters.difficulty} onRemove={() => setFilters(f => ({ ...f, difficulty: "Any Level" }))} />}
                 {search && <Chip label={`"${search}"`} onRemove={() => setSearch("")} />}
                 <button onClick={clearAll} className="text-xs text-slate-400 hover:text-slate-600 underline">Clear all</button>
@@ -243,39 +387,7 @@ export default function PracticeExamsPage() {
 
             {/* Exam grid */}
             {isLoading ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
-                {Array.from({ length: 6 }).map((_, i) => (
-                  <div key={i} className="bg-white rounded-[.875rem] border border-[#E2E8F0] py-4 flex flex-col gap-3">
-                    {/* Name + badge */}
-                    <div className="px-4 border-b border-[#EEF0F4] pb-3 space-y-2">
-                      <div className="flex items-center justify-between gap-2">
-                        <div className="h-4 w-24 rounded bg-slate-100 animate-pulse" />
-                        <div className="h-5 w-16 rounded-full bg-slate-100 animate-pulse" />
-                      </div>
-                      <div className="h-3 w-full rounded bg-slate-100 animate-pulse" />
-                      <div className="h-3 w-3/4 rounded bg-slate-100 animate-pulse" />
-                    </div>
-                    {/* Stats grid */}
-                    <div className="grid grid-cols-4 border-b border-[#EEF0F4] pb-3 px-4 gap-2">
-                      {Array.from({ length: 4 }).map((_, j) => (
-                        <div key={j} className="space-y-1.5">
-                          <div className="h-4 w-8 rounded bg-slate-100 animate-pulse" />
-                          <div className="h-3 w-10 rounded bg-slate-100 animate-pulse" />
-                        </div>
-                      ))}
-                    </div>
-                    {/* Progress */}
-                    <div className="px-4 space-y-1.5">
-                      <div className="h-3 w-20 rounded bg-slate-100 animate-pulse" />
-                      <div className="h-1.5 w-full rounded-full bg-slate-100 animate-pulse" />
-                    </div>
-                    {/* Button */}
-                    <div className="px-4">
-                      <div className="h-9 w-full rounded-[.625rem] bg-slate-100 animate-pulse mt-3" />
-                    </div>
-                  </div>
-                ))}
-              </div>
+              <SkeletonGrid />
             ) : filtered.length === 0 ? (
               <div className="text-center py-20 bg-white rounded-2xl border border-slate-200">
                 <p className="text-4xl mb-3">🔍</p>
@@ -283,16 +395,32 @@ export default function PracticeExamsPage() {
                 <p className="text-slate-400 text-sm mt-1">Try adjusting the filters or search term</p>
               </div>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
-                {filtered.map(exam => (
-                  <ExamCard
-                    key={exam.id}
-                    exam={exam}
-                    isPremiumLocked={exam.access === "premium"}
-                    onStart={() => setSessionExam(exam)}
-                  />
-                ))}
-              </div>
+              <>
+                {/* Dim grid while fetching next page (keeps content visible) */}
+                <div className={`grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 transition-opacity duration-200 ${isFetching && !isLoading ? "opacity-60 pointer-events-none" : "opacity-100"}`}>
+                  {filtered.map(exam => (
+                    <ExamCard
+                      key={exam.id}
+                      exam={exam}
+                      isPremiumLocked={exam.access === "premium"}
+                      onStart={() => setSessionExam(exam)}
+                    />
+                  ))}
+                </div>
+
+                {/* Pagination — only for full list, not when a single exam is selected */}
+                {!selectedExamRef && (
+                 <Pagination
+  page={page}
+  totalCount={totalCount}
+  pageSize={PAGE_SIZE}          // ← no more actualPageSize guess
+  hasNext={hasNext}
+  hasPrev={hasPrev}
+  onChange={handlePageChange}
+  isLoading={isFetching}
+/>
+                )}
+              </>
             )}
 
             <div className="mt-6">

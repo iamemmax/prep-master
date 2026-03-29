@@ -25,11 +25,11 @@ const ExamCard = ({ exam, isPremiumLocked,onStart }: ExamCardProps) => {
     const handleStart = ()=>{
       if(btnLabel === "Start Practice" ){
         onStart()
-      }else if(btnLabel === "Continue Practice" && exam?.id){
-        router.push(`/dashboard/practice/start-practice/${exam.id}`)
+      }else if(btnLabel === "Continue Practice" && exam?.sessionId){
+        router.push(`/dashboard/practice/start-practice/${exam?.sessionId}`)
       }
     }
-    console.log(exam);
+    // console.log(exam);
     
   return (
     <div className={`bg-white rounded-[.875rem] cursor-pointer border py-4 flex flex-col gap-3 transition-all duration-200 hover:shadow-md border-[#E2E8F0]`}>

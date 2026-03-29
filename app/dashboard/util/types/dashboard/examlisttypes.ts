@@ -16,10 +16,6 @@ export interface availableExamDetails {
 }
 
 
-
-
-
-
 export interface availableData {
   id: number;
   reference: string;
@@ -30,6 +26,7 @@ export interface availableData {
   total_topics: number;
   available_difficulties: string[];
   previous_score_percentage: number;
+  active_session_id: null | number;
   subjects: avaiSubject[];
 }
 
@@ -38,3 +35,6 @@ interface avaiSubject {
   reference: string;
   name: string;
 }
+
+
+
