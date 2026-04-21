@@ -88,7 +88,7 @@ export default function PracticeExamUI({ params }: { params: Promise<{ sessionId
   }));
 
   function getDotClass(i: number) {
-    if (i === current)   return "bg-indigo-600 text-white border-indigo-600";
+    if (i === current)   return "bg-[#F7C948] text-white border-[#F7C948]";
     if (flagged.has(i))  return "bg-amber-400 text-white border-amber-400";
     if (answered.has(i)) return "bg-teal-500 text-white border-teal-500";
     return "bg-white text-slate-500 border-slate-200 hover:border-slate-300";
@@ -226,7 +226,7 @@ export default function PracticeExamUI({ params }: { params: Promise<{ sessionId
                       selectedAnswer === i ? "border-indigo-300 bg-indigo-50" : "border-slate-200 bg-white hover:border-indigo-200 hover:bg-indigo-50/20"
                     }`}>
                     <div className={`w-6 h-6 sm:w-7 sm:h-7 rounded-full border-2 flex items-center justify-center shrink-0 text-[10px] sm:text-[11px] font-bold transition-all ${
-                      selectedAnswer === i ? "bg-indigo-600 border-indigo-600 text-white" : "border-slate-300 text-slate-400"
+                      selectedAnswer === i ? "bg-[#F7C948] border-[#F7C948] text-white" : "border-slate-300 text-slate-400"
                     }`}>
                       {String.fromCharCode(65 + i)}
                     </div>
@@ -239,7 +239,7 @@ export default function PracticeExamUI({ params }: { params: Promise<{ sessionId
 
               {session.show_explanation_after_answer && selectedAnswer !== null && currentQ.explanation && (
                 <div className="mt-4 p-3 rounded-xl bg-indigo-50 border border-indigo-100">
-                  <p className="text-[10px] font-bold text-indigo-600 mb-1">Explanation</p>
+                  <p className="text-[10px] font-bold text-[#F7C948] mb-1">Explanation</p>
                   <p className="text-[11px] text-slate-600 leading-relaxed">{currentQ.explanation}</p>
                 </div>
               )}
@@ -265,7 +265,7 @@ export default function PracticeExamUI({ params }: { params: Promise<{ sessionId
   disabled={isEnding}
   className={`flex items-center gap-1.5 cursor-pointer text-[11px] justify-center font-semibold px-4 py-2.5 rounded-lg border transition-all ${
     current === TOTAL - 1
-      ? "border-indigo-500 bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-60"
+      ? "border-indigo-500 bg-[#F7C948] text-white hover:bg-[#F7C948]/90 disabled:opacity-60"
       : "border-slate-200 text-slate-500 hover:bg-slate-50"
   }`}
 >
@@ -319,7 +319,7 @@ export default function PracticeExamUI({ params }: { params: Promise<{ sessionId
             <div className="w-full bg-slate-50 rounded-xl p-4 flex flex-col gap-3">
               <div className="flex justify-between items-center">
                 <span className="text-xs text-slate-500">Score</span>
-                <span className="text-sm font-bold text-indigo-600">{parseFloat(sessionResult.score.toFixed(2))}%</span>
+                <span className="text-sm font-bold text-[#F7C948]">{parseFloat(sessionResult.score.toFixed(2))}%</span>
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-xs text-slate-500">Correct Answers</span>

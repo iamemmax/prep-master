@@ -10,24 +10,26 @@ interface ExamCardProps {
 
 const ExamCard = ({ exam, isPremiumLocked,onStart }: ExamCardProps) => {
   const router = useRouter()
+  const canContinue = !isPremiumLocked && exam?.sessionId != null;
   const btnLabel = isPremiumLocked
     ? "Upgrade to Access"
-    : exam.started
+    : canContinue
     ? "Continue Practice"
     : "Start Practice";
 
   const btnStyle: React.CSSProperties = isPremiumLocked
     ? { background: "linear-gradient(135deg, #FE9A00, #FF6900)", color: "#fff", }
-    : exam.started
-    ? { background: "#4E49F6", color: "#fff", }
-    : { background: "#fff", color: "#4E49F6", border: "1px solid #E2E8F0" };
+    : canContinue
+    ? { background: "#F7C948", color: "#fff", }
+    : { background: "#fff", color: "#F7C948", border: "1px solid #E2E8F0" };
 
     const handleStart = ()=>{
-      if(btnLabel === "Start Practice" ){
-        onStart()
-      }else if(btnLabel === "Continue Practice" && exam?.sessionId){
-        router.push(`/dashboard/practice/start-practice/${exam?.sessionId}`)
+      if(isPremiumLocked) return
+      if(canContinue){
+        router.push(`/dashboard/practice/start-practice/${exam.sessionId}`)
+        return
       }
+      onStart()
     }
     // console.log(exam);
     
@@ -68,12 +70,12 @@ const ExamCard = ({ exam, isPremiumLocked,onStart }: ExamCardProps) => {
           <div>
             <div className="flex justify-between  font-inter text-[10px] text-slate-400 mb-1">
               <span>Your progress</span>
-              <span className="font-semibold text-xs text-[#4E49F6]">{exam.progress}%</span>
+              <span className="font-semibold text-xs text-[#894B00]">{exam.progress}%</span>
             </div>
             <div className="h-1.5 rounded-full bg-slate-100 overflow-hidden">
               <div
                 className="h-full rounded-full"
-                style={{ width: `${exam.progress}%`, background: "#4E49F6" }}
+                style={{ width: `${exam.progress}%`, background: "#F7C948" }}
               />
             </div>
             {exam.lastScore !== null && (
@@ -96,9 +98,11 @@ const ExamCard = ({ exam, isPremiumLocked,onStart }: ExamCardProps) => {
       {/* CTA */}
       <div className="px-4">
       <button
-        className="w-full py-3 mt-3 rounded-[.625rem] cursor-pointer text-xs font-inter font-bold transition-all hover:opacity-90"
+        className={`w-full py-3 mt-3 rounded-[.625rem] text-xs font-inter font-bold transition-all ${isPremiumLocked ? "cursor-not-allowed opacity-60" : "cursor-pointer hover:opacity-90"}`}
         style={btnStyle}
         onClick={handleStart}
+        disabled={isPremiumLocked}
+        aria-disabled={isPremiumLocked}
       >
         {btnLabel}
       </button>

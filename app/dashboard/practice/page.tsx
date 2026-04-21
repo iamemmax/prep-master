@@ -72,8 +72,8 @@ function mapToExam(d: availableData): Exam {
     category: d.name,
     access: d.is_premium ? "premium" : "free",
     difficulty_level: diff,
-    started: (d.previous_score_percentage ?? 0) > 0,
-    sessionId: Number(d?.active_session_id),
+    started: d?.active_session_id != null,
+    sessionId: d?.active_session_id ?? undefined,
   };
 }
 

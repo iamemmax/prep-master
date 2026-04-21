@@ -10,9 +10,9 @@ import { Crown, Menu, X } from "lucide-react";
 import PrepLogo from "@/utils/icons/logos/PrepLogo";
 
 const NAV_LINKS = [
-  { label: "Dashboard", href: "/dashboard" },
-  { label: "Practice",  href: "/dashboard/practice"  },
-  { label: "Progress",  href: "/progress"  },
+  { label: "Dashboard",disable:false, href: "/dashboard" },
+  { label: "Practice",  disable:false,href: "/dashboard/practice"  },
+  { label: "Progress", disable:true, href: "/progress"  },
 ];
 
 const DashboardHeader = () => {
@@ -37,7 +37,7 @@ const initials = `${user?.user?.first_name?.charAt(0) ?? ""}${user?.user?.last_n
 
           {/* Logo */}
           <div className="flex items-center gap-2.5">
-            <div className="w-10 h-10 rounded-[.625rem] bg-linear-to-tr from-[#155DFC] to-[#4F39F6] flex items-center justify-center">
+            <div className="w-10 h-10 rounded-[.625rem] bg-linear-to-tr from-[#F7C948] to-[#F7C948] flex items-center justify-center">
               <PrepLogo />
             </div>
             <div className="flex flex-col">
@@ -50,15 +50,28 @@ const initials = `${user?.user?.first_name?.charAt(0) ?? ""}${user?.user?.last_n
 
           {/* Desktop Navigation */}
           <nav className="hidden md:flex items-center gap-1">
-            {NAV_LINKS.map(({ label, href }) => {
+            {NAV_LINKS.map(({ label, href ,disable}) => {
               const isActive = pathname === href;
+              const baseClass = `px-4 py-2 rounded-lg font-inter text-sm lg:text-base transition-colors`;
+              if (disable) {
+                return (
+                  <span
+                    key={href}
+                    aria-disabled="true"
+                    title="Coming soon"
+                    className={`${baseClass} cursor-not-allowed opacity-45 font-medium text-[#45556C] select-none`}
+                  >
+                    {label}
+                  </span>
+                );
+              }
               return (
                 <Link
                   key={href}
                   href={href}
-                  className={`px-4 py-2 rounded-lg font-inter text-sm lg:text-base transition-colors ${
+                  className={`${baseClass} ${
                     isActive
-                      ? "font-semibold text-[#155DFC]"
+                      ? "font-semibold text-[#F7C948]"
                       : "font-medium text-[#45556C] hover:text-slate-900"
                   }`}
                 >
@@ -134,19 +147,32 @@ const initials = `${user?.user?.first_name?.charAt(0) ?? ""}${user?.user?.last_n
         }`}
       >
         <nav className="px-4 pb-4 pt-1 flex flex-col gap-1 border-t border-slate-100">
-          {NAV_LINKS.map(({ label, href }, i) => {
+          {NAV_LINKS.map(({ label, href, disable }, i) => {
             const isActive = pathname === href;
+            const animClass = `px-4 py-3 rounded-xl font-inter text-sm font-medium transition-all duration-300 ${
+              mobileOpen ? "translate-y-0 opacity-100" : "-translate-y-2 opacity-0"
+            }`;
+            if (disable) {
+              return (
+                <span
+                  key={href}
+                  aria-disabled="true"
+                  style={{ transitionDelay: mobileOpen ? `${i * 60}ms` : "0ms" }}
+                  className={`${animClass} cursor-not-allowed opacity-45 text-[#45556C] select-none`}
+                >
+                  {label}
+                </span>
+              );
+            }
             return (
               <Link
                 key={href}
                 href={href}
                 onClick={() => setMobileOpen(false)}
                 style={{ transitionDelay: mobileOpen ? `${i * 60}ms` : "0ms" }}
-                className={`px-4 py-3 rounded-xl font-inter text-sm font-medium transition-all duration-300 ${
-                  mobileOpen ? "translate-y-0 opacity-100" : "-translate-y-2 opacity-0"
-                } ${
+                className={`${animClass} ${
                   isActive
-                    ? "text-[#155DFC] bg-blue-50 font-semibold"
+                    ? "text-[#F7C948] bg-blue-50 font-semibold"
                     : "text-[#45556C] hover:bg-slate-50 hover:text-slate-900"
                 }`}
               >

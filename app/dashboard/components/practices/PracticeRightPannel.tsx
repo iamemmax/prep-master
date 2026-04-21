@@ -76,7 +76,7 @@ const PracticeRightPanel =({
         <p className="text-2xl font-bold text-slate-800 font-mono mb-2">{timerDisplay}</p>
         <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden mb-1.5">
           <div
-            className={`h-full rounded-full transition-all duration-1000 ${timerPct > 50 ? "bg-indigo-500" : timerPct > 20 ? "bg-amber-400" : "bg-red-500"}`}
+            className={`h-full rounded-full transition-all duration-1000 ${timerPct > 50 ? "bg-[#894B00]" : timerPct > 20 ? "bg-amber-400" : "bg-red-500"}`}
             style={{ width: `${timerPct}%` }}
           />
         </div>
@@ -101,7 +101,7 @@ const PracticeRightPanel =({
                 <span className="text-[10px] text-slate-400 font-mono">{tp.done}/{tp.total}</span>
               </div>
               <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                <div className="h-full bg-indigo-500 rounded-full transition-all"
+                <div className="h-full bg-[#894B00] rounded-full transition-all"
                   style={{ width: tp.total > 0 ? `${Math.round((tp.done / tp.total) * 100)}%` : "0%" }} />
               </div>
             </div>
