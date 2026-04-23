@@ -95,7 +95,6 @@ const {
   },
 });
 const router = useRouter()
-
 // Subjects toggle — when OFF we send subjects_selected: [] (backend treats
 // as "all subjects"); when ON, user must pick one or more from this exam.
 const [useSubjects, setUseSubjects] = useState(false);

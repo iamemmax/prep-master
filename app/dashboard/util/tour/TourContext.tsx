@@ -119,7 +119,6 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
   }, [activeTourId, markCompleted]);
 
   const closeWelcome = useCallback(() => { setWelcomeOpen(false); }, []);
-
   const hasSeenTour = useCallback(
     (id: TourId) => { void seenVersion; return readSeen(id); },
     [seenVersion],
