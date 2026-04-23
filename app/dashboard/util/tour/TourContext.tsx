@@ -124,7 +124,6 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
     (id: TourId) => { void seenVersion; return readSeen(id); },
     [seenVersion],
   );
-
   const resetTour = useCallback((id: TourId) => {
     try {
       localStorage.removeItem(completionKey(id));
