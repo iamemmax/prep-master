@@ -7,7 +7,11 @@ import FreeAccountBanner from "../components/practices/FreeAccountBanner";
 import DebounceInput from "../util/shared/DebounceInput";
 import UnlockSectionBanner from "../components/practices/UnlockSection";
 import SessionSetupModal from "../components/practices/StartSessionModal";
-import { X, SlidersHorizontal, ChevronLeft, ChevronRight } from "lucide-react";
+import PracticeIntakeModal from "../components/practices/PracticeIntakeModal";
+import ActiveSessionsStrip from "../components/practices/ActiveSessionsStrip";
+import QuickActions from "../components/practices/QuickActions";
+import CategoryTabs from "../components/practices/CategoryTabs";
+import { X, SlidersHorizontal, ChevronLeft, ChevronRight, ArrowUpDown, Sparkles } from "lucide-react";
 import { PAGE_SIZE, useGetPracticeExamList } from "../util/apis/practice/examsList";
 import { useGetAvailableExamsDetails } from "../util/apis/practice/availableExamsDetails";
 import { availableData } from "../util/types/dashboard/examlisttypes";
@@ -77,34 +81,11 @@ function mapToExam(d: availableData): Exam {
   };
 }
 
-function ContinueBanner() {
-  return (
-    <div className="relative overflow-hidden rounded-2xl mb-6" style={{ background: "linear-gradient(135deg, #6366F1 0%, #8B5CF6 60%, #A78BFA 100%)" }}>
-      <div className="relative flex flex-col sm:flex-row items-start sm:items-center justify-between px-5 sm:px-8 py-5 sm:py-6 gap-4">
-        <div className="flex-1">
-          <p className="text-white font-bold text-lg sm:text-xl leading-tight mb-1">Continue your SAT practice</p>
-          <p className="text-purple-200 text-xs sm:text-sm">
-            You&apos;re 72% through ·{" "}
-            <strong className="text-white font-bold">883 questions remaining</strong> · Last score:{" "}
-            <strong className="text-white font-bold">85%</strong>
-          </p>
-          <div className="mt-3 h-2 rounded-full bg-white/25 w-full sm:w-56 overflow-hidden">
-            <div className="h-full rounded-full bg-white" style={{ width: "72%" }} />
-          </div>
-        </div>
-        <button className="shrink-0 bg-white text-indigo-700 font-bold text-sm px-5 py-2.5 rounded-xl shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all duration-200 w-full sm:w-auto">
-          Continue →
-        </button>
-      </div>
-    </div>
-  );
-}
-
 function Chip({ label, onRemove }: ChipProps) {
   return (
-    <span className="inline-flex items-center gap-1.5 bg-indigo-50 text-indigo-700 text-xs font-semibold px-3 py-1 rounded-full border border-indigo-200">
+    <span className="inline-flex items-center gap-1.5 bg-indigo-50 dark:bg-indigo-500/15 text-indigo-700 dark:text-indigo-300 text-xs font-semibold px-3 py-1 rounded-full border border-indigo-200 dark:border-indigo-500/30">
       {label}
-      <button onClick={onRemove} className="text-indigo-400 hover:text-indigo-700 font-bold">×</button>
+      <button onClick={onRemove} className="text-indigo-400 dark:text-indigo-300/70 hover:text-indigo-700 dark:hover:text-indigo-200 font-bold">×</button>
     </span>
   );
 }
@@ -203,32 +184,33 @@ function Pagination({ page, totalCount, pageSize, hasNext, hasPrev, onChange, is
 
 // ─── Skeleton ─────────────────────────────────────────────────────────────────
 function SkeletonGrid() {
+  const bar = "bg-slate-100 dark:bg-zinc-800 animate-pulse";
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
       {Array.from({ length: 6 }).map((_, i) => (
-        <div key={i} className="bg-white rounded-[.875rem] border border-[#E2E8F0] py-4 flex flex-col gap-3">
-          <div className="px-4 border-b border-[#EEF0F4] pb-3 space-y-2">
+        <div key={i} className="bg-white dark:bg-zinc-900 rounded-[.875rem] border border-[#E2E8F0] dark:border-zinc-800 py-4 flex flex-col gap-3">
+          <div className="px-4 border-b border-[#EEF0F4] dark:border-zinc-800 pb-3 space-y-2">
             <div className="flex items-center justify-between gap-2">
-              <div className="h-4 w-24 rounded bg-slate-100 animate-pulse" />
-              <div className="h-5 w-16 rounded-full bg-slate-100 animate-pulse" />
+              <div className={`h-4 w-24 rounded ${bar}`} />
+              <div className={`h-5 w-16 rounded-full ${bar}`} />
             </div>
-            <div className="h-3 w-full rounded bg-slate-100 animate-pulse" />
-            <div className="h-3 w-3/4 rounded bg-slate-100 animate-pulse" />
+            <div className={`h-3 w-full rounded ${bar}`} />
+            <div className={`h-3 w-3/4 rounded ${bar}`} />
           </div>
-          <div className="grid grid-cols-4 border-b border-[#EEF0F4] pb-3 px-4 gap-2">
+          <div className="grid grid-cols-4 border-b border-[#EEF0F4] dark:border-zinc-800 pb-3 px-4 gap-2">
             {Array.from({ length: 4 }).map((_, j) => (
               <div key={j} className="space-y-1.5">
-                <div className="h-4 w-8 rounded bg-slate-100 animate-pulse" />
-                <div className="h-3 w-10 rounded bg-slate-100 animate-pulse" />
+                <div className={`h-4 w-8 rounded ${bar}`} />
+                <div className={`h-3 w-10 rounded ${bar}`} />
               </div>
             ))}
           </div>
           <div className="px-4 space-y-1.5">
-            <div className="h-3 w-20 rounded bg-slate-100 animate-pulse" />
-            <div className="h-1.5 w-full rounded-full bg-slate-100 animate-pulse" />
+            <div className={`h-3 w-20 rounded ${bar}`} />
+            <div className={`h-1.5 w-full rounded-full ${bar}`} />
           </div>
           <div className="px-4">
-            <div className="h-9 w-full rounded-[.625rem] bg-slate-100 animate-pulse mt-3" />
+            <div className={`h-9 w-full rounded-[.625rem] mt-3 ${bar}`} />
           </div>
         </div>
       ))}
@@ -239,6 +221,8 @@ function SkeletonGrid() {
 // ─── Page ─────────────────────────────────────────────────────────────────────
 // const PAGE_SIZE = 20;
 
+type SortKey = "recommended" | "questions_desc" | "difficulty_asc" | "progress_desc";
+
 export default function PracticeExamsPage() {
   const [sessionExam, setSessionExam]   = useState<Exam | null>(null);
   const [filters, setFilters]           = useState<Filters>({ category: "All Exams", access: "All", difficulty: "Any Level" });
@@ -246,6 +230,9 @@ export default function PracticeExamsPage() {
   const [sidebarOpen, setSidebarOpen]   = useState(false);
   const [selectedExamRef, setSelectedExamRef] = useState<string | null>(null);
   const [page, setPage]                 = useState(1);
+  const [intakeOpen, setIntakeOpen]     = useState(false);
+  const [sortBy, setSortBy]             = useState<SortKey>("recommended");
+  const [category, setCategory]         = useState<string>("All");
 
   const { data: listResponse, isLoading: listLoading, isFetching } = useGetPracticeExamList(page);
   const { data: detailResponse, isLoading: detailLoading }         = useGetAvailableExamsDetails(selectedExamRef ?? "");
@@ -259,15 +246,39 @@ export default function PracticeExamsPage() {
     return Array.isArray(listResponse?.data) ? listResponse.data.map(mapToExam) : [];
   }, [selectedExamRef, listResponse, detailResponse]);
 
+  const activeExams = useMemo<Exam[]>(
+    () => apiExams.filter(e => e.started),
+    [apiExams],
+  );
+
+  const categoryOptions = useMemo<string[]>(() => {
+    const uniq = Array.from(new Set(apiExams.map(e => e.category))).filter(Boolean);
+    return ["All", ...uniq];
+  }, [apiExams]);
+
+  const categoryCounts = useMemo<Record<string, number>>(() => {
+    const counts: Record<string, number> = { All: apiExams.length };
+    for (const e of apiExams) counts[e.category] = (counts[e.category] ?? 0) + 1;
+    return counts;
+  }, [apiExams]);
+
   const filtered = useMemo<Exam[]>(() => {
-    return apiExams.filter(exam => {
+    const diffRank: Record<Exam["difficulty_level"], number> = { easy: 1, medium: 2, hard: 3 };
+    const result = apiExams.filter(exam => {
+      if (category !== "All" && exam.category !== category) return false;
       if (filters.access === "Free"    && exam.access !== "free")    return false;
       if (filters.access === "Premium" && exam.access !== "premium") return false;
       if (filters.difficulty !== "Any Level" && exam.difficulty_level !== filters.difficulty.toLowerCase()) return false;
       if (search && !exam.name.toLowerCase().includes(search.toLowerCase()) && !exam.description.toLowerCase().includes(search.toLowerCase())) return false;
       return true;
     });
-  }, [apiExams, filters, search]);
+    const sorted = [...result];
+    if (sortBy === "questions_desc") sorted.sort((a, b) => b.questions - a.questions);
+    else if (sortBy === "difficulty_asc") sorted.sort((a, b) => diffRank[a.difficulty_level] - diffRank[b.difficulty_level]);
+    else if (sortBy === "progress_desc") sorted.sort((a, b) => (b.progress ?? 0) - (a.progress ?? 0));
+    else sorted.sort((a, b) => Number(b.started) - Number(a.started)); // recommended: in-progress first
+    return sorted;
+  }, [apiExams, filters, search, category, sortBy]);
 
   function handlePageChange(newPage: number) {
     setPage(newPage);
@@ -292,11 +303,25 @@ export default function PracticeExamsPage() {
   const actualPageSize = listResponse?.data?.length || PAGE_SIZE;
 
   return (
-    <div className="bg-white font-inter min-h-screen">
+    <div className="bg-white dark:bg-zinc-950 font-inter min-h-screen text-slate-900 dark:text-zinc-100">
       <DashboardHeader />
 
       <div className="max-w-400 mx-auto px-4 sm:px-6 py-6">
-        <ContinueBanner />
+        <ActiveSessionsStrip
+          activeExams={activeExams}
+          onBrowse={() => {
+            if (typeof window !== "undefined") {
+              window.scrollTo({ top: window.innerHeight * 0.5, behavior: "smooth" });
+            }
+          }}
+        />
+
+        <QuickActions
+          onAIGenerate={() => setIntakeOpen(true)}
+          onRandom={() => { setFilters(f => ({ ...f, difficulty: "Any Level" })); setCategory("All"); }}
+          onQuickQuiz={() => { setFilters(f => ({ ...f, difficulty: "Easy" })); }}
+          onWeakTopics={() => { /* routes to progress in future */ }}
+        />
 
         <div className="flex gap-6 items-start">
 
@@ -337,19 +362,31 @@ export default function PracticeExamsPage() {
           <div className="flex-1 min-w-0">
 
             {/* Header row */}
-            <div className="flex flex-wrap flex-row sm:items-center justify-between mb-5 gap-3">
+            <div className="flex flex-wrap flex-row sm:items-center justify-between mb-4 gap-3">
               <div>
-                <h1 className="text-xl sm:text-2xl font-bold text-slate-900">All Practice Exams</h1>
-                <p className="text-sm text-slate-400 mt-0.5">
-                  {totalCount > 0
-                    ? `${totalCount} exams available for your account`
-                    : `${filtered.length} exams available for your account`}
+                <h1 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-zinc-100">All Practice Exams</h1>
+                <p className="text-sm text-slate-400 dark:text-zinc-500 mt-0.5">
+                  <span className="font-semibold text-[#0F172B] dark:text-zinc-200">{totalCount > 0 ? totalCount : filtered.length}</span> exams available for your account
                 </p>
               </div>
-              <div className="flex items-center gap-2 sm:gap-3">
+              <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
+                <div className="relative">
+                  <ArrowUpDown size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-zinc-500 pointer-events-none" />
+                  <select
+                    value={sortBy}
+                    onChange={e => setSortBy(e.target.value as SortKey)}
+                    className="appearance-none text-sm font-semibold h-10 pl-8 pr-8 rounded-[10px] border border-slate-200 dark:border-zinc-700 text-slate-600 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-800 transition-colors cursor-pointer focus:outline-none focus:border-slate-300 dark:focus:border-zinc-600 bg-white dark:bg-zinc-900"
+                  >
+                    <option value="recommended">Recommended</option>
+                    <option value="questions_desc">Most questions</option>
+                    <option value="difficulty_asc">Easiest first</option>
+                    <option value="progress_desc">My progress</option>
+                  </select>
+                  <ChevronRight size={13} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 dark:text-zinc-500 rotate-90 pointer-events-none" />
+                </div>
                 <button
                   onClick={() => setSidebarOpen(true)}
-                  className="lg:hidden flex items-center gap-1.5 text-sm font-semibold px-3 py-2.5 rounded-[10px] border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors shrink-0"
+                  className="lg:hidden flex items-center gap-1.5 text-sm font-semibold h-10 px-3 rounded-[10px] border border-slate-200 dark:border-zinc-700 text-slate-600 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-800 transition-colors shrink-0"
                 >
                   <SlidersHorizontal size={15} />
                   Filters
@@ -368,11 +405,23 @@ export default function PracticeExamsPage() {
               </div>
             </div>
 
-            <button className="sm:hidden w-full bg-[#4E49F6] hover:bg-indigo-700 text-white font-medium text-sm px-5 py-3 rounded-[10px] transition-all shadow-sm mb-4">
-              Start an exam
+            <button
+              onClick={() => setIntakeOpen(true)}
+              className="sm:hidden w-full flex items-center justify-center gap-2 text-white font-bold text-sm px-5 py-3 rounded-[10px] transition-all shadow-sm mb-4"
+              style={{ background: "linear-gradient(135deg, #FE9A00, #FF6900)" }}
+            >
+              <Sparkles size={14} />
+              Generate from PDF / screenshot
             </button>
 
             <FreeAccountBanner />
+
+            <CategoryTabs
+              categories={categoryOptions}
+              selected={category}
+              counts={categoryCounts}
+              onSelect={setCategory}
+            />
 
             {/* Active filter chips */}
             {hasActiveFilters && (
@@ -381,7 +430,7 @@ export default function PracticeExamsPage() {
                 {filters.access !== "All"          && <Chip label={filters.access}    onRemove={() => setFilters(f => ({ ...f, access: "All" }))} />}
                 {filters.difficulty !== "Any Level" && <Chip label={filters.difficulty} onRemove={() => setFilters(f => ({ ...f, difficulty: "Any Level" }))} />}
                 {search && <Chip label={`"${search}"`} onRemove={() => setSearch("")} />}
-                <button onClick={clearAll} className="text-xs text-slate-400 hover:text-slate-600 underline">Clear all</button>
+                <button onClick={clearAll} className="text-xs text-slate-400 dark:text-zinc-500 hover:text-slate-600 dark:hover:text-zinc-300 underline">Clear all</button>
               </div>
             )}
 
@@ -389,10 +438,31 @@ export default function PracticeExamsPage() {
             {isLoading ? (
               <SkeletonGrid />
             ) : filtered.length === 0 ? (
-              <div className="text-center py-20 bg-white rounded-2xl border border-slate-200">
-                <p className="text-4xl mb-3">🔍</p>
-                <p className="text-slate-600 font-semibold">No exams match your filters</p>
-                <p className="text-slate-400 text-sm mt-1">Try adjusting the filters or search term</p>
+              <div className="text-center py-16 bg-white dark:bg-zinc-900 rounded-2xl border border-slate-200 dark:border-zinc-800 px-6">
+                <div className="w-14 h-14 mx-auto rounded-full bg-[#FFF4DF] dark:bg-amber-500/15 flex items-center justify-center mb-4">
+                  <Sparkles size={22} className="text-[#894B00] dark:text-amber-400" />
+                </div>
+                <p className="text-slate-800 dark:text-zinc-100 font-semibold text-base">No exams match your filters</p>
+                <p className="text-slate-400 dark:text-zinc-500 text-sm mt-1 max-w-sm mx-auto">
+                  Try removing a filter, or generate custom practice from your own material.
+                </p>
+                <div className="flex flex-wrap items-center justify-center gap-2 mt-5">
+                  {hasActiveFilters && (
+                    <button
+                      onClick={clearAll}
+                      className="text-xs font-semibold px-4 py-2 rounded-lg border border-slate-200 dark:border-zinc-700 text-slate-600 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-800 transition-colors"
+                    >
+                      Clear filters
+                    </button>
+                  )}
+                  <button
+                    onClick={() => setIntakeOpen(true)}
+                    className="text-xs font-bold px-4 py-2 rounded-lg text-white transition-all hover:opacity-90"
+                    style={{ background: "linear-gradient(135deg, #FE9A00, #FF6900)" }}
+                  >
+                    Generate questions with AI →
+                  </button>
+                </div>
               </div>
             ) : (
               <>
@@ -432,12 +502,15 @@ export default function PracticeExamsPage() {
 
       {/* FAB */}
       <button
-        className="fixed bottom-6 right-6 flex items-center gap-2 text-white text-sm font-bold px-4 sm:px-5 py-3 rounded-2xl shadow-xl hover:shadow-2xl hover:-translate-y-1 transition-all duration-200 z-40"
-        style={{ background: "linear-gradient(135deg, #6366F1, #7C3AED)" }}
+        onClick={() => setIntakeOpen(true)}
+        className="fixed bottom-6 right-6 flex items-center gap-2 text-white text-sm font-bold px-4 sm:px-5 py-3 rounded-2xl shadow-xl hover:shadow-2xl hover:-translate-y-1 transition-all duration-200 z-40 cursor-pointer"
+        style={{ background: "linear-gradient(135deg, #FE9A00, #FF6900)" }}
       >
         ＋ <span className="hidden sm:inline">AI Practice Generator</span>
         <span className="sm:hidden">AI</span>
       </button>
+
+      <PracticeIntakeModal open={intakeOpen} onClose={() => setIntakeOpen(false)} />
 
       {sessionExam && (
         <SessionSetupModal

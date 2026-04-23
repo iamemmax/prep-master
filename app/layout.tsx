@@ -5,6 +5,7 @@ import NextTopLoader from 'nextjs-toploader';
 import "./globals.css";
 import ReactQueryProvider from "@/lib/reactQuery";
 import { AuthProvider } from "@/context/authentication";
+import { ThemeProvider, themeInitScript } from "@/context/theme";
 import ProtectedRouteGuard from "@/lib/ProtectedRouteGuard";
 import { Suspense } from "react";
 import PageLoader from "@/lib/PageLoader";
@@ -62,7 +63,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
+      </head>
       <body
         className={`${jarkataSans.variable} ${inter.variable} ${geistSans.variable} ${geistMono.variable} ${inter.variable} ${nunito.variable} ${poppins.variable} ${montserrat.variable} ${playfair.variable} antialiased`}
       >
@@ -90,12 +94,14 @@ export default function RootLayout({
         />
            <ReactQueryProvider>
           <AuthProvider>
-            <ProtectedRouteGuard>
-              {/* <RouteChangeLoader /> */}
-              <Suspense fallback={<PageLoader/>}>
-        {children}
-         </Suspense>
-            </ProtectedRouteGuard>
+            <ThemeProvider>
+              <ProtectedRouteGuard>
+                {/* <RouteChangeLoader /> */}
+                <Suspense fallback={<PageLoader/>}>
+          {children}
+           </Suspense>
+              </ProtectedRouteGuard>
+            </ThemeProvider>
           </AuthProvider>
         </ReactQueryProvider>
       </body>

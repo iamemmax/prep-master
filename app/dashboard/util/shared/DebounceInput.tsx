@@ -42,7 +42,7 @@ const DebounceInput = ({
 
   return (
     <div
-      className={`gap-x-2  outline-none bg-[#F6F6FB66]/40  border-[.0375rem] border-[#E9EBEE] flex items-center text-xs h-11 px-[1.3rem] rounded-[.625rem] ${containerClassName}`}
+      className={`gap-x-2  outline-none bg-[#F6F6FB66]/40 dark:bg-zinc-900  border-[.0375rem] border-[#E9EBEE] dark:border-zinc-700 flex items-center text-xs h-11 px-[1.3rem] rounded-[.625rem] ${containerClassName}`}
     >
   {iconPosition==="left"&&<svg
         fill="none"
@@ -62,7 +62,7 @@ const DebounceInput = ({
 }
       
       <input
-        className={`h-full border-none w-full font-inter text-black bg-transparent outline-none ${className}`}
+        className={`h-full border-none w-full font-inter text-black dark:text-zinc-100 placeholder:text-slate-400 dark:placeholder:text-zinc-500 bg-transparent outline-none ${className}`}
         value={value}
         onChange={(e) => setValue(e.target.value)}
         placeholder={placeHolder}

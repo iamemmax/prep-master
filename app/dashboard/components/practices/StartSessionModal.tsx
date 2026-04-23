@@ -10,6 +10,9 @@ import { AxiosError } from "axios";
 import { useRouter } from "next/navigation";
 import { ErrorModal } from "@/components/ui/ErrorModal";
 import { SmallSpinner } from "@/components/ui/Spinner";
+import { useState } from "react";
+import { ShieldCheck } from "lucide-react";
+import { clearProctorReports } from "../../util/proctor/report";
 
 // ─── Schema ──────────────────────────────────────────────────────────────────
 const sessionSchema = z.object({
@@ -88,10 +91,26 @@ const {
   },
 });
 const router = useRouter()
+const [proctoring, setProctoring] = useState<boolean>(() => {
+  if (typeof window === "undefined") return false;
+  try {
+    const raw = localStorage.getItem("prep:proctor_prefs");
+    if (raw) {
+      const p = JSON.parse(raw);
+      if (typeof p.byDefault === "boolean") return p.byDefault;
+    }
+  } catch { /* ignore */ }
+  return false;
+});
 const {mutate:handleStart,isPending} = useStartPracticeExam()
 const onSubmit = (data: z.output<typeof sessionSchema>) => {
   handleStart(data,{
     onSuccess:(res)=>{
+       if (typeof window !== "undefined") {
+         sessionStorage.setItem("prep:proctoring", proctoring ? "on" : "off");
+         // New practice → wipe any prior proctoring reports from this device.
+         clearProctorReports();
+       }
        router.push(`/dashboard/practice/start-practice/${res?.data?.session.id}`)
     },
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -122,17 +141,17 @@ const diffLevel     = useWatch({ control, name: "difficulty_level" });
     <>
     <Dialog open={open !== null} onOpenChange={() => onClose?.()}>
       <DialogContent
-        className="bg-white border-none p-0 z-30 text-slate-900"
+        className="bg-white dark:bg-zinc-900 border-none p-0 z-30 text-slate-900 dark:text-zinc-100"
         style={{ maxWidth: 520, zIndex: 9999 }}
         showCloseButton={false}
       >
         <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col max-h-[90vh]">
 
           {/* header */}
-          <div className="flex items-start justify-between px-6 pt-5 pb-4 border-b border-slate-100 shrink-0">
+          <div className="flex items-start justify-between px-6 pt-5 pb-4 border-b border-slate-100 dark:border-zinc-800 shrink-0">
             <div>
-              <h2 className="text-base font-bold text-slate-900">{examName} — Session Setup</h2>
-              <p className="text-xs text-slate-400 mt-0.5">{examDesc}</p>
+              <h2 className="text-base font-bold text-slate-900 dark:text-zinc-100">{examName} — Session Setup</h2>
+              <p className="text-xs text-slate-400 dark:text-zinc-500 mt-0.5">{examDesc}</p>
             </div>
             <button type="button" onClick={onClose} className="text-slate-300 hover:text-slate-500 transition-colors mt-0.5">
               <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
@@ -146,7 +165,7 @@ const diffLevel     = useWatch({ control, name: "difficulty_level" });
 
             {/* Difficulty */}
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-2">Difficulty</label>
+              <label className="block text-xs font-semibold text-slate-700 dark:text-zinc-300 mb-2">Difficulty</label>
               <Controller
                 name="difficulty_level"
                 control={control}
@@ -160,7 +179,7 @@ const diffLevel     = useWatch({ control, name: "difficulty_level" });
                         className={`text-xs font-semibold px-3 py-1.5 rounded-full border transition-all ${
                           field.value === d.value
                             ? "bg-indigo-600 text-white border-indigo-600"
-                            : "bg-white text-slate-500 border-slate-200 hover:border-indigo-300 hover:text-indigo-600"
+                            : "bg-white dark:bg-zinc-900 text-slate-500 dark:text-zinc-400 border-slate-200 dark:border-zinc-700 hover:border-indigo-300 hover:text-indigo-600"
                         }`}
                       >
                         {d.label}
@@ -174,7 +193,7 @@ const diffLevel     = useWatch({ control, name: "difficulty_level" });
 
             {/* Number of Questions */}
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-2">Number of Questions</label>
+              <label className="block text-xs font-semibold text-slate-700 dark:text-zinc-300 mb-2">Number of Questions</label>
               <Controller
                 name="number_of_questions"
                 control={control}
@@ -189,7 +208,7 @@ const diffLevel     = useWatch({ control, name: "difficulty_level" });
                           className={`text-xs font-semibold px-3 py-1.5 rounded-full border transition-all ${
                             field.value === q
                               ? "bg-indigo-600 text-white border-indigo-600"
-                              : "bg-white text-slate-500 border-slate-200 hover:border-indigo-300 hover:text-indigo-600"
+                              : "bg-white dark:bg-zinc-900 text-slate-500 dark:text-zinc-400 border-slate-200 dark:border-zinc-700 hover:border-indigo-300 hover:text-indigo-600"
                           }`}
                         >
                           {q}
@@ -201,7 +220,7 @@ const diffLevel     = useWatch({ control, name: "difficulty_level" });
                         className={`text-xs font-semibold px-3 py-1.5 rounded-full border transition-all ${
                           !QUESTION_PRESETS.includes(field.value as number)
                             ? "bg-indigo-600 text-white border-indigo-600"
-                            : "bg-white text-slate-500 border-slate-200 hover:border-indigo-300 hover:text-indigo-600"
+                            : "bg-white dark:bg-zinc-900 text-slate-500 dark:text-zinc-400 border-slate-200 dark:border-zinc-700 hover:border-indigo-300 hover:text-indigo-600"
                         }`}
                       >
                         Custom
@@ -213,7 +232,7 @@ const diffLevel     = useWatch({ control, name: "difficulty_level" });
                         placeholder="Enter number of questions"
                         value={field.value || ""}
                         onChange={e => field.onChange(Number(e.target.value))}
-                        className="w-full h-9 border border-slate-200 rounded-lg px-3 text-xs text-slate-700 placeholder:text-slate-300 focus:outline-none focus:border-indigo-400 transition-colors"
+                        className="w-full h-9 border border-slate-200 dark:border-zinc-700 rounded-lg px-3 text-xs text-slate-700 dark:text-zinc-200 bg-white dark:bg-zinc-900 placeholder:text-slate-300 dark:placeholder:text-zinc-500 focus:outline-none focus:border-indigo-400 transition-colors"
                       />
                     )}
                   </>
@@ -225,7 +244,7 @@ const diffLevel     = useWatch({ control, name: "difficulty_level" });
 
             {/* Session Mode */}
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-2">Session mode</label>
+              <label className="block text-xs font-semibold text-slate-700 dark:text-zinc-300 mb-2">Session mode</label>
               <Controller
                 name="session_mode"
                 control={control}
@@ -238,8 +257,8 @@ const diffLevel     = useWatch({ control, name: "difficulty_level" });
                         onClick={() => field.onChange(m.key)}
                         className={`relative flex flex-col items-start gap-0.5 border rounded-xl p-3 text-left transition-all ${
                           field.value === m.key
-                            ? "border-indigo-500 bg-indigo-50"
-                            : "border-slate-200 bg-white hover:border-indigo-300"
+                            ? "border-indigo-500 bg-indigo-50 dark:bg-indigo-500/10"
+                            : "border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 hover:border-indigo-300"
                         }`}
                       >
                         <div className={`w-3.5 h-3.5 rounded-full border-2 mb-1 flex items-center justify-center ${
@@ -247,10 +266,10 @@ const diffLevel     = useWatch({ control, name: "difficulty_level" });
                         }`}>
                           {field.value === m.key && <div className="w-1.5 h-1.5 rounded-full bg-indigo-600" />}
                         </div>
-                        <span className={`text-[11px] font-bold leading-tight ${field.value === m.key ? "text-indigo-700" : "text-slate-700"}`}>
+                        <span className={`text-[11px] font-bold leading-tight ${field.value === m.key ? "text-indigo-700 dark:text-indigo-300" : "text-slate-700 dark:text-zinc-200"}`}>
                           {m.label}
                         </span>
-                        <span className="text-[9px] text-slate-400 leading-tight">{m.sub}</span>
+                        <span className="text-[9px] text-slate-400 dark:text-zinc-500 leading-tight">{m.sub}</span>
                       </button>
                     ))}
                   </div>
@@ -262,7 +281,7 @@ const diffLevel     = useWatch({ control, name: "difficulty_level" });
             {/* Time Limit — only for timed */}
             {sessionMode === "timed" && (
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-2">Set time limit</label>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-zinc-300 mb-2">Set time limit</label>
                 <Controller
                   name="time_limit_minutes"
                   control={control}
@@ -277,7 +296,7 @@ const diffLevel     = useWatch({ control, name: "difficulty_level" });
                             className={`text-xs font-semibold px-3 py-1.5 rounded-full border transition-all ${
                               field.value === t.value
                                 ? "bg-indigo-600 text-white border-indigo-600"
-                                : "bg-white text-slate-500 border-slate-200 hover:border-indigo-300 hover:text-indigo-600"
+                                : "bg-white dark:bg-zinc-900 text-slate-500 dark:text-zinc-400 border-slate-200 dark:border-zinc-700 hover:border-indigo-300 hover:text-indigo-600"
                             }`}
                           >
                             {t.label}
@@ -289,7 +308,7 @@ const diffLevel     = useWatch({ control, name: "difficulty_level" });
                           className={`text-xs font-semibold px-3 py-1.5 rounded-full border transition-all ${
                             field.value == null || !TIME_PRESETS.find(t => t.value === field.value)
                               ? "bg-indigo-600 text-white border-indigo-600"
-                              : "bg-white text-slate-500 border-slate-200 hover:border-indigo-300 hover:text-indigo-600"
+                              : "bg-white dark:bg-zinc-900 text-slate-500 dark:text-zinc-400 border-slate-200 dark:border-zinc-700 hover:border-indigo-300 hover:text-indigo-600"
                           }`}
                         >
                           Custom
@@ -301,7 +320,7 @@ const diffLevel     = useWatch({ control, name: "difficulty_level" });
                           placeholder="Enter time in minutes"
                           value={field.value ?? ""}
                           onChange={e => field.onChange(Number(e.target.value))}
-                          className="w-full h-9 border border-slate-200 rounded-lg px-3 text-xs text-slate-700 placeholder:text-slate-300 focus:outline-none focus:border-indigo-400 transition-colors"
+                          className="w-full h-9 border border-slate-200 dark:border-zinc-700 rounded-lg px-3 text-xs text-slate-700 dark:text-zinc-200 bg-white dark:bg-zinc-900 placeholder:text-slate-300 dark:placeholder:text-zinc-500 focus:outline-none focus:border-indigo-400 transition-colors"
                         />
                       )}
                     </>
@@ -313,7 +332,7 @@ const diffLevel     = useWatch({ control, name: "difficulty_level" });
 
             {/* Show explanation toggle */}
             <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-slate-700">Show explanation after each answer</span>
+              <span className="text-xs font-semibold text-slate-700 dark:text-zinc-300">Show explanation after each answer</span>
               <Controller
                 name="show_explanation_after_answer"
                 control={control}
@@ -321,13 +340,44 @@ const diffLevel     = useWatch({ control, name: "difficulty_level" });
                   <button
                     type="button"
                     onClick={() => field.onChange(!field.value)}
-                    className={`relative rounded-full transition-colors duration-200 ${field.value ? "bg-indigo-600" : "bg-slate-200"}`}
+                    className={`relative rounded-full transition-colors duration-200 ${field.value ? "bg-indigo-600" : "bg-slate-200 dark:bg-zinc-700"}`}
                     style={{ width: 40, height: 22 }}
                   >
                     <div className={`absolute top-0.75 w-4 h-4 bg-white rounded-full shadow transition-all duration-200 ${field.value ? "left-5.5" : "left-0.75"}`} />
                   </button>
                 )}
               />
+            </div>
+
+            {/* Proctoring */}
+            <div className={`rounded-xl border p-3 transition-all ${proctoring ? "border-emerald-300 bg-emerald-50/50" : "border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900"}`}>
+              <div className="flex items-center justify-between">
+                <div className="flex items-start gap-2 min-w-0">
+                  <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${proctoring ? "bg-emerald-100" : "bg-slate-100"}`}>
+                    <ShieldCheck size={14} className={proctoring ? "text-emerald-600" : "text-slate-400"} />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-xs font-semibold text-slate-700 dark:text-zinc-300 leading-tight">Enable proctoring</p>
+                    <p className="text-[10px] text-slate-400 leading-snug mt-0.5">
+                      Webcam monitors for phones, second person, and looking away
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setProctoring(p => !p)}
+                  className={`relative rounded-full transition-colors duration-200 shrink-0 ml-2 ${proctoring ? "bg-emerald-500" : "bg-slate-200"}`}
+                  style={{ width: 40, height: 22 }}
+                  aria-pressed={proctoring}
+                >
+                  <div className={`absolute top-0.75 w-4 h-4 bg-white rounded-full shadow transition-all duration-200 ${proctoring ? "left-5.5" : "left-0.75"}`} />
+                </button>
+              </div>
+              {proctoring && (
+                <p className="text-[10px] text-emerald-700 mt-2 pl-9">
+                  You&apos;ll be prompted for camera access when the session starts.
+                </p>
+              )}
             </div>
 
             {/* Summary chips */}
@@ -338,7 +388,7 @@ const diffLevel     = useWatch({ control, name: "difficulty_level" });
                 sessionMode === "timed" ? "Timed" : sessionMode === "untimed" ? "Untimed" : "Topic Focus",
                 sessionMode === "timed" && timeLimitMins ? `~${timeLimitMins} mins` : null,
               ].filter(Boolean).map(chip => (
-                <span key={chip} className="inline-flex items-center gap-1 text-[10px] font-semibold text-slate-500 bg-slate-100 px-2.5 py-1 rounded-full">
+                <span key={chip} className="inline-flex items-center gap-1 text-[10px] font-semibold text-slate-500 dark:text-zinc-400 bg-slate-100 dark:bg-zinc-800 px-2.5 py-1 rounded-full">
                   <svg width="8" height="8" viewBox="0 0 8 8" fill="none"><circle cx="4" cy="4" r="3" fill="#94a3b8"/></svg>
                   {chip}
                 </span>
@@ -348,11 +398,11 @@ const diffLevel     = useWatch({ control, name: "difficulty_level" });
           </div>
 
           {/* footer */}
-          <div className="flex gap-3 px-6 py-4 border-t border-slate-100 shrink-0">
+          <div className="flex gap-3 px-6 py-4 border-t border-slate-100 dark:border-zinc-800 shrink-0">
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 h-11 rounded-xl border border-slate-200 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-colors"
+              className="flex-1 h-11 rounded-xl border border-slate-200 dark:border-zinc-700 text-sm font-semibold text-slate-600 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-800 transition-colors"
             >
               Cancel
             </button>

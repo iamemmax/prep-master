@@ -1,16 +1,36 @@
 "use client";
-import { use, useState, useEffect } from "react";
+import { use, useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Option } from "@/app/dashboard/util/types/pratcie/StartPracticeTypes";
 import { useSubmitQuestionAnswer } from "@/app/dashboard/util/apis/practice/submitQuestionAnswer";
 import { useEndSession } from "@/app/dashboard/util/apis/practice/endSession";
 import { useGetPracticeQuestions } from "@/app/dashboard/util/apis/practice/getPracticeQuestion";
 import PracticeRightPanel, { RightPanelProps } from "@/app/dashboard/components/practices/PracticeRightPannel";
+import ProctorPanel from "@/app/dashboard/components/practices/ProctorPanel";
+import Calculator from "@/app/dashboard/components/practices/Calculator";
+import {
+  StoredIncident,
+  StoredProctorReport,
+  saveProctorReport,
+  downloadProctorPDF,
+  openProctorPDF,
+} from "@/app/dashboard/util/proctor/report";
+import { useAuth } from "@/context/authentication";
+import { useTheme } from "@/context/theme";
+import * as Avatar from "@radix-ui/react-avatar";
 import { SmallSpinner } from "@/components/ui/Spinner";
 import { ErrorModal } from "@/components/ui/ErrorModal";
 import { useErrorModalState } from "@/hooks";
 import { formatAxiosErrorMessage } from "@/utils";
 import { AxiosError } from "axios";
+import {
+  Keyboard, X as XIcon, Zap, Clock3,
+  Play, Pause, BarChart3, ArrowLeft, Sun, Moon,
+  ChevronLeft, ChevronRight, Check, Flag, Trophy, Download, Eye,
+  Calculator as CalcIcon,
+} from "lucide-react";
+
+type Confidence = "guess" | "likely" | "certain";
 
 function parseOptions(raw: Option[] | Record<string, string> | string): Option[] {
   if (Array.isArray(raw)) return raw;
@@ -22,14 +42,16 @@ function parseOptions(raw: Option[] | Record<string, string> | string): Option[]
 }
 
 export default function PracticeExamUI({ params }: { params: Promise<{ sessionId: string }> }) {
-   const {
-      isErrorModalOpen,
-      setErrorModalState,
-      openErrorModalWithMessage,
-      errorModalMessage,
-    } = useErrorModalState();
+  const {
+    isErrorModalOpen,
+    setErrorModalState,
+    openErrorModalWithMessage,
+    errorModalMessage,
+  } = useErrorModalState();
   const router    = useRouter();
   const { sessionId } = use(params);
+  const { authState: { user } } = useAuth();
+  const { resolved: themeMode, toggle: toggleTheme } = useTheme();
 
   const { data, isLoading } = useGetPracticeQuestions(sessionId);
 
@@ -42,11 +64,35 @@ export default function PracticeExamUI({ params }: { params: Promise<{ sessionId
   const [flagged, setFlagged]     = useState<Set<number>>(new Set());
   const [seconds, setSeconds]     = useState(0);
   const [paused, setPaused]       = useState(false);
-  const [showPanel, setShowPanel] = useState(false);
   const [sessionResult, setSessionResult] = useState<{ score: number; correct_answers: number; total_questions: number } | null>(null);
+  const [proctoring, setProctoring] = useState(false);
+  const [proctorReport, setProctorReport] = useState<StoredProctorReport | null>(null);
+  const incidentsRef = useRef<StoredIncident[]>([]);
+  const sessionStartRef = useRef<string>(new Date().toISOString());
+
+  const [eliminated, setEliminated]   = useState<Record<number, Set<number>>>({});
+  const [confidence, setConfidence]   = useState<Record<number, Confidence>>({});
+  const [qElapsed, setQElapsed]       = useState(0);
+  const [focus, setFocus]             = useState(false);
+  const [shortcuts, setShortcuts]     = useState(false);
+  const [statsOpen, setStatsOpen]     = useState(false);
+  const [calcOpen, setCalcOpen]       = useState(false);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    setProctoring(sessionStorage.getItem("prep:proctoring") === "on");
+  }, []);
+
+  useEffect(() => { setQElapsed(0); }, [current]);
+
+  useEffect(() => {
+    if (paused) return;
+    const t = setInterval(() => setQElapsed(s => s + 1), 1000);
+    return () => clearInterval(t);
+  }, [paused]);
 
   const { mutate: submitAnswer } = useSubmitQuestionAnswer();
-  const { mutate: endSession, isPending:isEnding,}   = useEndSession();
+  const { mutate: endSession, isPending: isEnding } = useEndSession();
 
   useEffect(() => {
     if (session?.time_limit_minutes) setSeconds(session.time_limit_minutes * 60);
@@ -59,10 +105,39 @@ export default function PracticeExamUI({ params }: { params: Promise<{ sessionId
     return () => clearInterval(t);
   }, [session, paused]);
 
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const handler = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (target && ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName)) return;
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      if (!session || questions.length === 0) return;
+
+      const k = e.key.toLowerCase();
+      const opts = questions[current]?.options ?? [];
+      if (/^[1-9]$/.test(k)) {
+        const i = parseInt(k, 10) - 1;
+        if (i < opts.length) { e.preventDefault(); selectOption(i); }
+      } else if (/^[a-d]$/.test(k)) {
+        const i = k.charCodeAt(0) - 97;
+        if (i < opts.length) { e.preventDefault(); selectOption(i); }
+      } else if (k === "arrowright") { e.preventDefault(); navigate(1); }
+      else if (k === "arrowleft")  { e.preventDefault(); navigate(-1); }
+      else if (k === "f")          { e.preventDefault(); toggleFlag(); }
+      else if (k === " ")          { e.preventDefault(); setPaused(p => !p); }
+      else if (k === "z")          { e.preventDefault(); setFocus(f => !f); }
+      else if (k === "?")          { e.preventDefault(); setShortcuts(s => !s); }
+      else if (k === "escape")     { if (focus) setFocus(false); if (shortcuts) setShortcuts(false); }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [current, questions, focus, shortcuts, session]);
+
   if (!sessionId || isLoading || !session || questions.length === 0) {
     return (
-      <div className="flex h-screen items-center justify-center bg-[#0f172a]">
-        <div className="w-8 h-8 rounded-full border-2 border-indigo-500 border-t-transparent animate-spin" />
+      <div className="flex h-screen items-center justify-center bg-slate-50 dark:bg-zinc-950">
+        <div className="w-8 h-8 rounded-full border-2 border-slate-400 dark:border-zinc-500 border-t-transparent animate-spin" />
       </div>
     );
   }
@@ -78,7 +153,6 @@ export default function PracticeExamUI({ params }: { params: Promise<{ sessionId
   const progress     = Math.round((answered.size / TOTAL) * 100);
   const currentQ     = questions[current];
   const selectedAnswer = answers[current] ?? null;
-  const isMath       = currentQ?.subject?.name?.toLowerCase().includes("math");
 
   const topicNames = [...new Set(questions.map(q => q.topic.name))];
   const topicProgress = topicNames.map(name => ({
@@ -90,8 +164,8 @@ export default function PracticeExamUI({ params }: { params: Promise<{ sessionId
   function getDotClass(i: number) {
     if (i === current)   return "bg-[#F7C948] text-white border-[#F7C948]";
     if (flagged.has(i))  return "bg-amber-400 text-white border-amber-400";
-    if (answered.has(i)) return "bg-teal-500 text-white border-teal-500";
-    return "bg-white text-slate-500 border-slate-200 hover:border-slate-300";
+    if (answered.has(i)) return "bg-emerald-500 text-white border-emerald-500";
+    return "bg-white dark:bg-zinc-900 text-slate-500 dark:text-zinc-400 border-slate-200 dark:border-zinc-700 hover:border-slate-300 dark:hover:border-zinc-600";
   }
 
   function selectOption(idx: number) {
@@ -107,196 +181,547 @@ export default function PracticeExamUI({ params }: { params: Promise<{ sessionId
     setCurrent(next);
   }
   function toggleFlag() {
-    setFlagged(prev => { const n = new Set(prev); n.has(current) ? n.delete(current) : n.add(current); return n; });
+    setFlagged(prev => { const n = new Set(prev); if (n.has(current)) n.delete(current); else n.add(current); return n; });
   }
+  function toggleEliminate(optIdx: number, e?: React.MouseEvent) {
+    if (e) e.stopPropagation();
+    setEliminated(prev => {
+      const next = { ...prev };
+      const set = new Set(next[current] ?? []);
+      if (set.has(optIdx)) set.delete(optIdx); else set.add(optIdx);
+      next[current] = set;
+      return next;
+    });
+  }
+  function setConfidenceFor(level: Confidence) {
+    setConfidence(prev => ({ ...prev, [current]: level }));
+  }
+
   function handleEnd() {
     endSession(
       { session_id: session!.id },
-      { onSuccess: (res) => setSessionResult(res.data),
-   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-     onError: (error: any) => {
-  const errorMessage = 
-    error?.response?.data?.data?.non_field_errors?.[0]
-    || error?.response?.data?.message
-    || formatAxiosErrorMessage(error as AxiosError)
-    || 'An error occurred. Please try again.';
-  openErrorModalWithMessage(String(errorMessage));
-}
-
-       }
+      {
+        onSuccess: (res) => {
+          setSessionResult(res.data);
+          if (proctoring && session) {
+            const endedIso = new Date().toISOString();
+            const startedIso = sessionStartRef.current;
+            const durationSec = Math.max(
+              0,
+              Math.round((new Date(endedIso).getTime() - new Date(startedIso).getTime()) / 1000),
+            );
+            const report: StoredProctorReport = {
+              id: String(session.id),
+              sessionId: session.id,
+              examType: String(session.exam_type ?? ""),
+              sessionMode: String(session.session_mode ?? ""),
+              difficulty: String(session.difficulty_level ?? ""),
+              totalQuestions: TOTAL,
+              score: res.data.score,
+              correctAnswers: res.data.correct_answers,
+              startedAtIso: startedIso,
+              endedAtIso: endedIso,
+              durationSec,
+              incidents: incidentsRef.current,
+              createdAt: Date.now(),
+            };
+            setProctorReport(report);
+            saveProctorReport(report);
+          }
+        },
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        onError: (error: any) => {
+          const errorMessage =
+            error?.response?.data?.data?.non_field_errors?.[0]
+            || error?.response?.data?.message
+            || formatAxiosErrorMessage(error as AxiosError)
+            || "An error occurred. Please try again.";
+          openErrorModalWithMessage(String(errorMessage));
+        },
+      }
     );
+  }
+
+  function handleIncident(incident: StoredIncident) {
+    incidentsRef.current = [...incidentsRef.current, incident];
   }
 
   const panelProps: RightPanelProps = {
     answered, flagged, current, total: TOTAL, seconds, totalSecs,
     timerDisplay, timerPct, avgPaceSecs, avgPaceLabel,
-    topicProgress, getDotClass, setCurrent, setShowPanel, onEnd: handleEnd,
+    topicProgress, getDotClass, setCurrent, setShowPanel: setStatsOpen, onEnd: handleEnd,
   };
 
+  const targetPerQ = session.session_mode === "timed" && TOTAL > 0
+    ? Math.max(30, Math.round(totalSecs / TOTAL))
+    : 90;
+  const paceRatio   = qElapsed / targetPerQ;
+  const paceTone    = paceRatio <= 1.2 ? "ok" : paceRatio <= 2 ? "warn" : "alert";
+  const paceFg      =
+    paceTone === "ok"   ? "#059669" :
+    paceTone === "warn" ? "#D97706" :
+                          "#DC2626";
+  const paceLabel   = paceTone === "ok" ? "on pace" : paceTone === "warn" ? "slowing" : "lingering";
+  const qMins = Math.floor(qElapsed / 60);
+  const qSecs = qElapsed % 60;
+  const qTimeLabel = `${qMins}:${qSecs.toString().padStart(2, "0")}`;
+
+  const eliminatedSet = eliminated[current] ?? new Set<number>();
+  const curConfidence = confidence[current];
+  const flaggedCount  = flagged.size;
+
   return (
-    <div className="flex flex-col h-screen bg-[#0f172a] overflow-hidden">
+    <div className="flex flex-col h-screen overflow-hidden bg-slate-50 dark:bg-zinc-950 text-slate-900 dark:text-zinc-100 font-inter">
 
-      {/* ── Top Bar ── */}
-      <div className="flex items-center px-3 sm:px-5 h-13 bg-[#111827] border-b border-white/[0.07] shrink-0 gap-2 sm:gap-4">
-        <div className="flex items-center gap-1.5 shrink-0">
-          <span className="text-base">🎓</span>
-          <span className="text-xs sm:text-sm font-bold text-white">{session.exam_type} Practice</span>
-          <span className="hidden sm:inline text-white/20 mx-1">·</span>
-          <span className="hidden sm:inline text-[10px] text-white/60 capitalize">{session.session_mode}</span>
-          <span className="hidden sm:inline text-white/20 mx-1">·</span>
-          <span className="hidden sm:inline text-[10px] text-white/30 capitalize">{session.difficulty_level}</span>
+      {/* ── Header ── */}
+      <header className={`flex items-center px-4 sm:px-6 bg-white dark:bg-zinc-900 border-b border-slate-200 dark:border-zinc-800 shrink-0 gap-3 transition-all duration-300 overflow-hidden ${focus ? "h-0 border-b-0 opacity-0" : "h-12 opacity-100"}`}>
+        <button
+          onClick={() => router.push("/dashboard/practice")}
+          title="Back to practice"
+          aria-label="Back to practice"
+          className="inline-flex items-center justify-center w-8 h-8 -ml-1 rounded-md text-slate-500 dark:text-zinc-400 hover:bg-slate-100 dark:hover:bg-zinc-800 hover:text-slate-900 dark:hover:text-zinc-200 transition-colors shrink-0"
+        >
+          <ArrowLeft size={14} />
+        </button>
+        <div className="flex items-center min-w-0">
+          <span className="inline-flex items-center h-8 px-3 rounded-md bg-[#F7C948] text-[#5A3300] font-black text-sm tracking-tight truncate shadow-sm">
+            {String(session.exam_type ?? "").toUpperCase() || "PRACTICE"}
+          </span>
         </div>
 
-        <div className="flex-1 flex flex-col items-center gap-0.5 px-2 sm:px-6">
-          <span className="text-[9px] sm:text-[10px] text-white/40 font-mono">Q {answered.size} of {TOTAL}</span>
-          <div className="w-full max-w-xs h-0.75 bg-white/10 rounded-full overflow-hidden">
-            <div className="h-full bg-indigo-500 rounded-full transition-all duration-300" style={{ width: `${progress}%` }} />
-          </div>
-        </div>
+        <div className="flex-1" />
 
-        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+        <div className="flex items-center gap-1">
           {session.session_mode === "timed" && (
-            <div className="flex items-center gap-1 sm:gap-1.5 bg-white/6 border border-white/9 px-2 sm:px-3 py-1.5 rounded-full">
-              <svg width="10" height="10" viewBox="0 0 12 12" fill="none">
-                <circle cx="6" cy="6" r="5" stroke="#f59e0b" strokeWidth="1.3"/>
-                <path d="M6 3v3l2 1.5" stroke="#f59e0b" strokeWidth="1.3" strokeLinecap="round"/>
-              </svg>
-              <span className="text-[10px] sm:text-xs font-bold text-amber-400 font-mono">{timerDisplay}</span>
-            </div>
+            <span className={`inline-flex items-center gap-1.5 h-8 px-2.5 rounded-md text-xs font-bold font-mono tabular-nums transition-colors ${
+              timerPct < 20
+                ? "text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-500/10"
+                : "text-slate-900 dark:text-zinc-200 bg-slate-100 dark:bg-zinc-800"
+            }`}>
+              <Clock3 size={11} />
+              {timerDisplay}
+            </span>
           )}
-          <button onClick={() => setPaused(p => !p)}
-            className="hidden sm:flex items-center gap-1.5 text-[10px] font-semibold px-3 py-1.5 rounded-full border border-white/10 text-white/60 hover:text-white transition-all">
-            <svg width="8" height="10" viewBox="0 0 8 10" fill="currentColor">
-              {paused ? <path d="M1 1l6 4-6 4V1z"/> : <><rect x="0" y="0" width="3" height="10" rx="1"/><rect x="5" y="0" width="3" height="10" rx="1"/></>}
-            </svg>
-            {paused ? "Resume" : "Pause"}
-          </button>
-          <button onClick={() => setShowPanel(p => !p)}
-            className="sm:hidden flex items-center gap-1 text-[10px] font-semibold px-2.5 py-1.5 rounded-full border border-white/10 text-white/60">
-            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.4">
-              <rect x="1" y="1" width="4" height="10" rx="1"/><rect x="7" y="1" width="4" height="6" rx="1"/>
-            </svg>
-          </button>
-          <button onClick={handleEnd} className="text-[10px] flex items-center justify-center
-          gap-2 font-bold px-3 sm:px-4 py-1.5 rounded-full bg-red-500 text-white hover:bg-red-600 transition-colors">
-            End {isEnding && <SmallSpinner/>}
+          <IconBtn onClick={() => setPaused(p => !p)} label={paused ? "Resume (Space)" : "Pause (Space)"}>
+            {paused ? <Play size={13} fill="currentColor" /> : <Pause size={13} fill="currentColor" />}
+          </IconBtn>
+          <IconBtn onClick={() => setCalcOpen(v => !v)} label="Calculator">
+            <CalcIcon size={13} />
+          </IconBtn>
+          <IconBtn onClick={toggleTheme} label={themeMode === "dark" ? "Light mode" : "Dark mode"}>
+            {themeMode === "dark" ? <Sun size={13} /> : <Moon size={13} />}
+          </IconBtn>
+          <button
+            onClick={handleEnd}
+            className="ml-1 h-8 px-3 rounded-md bg-rose-500 hover:bg-rose-600 text-white text-[11px] font-bold transition-colors inline-flex items-center gap-1.5"
+          >
+            End {isEnding && <SmallSpinner />}
           </button>
         </div>
+      </header>
+
+      {/* ── Progress strip ── */}
+      <div className={`h-0.5 bg-slate-200 dark:bg-zinc-800 shrink-0 transition-all duration-300 ${focus ? "opacity-0" : "opacity-100"}`}>
+        <div
+          className="h-full bg-[#F7C948] transition-[width] duration-500"
+          style={{ width: `${progress}%` }}
+        />
       </div>
 
-      {/* ── Body ── */}
-      <div className="flex flex-1 overflow-hidden gap-3 p-2 sm:p-3">
+      {/* ── 3-column body ── */}
+      <div className="flex-1 min-h-0 flex overflow-hidden">
 
-        {/* ── Left Card ── */}
-        <div className="flex-1 bg-white rounded-2xl flex flex-col overflow-hidden shadow-sm min-w-0">
-
-          <div className="flex items-center justify-between px-3 sm:px-5 py-2.5 sm:py-3 border-b border-slate-100 shrink-0">
-            <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
-              <span className="text-[9px] sm:text-[10px] font-semibold bg-teal-50 text-teal-700 border border-teal-200 px-2 py-0.5 rounded-md">
-                {isMath ? "Math" : "Reading Comprehension"}
-              </span>
-              <span className={`text-[9px] sm:text-[10px] font-semibold px-1.5 py-0.5 rounded-md border ${
-                currentQ.difficulty_level === "easy"   ? "bg-green-50 text-green-700 border-green-200"
-                : currentQ.difficulty_level === "medium" ? "bg-amber-50 text-amber-700 border-amber-200"
-                : "bg-red-50 text-red-700 border-red-200"
-              }`}>{currentQ.difficulty_level}</span>
-              <span className="text-[9px] sm:text-[10px] text-slate-400">{currentQ.topic.name}</span>
+        {/* Left rail: profile + session summary */}
+        {!focus && (
+          <aside className="hidden lg:flex w-72 shrink-0 flex-col bg-white dark:bg-zinc-900 border-r border-slate-200 dark:border-zinc-800 overflow-y-auto">
+            {/* Profile card */}
+            <div className="px-4 py-4 border-b border-slate-100 dark:border-zinc-800 shrink-0">
+              <div className="flex items-center gap-3">
+                <Avatar.Root className="w-11 h-11 rounded-full overflow-hidden shrink-0 ring-2 ring-[#F7C948]/30">
+                  <Avatar.Fallback className="w-full h-full bg-linear-to-tr from-[#2B7FFF] to-[#615FFF] flex items-center justify-center text-white text-sm font-semibold font-inter">
+                    {((user?.user?.first_name?.[0] ?? "") + (user?.user?.last_name?.[0] ?? "")).toUpperCase() || "U"}
+                  </Avatar.Fallback>
+                </Avatar.Root>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-semibold text-slate-900 dark:text-zinc-100 truncate">
+                    {user?.user?.first_name || user?.user?.last_name
+                      ? `${user?.user?.first_name ?? ""} ${user?.user?.last_name ?? ""}`.trim()
+                      : "Student"}
+                  </p>
+                  <p className="text-[11px] text-slate-500 dark:text-zinc-400 truncate">
+                    {user?.user?.email ?? "—"}
+                  </p>
+                </div>
+              </div>
+              <div className="mt-3 pt-3 border-t border-slate-100 dark:border-zinc-800 flex items-center justify-between text-[11px]">
+                <div>
+                  <p className="uppercase tracking-wider text-[9px] font-semibold text-slate-400 dark:text-zinc-500">Preparing for</p>
+                  <p className="font-semibold text-slate-800 dark:text-zinc-100 mt-0.5">
+                    {user?.exam_config?.preparing_for_exam ?? session.exam_type}
+                  </p>
+                </div>
+                <span className="text-[9px] font-bold uppercase tracking-wider text-[#894B00] dark:text-amber-400 bg-amber-50 dark:bg-amber-500/10 px-2 py-1 rounded">
+                  Free
+                </span>
+              </div>
             </div>
-            <button onClick={toggleFlag}
-              className={`flex items-center gap-1 text-[9px] sm:text-[10px] font-semibold px-2 py-1 rounded-md border transition-all ${
-                flagged.has(current) ? "bg-amber-50 text-amber-600 border-amber-300" : "text-slate-400 border-slate-200 hover:border-slate-300"
-              }`}>
-              <svg width="8" height="9" viewBox="0 0 10 12" fill={flagged.has(current) ? "#d97706" : "none"} stroke="currentColor" strokeWidth="1.4">
-                <path d="M2 1v10M2 1h6L6.5 5 9 8H2"/>
-              </svg>
-              <span className="hidden sm:inline">Flag</span>
-            </button>
+
+            {/* Session details */}
+            <div className="px-4 py-4 border-b border-slate-100 dark:border-zinc-800 shrink-0">
+              <p className="text-[10px] uppercase tracking-wider font-semibold text-slate-500 dark:text-zinc-400 mb-2">
+                Session
+              </p>
+              <dl className="space-y-1.5 text-[11px]">
+                <div className="flex justify-between gap-2">
+                  <dt className="text-slate-500 dark:text-zinc-400">Exam</dt>
+                  <dd className="font-semibold text-slate-900 dark:text-zinc-100 truncate">{session.exam_type}</dd>
+                </div>
+                <div className="flex justify-between gap-2">
+                  <dt className="text-slate-500 dark:text-zinc-400">Mode</dt>
+                  <dd className="font-semibold text-slate-900 dark:text-zinc-100 capitalize">{session.session_mode}</dd>
+                </div>
+                <div className="flex justify-between gap-2">
+                  <dt className="text-slate-500 dark:text-zinc-400">Difficulty</dt>
+                  <dd className="font-semibold text-slate-900 dark:text-zinc-100 capitalize">{session.difficulty_level}</dd>
+                </div>
+                <div className="flex justify-between gap-2">
+                  <dt className="text-slate-500 dark:text-zinc-400">Questions</dt>
+                  <dd className="font-semibold text-slate-900 dark:text-zinc-100 tabular-nums">{TOTAL}</dd>
+                </div>
+                {session.session_mode === "timed" && (
+                  <div className="flex justify-between gap-2">
+                    <dt className="text-slate-500 dark:text-zinc-400">Remaining</dt>
+                    <dd className="font-semibold text-slate-900 dark:text-zinc-100 tabular-nums font-mono">{timerDisplay}</dd>
+                  </div>
+                )}
+              </dl>
+            </div>
+
+            {/* Live stats */}
+            <div className="px-4 py-4 border-b border-slate-100 dark:border-zinc-800 shrink-0">
+              <p className="text-[10px] uppercase tracking-wider font-semibold text-slate-500 dark:text-zinc-400 mb-3">
+                This session
+              </p>
+              <div className="grid grid-cols-3 gap-2 text-center">
+                <div className="rounded-lg bg-emerald-50 dark:bg-emerald-500/10 py-2">
+                  <p className="text-lg font-semibold text-emerald-700 dark:text-emerald-400 tabular-nums leading-none">{answered.size}</p>
+                  <p className="text-[9px] uppercase tracking-wider text-emerald-700/70 dark:text-emerald-400/70 mt-1">Done</p>
+                </div>
+                <div className="rounded-lg bg-amber-50 dark:bg-amber-500/10 py-2">
+                  <p className="text-lg font-semibold text-amber-700 dark:text-amber-400 tabular-nums leading-none">{flaggedCount}</p>
+                  <p className="text-[9px] uppercase tracking-wider text-amber-700/70 dark:text-amber-400/70 mt-1">Flag</p>
+                </div>
+                <div className="rounded-lg bg-slate-100 dark:bg-zinc-800 py-2">
+                  <p className="text-lg font-semibold text-slate-700 dark:text-zinc-200 tabular-nums leading-none">{TOTAL - answered.size}</p>
+                  <p className="text-[9px] uppercase tracking-wider text-slate-500 dark:text-zinc-400 mt-1">Left</p>
+                </div>
+              </div>
+
+              {/* Confidence breakdown */}
+              {(() => {
+                const counts = { guess: 0, likely: 0, certain: 0 };
+                Object.values(confidence).forEach(c => { counts[c]++; });
+                const total = counts.guess + counts.likely + counts.certain;
+                if (total === 0) return null;
+                const rows = [
+                  { key: "certain", label: "Certain", count: counts.certain, color: "bg-emerald-500" },
+                  { key: "likely",  label: "Likely",  count: counts.likely,  color: "bg-amber-400"   },
+                  { key: "guess",   label: "Guess",   count: counts.guess,   color: "bg-rose-500"    },
+                ];
+                return (
+                  <div className="mt-4">
+                    <p className="text-[10px] uppercase tracking-wider font-semibold text-slate-500 dark:text-zinc-400 mb-2">
+                      Confidence
+                    </p>
+                    <div className="space-y-1.5">
+                      {rows.map(r => (
+                        <div key={r.key}>
+                          <div className="flex items-center justify-between text-[10px] mb-0.5">
+                            <span className="text-slate-500 dark:text-zinc-400">{r.label}</span>
+                            <span className="font-semibold text-slate-700 dark:text-zinc-300 tabular-nums">{r.count}</span>
+                          </div>
+                          <div className="h-1 rounded-full bg-slate-100 dark:bg-zinc-800 overflow-hidden">
+                            <div className={`h-full rounded-full ${r.color}`} style={{ width: `${(r.count / total) * 100}%` }} />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })()}
+            </div>
+
+            {/* Flagged */}
+            <div className="px-4 py-4 shrink-0">
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-[10px] uppercase tracking-wider font-semibold text-slate-500 dark:text-zinc-400">
+                  Flagged
+                </p>
+                <span className="text-[10px] font-bold text-amber-600 dark:text-amber-400 tabular-nums">
+                  {flaggedCount}
+                </span>
+              </div>
+              {flaggedCount === 0 ? (
+                <p className="text-[11px] text-slate-400 dark:text-zinc-500 italic">No flagged questions yet.</p>
+              ) : (
+                <ul className="space-y-1">
+                  {Array.from(flagged).sort((a, b) => a - b).map(i => (
+                    <li key={i}>
+                      <button
+                        onClick={() => setCurrent(i)}
+                        className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-[11px] transition-colors ${
+                          i === current
+                            ? "bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-300"
+                            : "text-slate-600 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-800"
+                        }`}
+                      >
+                        <Flag size={10} fill="#D97706" className="text-amber-500 shrink-0" />
+                        <span className="truncate">Q{i + 1} · {questions[i]?.topic?.name ?? "—"}</span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </aside>
+        )}
+
+        {/* Center: question canvas */}
+        <div className="flex-1 min-w-0 overflow-y-auto">
+          <div className="max-w-3xl mx-auto px-4 sm:px-8 py-8 sm:py-10">
+
+          {/* Meta row */}
+          <div className="flex items-start justify-between gap-3 mb-5">
+            <div className="min-w-0">
+              <p className="text-[10px] uppercase tracking-widest text-slate-400 dark:text-zinc-500 font-semibold">
+                Question {current + 1} of {TOTAL}
+              </p>
+              <div className="flex items-center gap-2 mt-1 flex-wrap">
+                <p className="text-sm font-medium text-slate-700 dark:text-zinc-300">{currentQ.topic.name}</p>
+                <span className={`text-[10px] font-bold capitalize px-1.5 py-0.5 rounded ${
+                  currentQ.difficulty_level === "easy"
+                    ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400"
+                    : currentQ.difficulty_level === "medium"
+                    ? "bg-amber-50 text-[#894B00] dark:bg-amber-500/10 dark:text-amber-400"
+                    : "bg-rose-50 text-rose-700 dark:bg-rose-500/10 dark:text-rose-400"
+                }`}>
+                  {currentQ.difficulty_level}
+                </span>
+              </div>
+            </div>
+            <div className="flex items-center gap-1.5 shrink-0">
+              <span
+                className="hidden sm:inline-flex items-center gap-1 text-[10px] font-bold h-7 px-2 rounded-md tabular-nums"
+                style={{ color: paceFg, background: `${paceFg}1a` }}
+                title={`Target ${Math.floor(targetPerQ / 60)}:${(targetPerQ % 60).toString().padStart(2, "0")} per question`}
+              >
+                <Clock3 size={10} />
+                {qTimeLabel}
+                <span className="hidden md:inline text-[8px] uppercase tracking-wider opacity-80">· {paceLabel}</span>
+              </span>
+              <button
+                onClick={toggleFlag}
+                className={`inline-flex items-center gap-1 h-7 px-2 rounded-md text-[10px] font-bold transition-colors ${
+                  flagged.has(current)
+                    ? "bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400"
+                    : "bg-slate-100 text-slate-500 dark:bg-zinc-800 dark:text-zinc-400 hover:bg-slate-200 dark:hover:bg-zinc-700"
+                }`}
+              >
+                <Flag size={10} fill={flagged.has(current) ? "currentColor" : "transparent"} />
+                <span className="hidden sm:inline">{flagged.has(current) ? "Flagged" : "Flag"}</span>
+              </button>
+            </div>
           </div>
 
-          <div className="flex-1 overflow-y-auto px-3 sm:px-6 py-3 sm:py-4">
-            <div>
-              <p className="text-[8px] sm:text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1">Question {current + 1}</p>
-              <p className="text-[12px] sm:text-[13px] font-semibold text-slate-800 leading-relaxed mb-3 sm:mb-4">
-                {currentQ.text}
-              </p>
-              <div className="space-y-1.5 sm:space-y-2">
-                {currentQ.options.map((opt, i) => (
-                  <button key={opt.id} onClick={() => selectOption(i)}
-                    className={`w-full flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-2.5 sm:py-3 rounded-xl border text-left transition-all ${
-                      selectedAnswer === i ? "border-indigo-300 bg-indigo-50" : "border-slate-200 bg-white hover:border-indigo-200 hover:bg-indigo-50/20"
-                    }`}>
-                    <div className={`w-6 h-6 sm:w-7 sm:h-7 rounded-full border-2 flex items-center justify-center shrink-0 text-[10px] sm:text-[11px] font-bold transition-all ${
-                      selectedAnswer === i ? "bg-[#F7C948] border-[#F7C948] text-white" : "border-slate-300 text-slate-400"
+          {/* Question text */}
+          <p className="text-[16px] sm:text-[17px] leading-[1.7] text-slate-800 dark:text-zinc-200 mb-7 font-medium">
+            {currentQ.text}
+          </p>
+
+          {/* Options */}
+          <div className="space-y-2 mb-6">
+            {currentQ.options.map((opt, i) => {
+              const isEliminated = eliminatedSet.has(i);
+              const isSelected   = selectedAnswer === i;
+              return (
+                <div key={opt.id} className="group relative">
+                  <button
+                    onClick={() => selectOption(i)}
+                    className={`w-full flex items-center gap-3 sm:gap-4 pl-3 pr-10 py-3 sm:py-3.5 rounded-xl border text-left transition-all ${
+                      isSelected
+                        ? "border-[#F7C948] bg-amber-50/60 dark:bg-amber-500/10"
+                        : isEliminated
+                        ? "border-slate-200 dark:border-zinc-800 bg-slate-50/60 dark:bg-zinc-900/60 opacity-55"
+                        : "border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 hover:border-slate-300 dark:hover:border-zinc-700"
+                    }`}
+                  >
+                    <div className={`w-8 h-8 rounded-md flex items-center justify-center shrink-0 text-xs font-bold transition-all ${
+                      isSelected
+                        ? "bg-[#F7C948] text-white"
+                        : isEliminated
+                        ? "bg-slate-100 dark:bg-zinc-800 text-slate-300 dark:text-zinc-600"
+                        : "bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-300"
                     }`}>
                       {String.fromCharCode(65 + i)}
                     </div>
-                    <span className={`text-[11px] sm:text-[12px] leading-relaxed ${selectedAnswer === i ? "text-indigo-800 font-medium" : "text-slate-600"}`}>
+                    <span className={`flex-1 text-sm sm:text-[15px] leading-relaxed ${
+                      isSelected
+                        ? "text-slate-900 dark:text-zinc-100 font-semibold"
+                        : isEliminated
+                        ? "text-slate-400 dark:text-zinc-600 line-through decoration-rose-400/70"
+                        : "text-slate-700 dark:text-zinc-300"
+                    }`}>
                       {opt.option_text}
                     </span>
+                    {isSelected && <Check size={16} className="text-[#894B00] dark:text-[#F7C948] shrink-0" strokeWidth={3} />}
                   </button>
-                ))}
-              </div>
-
-              {session.show_explanation_after_answer && selectedAnswer !== null && currentQ.explanation && (
-                <div className="mt-4 p-3 rounded-xl bg-indigo-50 border border-indigo-100">
-                  <p className="text-[10px] font-bold text-[#F7C948] mb-1">Explanation</p>
-                  <p className="text-[11px] text-slate-600 leading-relaxed">{currentQ.explanation}</p>
+                  <button
+                    onClick={(e) => toggleEliminate(i, e)}
+                    title={isEliminated ? "Restore" : "Cross out this option"}
+                    className={`absolute top-1/2 -translate-y-1/2 right-2 w-7 h-7 rounded-md flex items-center justify-center transition-all ${
+                      isEliminated
+                        ? "bg-rose-50 dark:bg-rose-500/15 text-rose-600 dark:text-rose-400 opacity-100"
+                        : "bg-slate-100 dark:bg-zinc-800 text-slate-400 dark:text-zinc-500 opacity-0 group-hover:opacity-100 hover:bg-rose-50 dark:hover:bg-rose-500/15 hover:text-rose-600 dark:hover:text-rose-400"
+                    }`}
+                  >
+                    <XIcon size={13} strokeWidth={2.2} />
+                  </button>
                 </div>
-              )}
+              );
+            })}
+          </div>
+
+          {/* Confidence capture */}
+          {selectedAnswer !== null && (
+            <div className="flex items-center justify-between gap-3 flex-wrap pt-4 border-t border-slate-200 dark:border-zinc-800">
+              <p className="text-xs font-semibold text-slate-600 dark:text-zinc-400 inline-flex items-center gap-1.5">
+                <Zap size={12} className="text-[#F7C948]" />
+                How confident?
+              </p>
+              <div className="inline-flex gap-0 border border-slate-200 dark:border-zinc-700 rounded-md overflow-hidden">
+                {([
+                  { key: "guess",   label: "Guess"   },
+                  { key: "likely",  label: "Likely"  },
+                  { key: "certain", label: "Certain" },
+                ] as const).map(o => {
+                  const active = curConfidence === o.key;
+                  return (
+                    <button
+                      key={o.key}
+                      onClick={() => setConfidenceFor(o.key)}
+                      className={`text-[11px] font-semibold px-3 py-1.5 transition-colors ${
+                        active
+                          ? "bg-slate-900 dark:bg-zinc-100 text-white dark:text-zinc-900"
+                          : "bg-white dark:bg-zinc-900 text-slate-600 dark:text-zinc-400 hover:bg-slate-50 dark:hover:bg-zinc-800"
+                      }`}
+                    >
+                      {o.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Explanation */}
+          {session.show_explanation_after_answer && selectedAnswer !== null && currentQ.explanation && (
+            <div className="mt-5 rounded-lg border border-slate-200 dark:border-zinc-800 p-4 bg-white dark:bg-zinc-900">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400 mb-1.5">
+                Explanation
+              </p>
+              <p className="text-sm text-slate-700 dark:text-zinc-300 leading-relaxed">
+                {currentQ.explanation}
+              </p>
+            </div>
+          )}
+          </div>
+        </div>
+
+        {/* Right rail: live stats */}
+        {!focus && (
+          <aside className="hidden xl:flex w-72 shrink-0 flex-col bg-white dark:bg-zinc-900 border-l border-slate-200 dark:border-zinc-800 overflow-y-auto">
+            <PracticeRightPanel {...panelProps} />
+          </aside>
+        )}
+      </div>
+
+      {/* ── Dock ── */}
+      <footer className="bg-white dark:bg-zinc-900 border-t border-slate-200 dark:border-zinc-800 shrink-0">
+        <div className="flex items-center gap-3 px-4 sm:px-6 py-2.5">
+          <div className="flex-1 flex items-center justify-center overflow-x-auto" style={{ scrollbarWidth: "none" }}>
+            <div className="flex items-center gap-1.5 min-w-max px-2">
+              {Array.from({ length: TOTAL }, (_, i) => {
+                const isCur = i === current;
+                const isAns = answered.has(i);
+                const isFlg = flagged.has(i);
+                return (
+                  <button
+                    key={i}
+                    onClick={() => setCurrent(i)}
+                    title={`Q${i + 1}${isAns ? " · answered" : ""}${isFlg ? " · flagged" : ""}`}
+                    className={`relative rounded-full transition-all ${
+                      isCur
+                        ? "w-6 h-2 bg-[#F7C948]"
+                        : isAns
+                        ? "w-2 h-2 bg-emerald-500 hover:scale-125"
+                        : "w-2 h-2 bg-slate-300 dark:bg-zinc-700 hover:bg-slate-400 dark:hover:bg-zinc-600"
+                    }`}
+                  >
+                    {isFlg && !isCur && (
+                      <span className="absolute -top-1 -right-1 w-1.5 h-1.5 rounded-full bg-amber-400 ring-2 ring-white dark:ring-zinc-900" />
+                    )}
+                  </button>
+                );
+              })}
             </div>
           </div>
 
-          <div className="flex items-center justify-between px-3 sm:px-5 py-3 border-t border-slate-100 bg-white shrink-0 sticky bottom-0 z-10">
-            <button onClick={() => navigate(-1)} disabled={current === 0}
-              className="flex items-center gap-1.5 text-[11px] font-semibold px-4 py-2.5 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 disabled:opacity-30 disabled:cursor-not-allowed transition-all">
-              ← Previous
+          <p className="hidden md:block text-[11px] text-slate-400 dark:text-zinc-500 tabular-nums shrink-0">
+            <span className="font-semibold text-slate-700 dark:text-zinc-300">{answered.size}</span> answered
+            {flaggedCount > 0 && <span> · <span className="font-semibold text-amber-600 dark:text-amber-400">{flaggedCount}</span> flagged</span>}
+          </p>
+
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              onClick={() => navigate(-1)}
+              disabled={current === 0}
+              className="inline-flex items-center gap-1.5 h-9 px-4 rounded-md text-xs font-bold border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-slate-700 dark:text-zinc-200 hover:bg-slate-50 dark:hover:bg-zinc-800 hover:border-slate-300 dark:hover:border-zinc-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            >
+              <ChevronLeft size={14} />
+              Prev
             </button>
-            <span className="text-[10px] text-slate-300 text-center px-2">
-              {selectedAnswer === null ? "Select an answer" : ""}
-            </span>
-          <button
-  onClick={() => {
-    if (current === TOTAL - 1) {
-      handleEnd();
-    } else {
-      navigate(1);
-    }
-  }}
-  disabled={isEnding}
-  className={`flex items-center gap-1.5 cursor-pointer text-[11px] justify-center font-semibold px-4 py-2.5 rounded-lg border transition-all ${
-    current === TOTAL - 1
-      ? "border-indigo-500 bg-[#F7C948] text-white hover:bg-[#F7C948]/90 disabled:opacity-60"
-      : "border-slate-200 text-slate-500 hover:bg-slate-50"
-  }`}
->
-  {current === TOTAL - 1 ? (
-    <span className="flex items-center gap-1.5">
-      {isEnding ? <SmallSpinner /> : "Finish ✓"}
-    </span>
-  ) : "Next →"}
-</button>
+            <button
+              onClick={() => current === TOTAL - 1 ? handleEnd() : navigate(1)}
+              disabled={isEnding}
+              className={`inline-flex items-center gap-1.5 h-9 px-4 rounded-md text-xs font-bold transition-colors ${
+                current === TOTAL - 1
+                  ? "bg-emerald-500 text-white hover:bg-emerald-600 disabled:opacity-60"
+                  : "bg-slate-900 dark:bg-zinc-100 text-white dark:text-zinc-900 hover:bg-slate-800 dark:hover:bg-zinc-200"
+              }`}
+            >
+              {current === TOTAL - 1 ? (
+                <>{isEnding ? <SmallSpinner /> : <>Finish <Check size={14} strokeWidth={2.6} /></>}</>
+              ) : <>Next <ChevronRight size={14} /></>}
+            </button>
           </div>
         </div>
+      </footer>
 
-        {/* ── Right Panel — desktop ── */}
-        <div className="hidden md:flex w-70 lg:w-sm shrink-0 rounded-2xl overflow-hidden shadow-sm">
-          <div className="flex-1">
-            <PracticeRightPanel {...panelProps} />
-          </div>
-        </div>
-      </div>
-
-      {/* ── Mobile bottom sheet ── */}
-      {showPanel && (
-        <div className="md:hidden fixed inset-0 z-50 flex flex-col justify-end">
-          <div className="absolute inset-0 bg-black/50" onClick={() => setShowPanel(false)} />
-          <div className="relative bg-white rounded-t-2xl max-h-[85vh] flex flex-col overflow-hidden">
-            <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 shrink-0">
-              <p className="text-sm font-bold text-slate-800">Session Progress</p>
-              <button onClick={() => setShowPanel(false)} className="text-slate-400 hover:text-slate-600 p-1">
-                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8">
-                  <path d="M4 4l8 8M12 4l-8 8" strokeLinecap="round"/>
-                </svg>
+      {/* ── Stats drawer ── */}
+      {statsOpen && (
+        <div className="fixed inset-0 z-50 flex" onClick={() => setStatsOpen(false)}>
+          <div className="flex-1 bg-black/40 backdrop-blur-[2px]" />
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-80 max-w-[85vw] bg-white dark:bg-zinc-900 h-full shadow-2xl flex flex-col border-l border-slate-200 dark:border-zinc-800"
+          >
+            <div className="flex items-center justify-between px-4 h-12 border-b border-slate-200 dark:border-zinc-800 shrink-0">
+              <div className="flex items-center gap-2">
+                <BarChart3 size={14} className="text-slate-500 dark:text-zinc-400" />
+                <p className="text-sm font-semibold text-slate-900 dark:text-zinc-100">Session stats</p>
+              </div>
+              <button onClick={() => setStatsOpen(false)} className="text-slate-400 dark:text-zinc-500 hover:text-slate-700 dark:hover:text-zinc-200 p-1 rounded">
+                <XIcon size={16} />
               </button>
             </div>
             <div className="flex-1 overflow-y-auto">
@@ -306,46 +731,176 @@ export default function PracticeExamUI({ params }: { params: Promise<{ sessionId
         </div>
       )}
 
-      {/* ── Session Result Modal ── */}
-      {sessionResult && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm mx-4 p-6 flex flex-col items-center gap-4">
-            <div className="w-14 h-14 rounded-full bg-indigo-50 flex items-center justify-center">
-              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#6366f1" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
-              </svg>
+      {/* ── Paused overlay ── */}
+      {paused && (
+        <div className="fixed inset-0 z-40 flex items-center justify-center bg-slate-900/70 dark:bg-black/70 backdrop-blur-sm pointer-events-none">
+          <div className="flex flex-col items-center gap-3 pointer-events-auto">
+            <div className="w-16 h-16 rounded-full bg-white/10 border border-white/20 flex items-center justify-center backdrop-blur-xl">
+              <Pause size={22} className="text-white" fill="white" />
             </div>
-            <h2 className="text-lg font-bold text-slate-800">Session Complete!</h2>
-            <div className="w-full bg-slate-50 rounded-xl p-4 flex flex-col gap-3">
-              <div className="flex justify-between items-center">
-                <span className="text-xs text-slate-500">Score</span>
-                <span className="text-sm font-bold text-[#F7C948]">{parseFloat(sessionResult.score.toFixed(2))}%</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-xs text-slate-500">Correct Answers</span>
-                <span className="text-sm font-semibold text-slate-800">{sessionResult.correct_answers} / {sessionResult.total_questions}</span>
-              </div>
-              <div className="w-full h-2 bg-slate-200 rounded-full overflow-hidden">
-                <div className="h-full bg-indigo-500 rounded-full" style={{ width: `${(sessionResult.correct_answers / sessionResult.total_questions) * 100}%` }} />
-              </div>
-            </div>
-            <button onClick={() => router.push("/dashboard/practice")}
-              className="w-full h-11 rounded-xl text-sm font-bold text-white"
-              style={{ background: "linear-gradient(135deg, #6366F1, #7C3AED)" }}>
-              Back to Practice
-            </button>
+            <p className="text-white font-semibold text-base">Paused</p>
+            <p className="text-white/60 text-xs">
+              Press <kbd className="bg-white/10 text-white px-1.5 py-0.5 rounded text-[10px] font-mono">Space</kbd> to resume
+            </p>
           </div>
         </div>
       )}
 
-
-        <ErrorModal
-                  isErrorModalOpen={isErrorModalOpen}
-                  setErrorModalState={() =>{
-                    router.push("/dashboard/practice")
-                    setErrorModalState(false)}}
-                  subheading={errorModalMessage || "Please check your inputs and try again."}
+      {/* ── Result modal ── */}
+      {sessionResult && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="bg-white dark:bg-zinc-900 rounded-xl shadow-2xl w-full max-w-sm p-6 flex flex-col items-center gap-4 border border-slate-200 dark:border-zinc-800">
+            <div className="w-14 h-14 rounded-full bg-amber-50 dark:bg-amber-500/10 flex items-center justify-center">
+              <Trophy size={24} className="text-[#F7C948]" />
+            </div>
+            <div className="text-center">
+              <h2 className="text-base font-semibold text-slate-900 dark:text-zinc-100">Session complete</h2>
+              <p className="text-xs text-slate-500 dark:text-zinc-400 mt-0.5">Here&apos;s how you did.</p>
+            </div>
+            <div className="w-full rounded-lg border border-slate-200 dark:border-zinc-800 p-4 flex flex-col gap-3">
+              <div className="flex justify-between items-baseline">
+                <span className="text-xs text-slate-500 dark:text-zinc-400">Score</span>
+                <span className="text-2xl font-semibold text-slate-900 dark:text-zinc-100 tabular-nums">
+                  {parseFloat(sessionResult.score.toFixed(2))}<span className="text-base text-slate-400">%</span>
+                </span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-xs text-slate-500 dark:text-zinc-400">Correct answers</span>
+                <span className="text-sm font-semibold text-slate-800 dark:text-zinc-200 tabular-nums">
+                  {sessionResult.correct_answers} / {sessionResult.total_questions}
+                </span>
+              </div>
+              <div className="w-full h-1.5 bg-slate-100 dark:bg-zinc-800 rounded-full overflow-hidden">
+                <div
+                  className="h-full rounded-full bg-[#F7C948]"
+                  style={{ width: `${(sessionResult.correct_answers / sessionResult.total_questions) * 100}%` }}
                 />
+              </div>
+            </div>
+            {proctorReport && (
+              <div className="w-full">
+                <p className="text-[11px] text-slate-500 dark:text-zinc-400 mb-1.5 text-center">
+                  Proctoring report · {proctorReport.incidents.length} incident{proctorReport.incidents.length === 1 ? "" : "s"}
+                </p>
+                <div className="flex w-full gap-2">
+                  <button
+                    onClick={() => openProctorPDF(proctorReport)}
+                    className="flex-1 h-10 rounded-md text-sm font-semibold bg-[#F7C948] text-[#5A3300] hover:bg-[#F0BC2F] transition-colors inline-flex items-center justify-center gap-1.5"
+                  >
+                    <Eye size={14} />
+                    View
+                  </button>
+                  <button
+                    onClick={() => downloadProctorPDF(proctorReport)}
+                    className="flex-1 h-10 rounded-md text-sm font-semibold border border-slate-200 dark:border-zinc-700 text-slate-700 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-800 transition-colors inline-flex items-center justify-center gap-1.5"
+                  >
+                    <Download size={14} />
+                    Download
+                  </button>
+                </div>
+              </div>
+            )}
+            <div className="flex w-full gap-2">
+              <button
+                onClick={() => router.push("/dashboard/progress")}
+                className="flex-1 h-10 rounded-md text-sm font-semibold border border-slate-200 dark:border-zinc-700 text-slate-700 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-800 transition-colors"
+              >
+                View progress
+              </button>
+              <button
+                onClick={() => router.push("/dashboard/practice")}
+                className="flex-1 h-10 rounded-md text-sm font-semibold bg-slate-900 dark:bg-zinc-100 text-white dark:text-zinc-900 hover:bg-slate-800 dark:hover:bg-zinc-200 transition-colors"
+              >
+                Back to practice
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <ErrorModal
+        isErrorModalOpen={isErrorModalOpen}
+        setErrorModalState={() => {
+          router.push("/dashboard/practice");
+          setErrorModalState(false);
+        }}
+        subheading={errorModalMessage || "Please check your inputs and try again."}
+      />
+
+      {proctoring && (
+        <ProctorPanel
+          onIncident={handleIncident}
+          sessionStartIso={sessionStartRef.current}
+        />
+      )}
+
+      {calcOpen && <Calculator onClose={() => setCalcOpen(false)} />}
+
+      {/* ── Shortcuts overlay ── */}
+      {shortcuts && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={() => setShortcuts(false)}>
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="bg-white dark:bg-zinc-900 rounded-xl shadow-2xl w-full max-w-sm p-5 flex flex-col gap-3 border border-slate-200 dark:border-zinc-800"
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Keyboard size={15} className="text-slate-500 dark:text-zinc-400" />
+                <p className="text-sm font-semibold text-slate-900 dark:text-zinc-100">Keyboard shortcuts</p>
+              </div>
+              <button onClick={() => setShortcuts(false)} className="text-slate-400 dark:text-zinc-500 hover:text-slate-700 dark:hover:text-zinc-200 p-1 rounded">
+                <XIcon size={16} />
+              </button>
+            </div>
+            <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs">
+              {[
+                ["A – D",  "Select answer"],
+                ["1 – 9",  "Select answer"],
+                ["→",      "Next question"],
+                ["←",      "Previous"],
+                ["F",      "Flag question"],
+                ["Space",  "Pause / resume"],
+                ["Z",      "Focus mode"],
+                ["?",      "Show this panel"],
+                ["Esc",    "Close overlays"],
+              ].map(([keys, label]) => (
+                <div key={keys} className="flex items-center justify-between gap-2 py-1">
+                  <span className="text-slate-500 dark:text-zinc-400">{label}</span>
+                  <kbd className="inline-flex items-center justify-center min-w-10 px-1.5 h-5 rounded bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-200 text-[10px] font-bold border border-slate-200 dark:border-zinc-700">
+                    {keys}
+                  </kbd>
+                </div>
+              ))}
+            </div>
+            <p className="text-[10px] text-slate-400 dark:text-zinc-500 italic mt-1">
+              Tip: hover any option and click × to eliminate it.
+            </p>
+          </div>
+        </div>
+      )}
     </div>
+  );
+}
+
+function IconBtn({
+  onClick,
+  label,
+  children,
+  desktopOnly,
+}: {
+  onClick: () => void;
+  label: string;
+  children: React.ReactNode;
+  desktopOnly?: boolean;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      title={label}
+      aria-label={label}
+      className={`${desktopOnly ? "hidden md:inline-flex" : "inline-flex"} items-center justify-center w-8 h-8 rounded-md text-slate-500 dark:text-zinc-400 hover:bg-slate-100 dark:hover:bg-zinc-800 hover:text-slate-900 dark:hover:text-zinc-200 transition-colors`}
+    >
+      {children}
+    </button>
   );
 }

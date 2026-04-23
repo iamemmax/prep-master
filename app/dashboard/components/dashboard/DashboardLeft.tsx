@@ -1,21 +1,21 @@
 "use client"
 import React, { useState } from 'react'
-import { Star, Calendar, Clock, X } from 'lucide-react';
+import { Star, Calendar, Clock, X, ChevronRight, CheckCircle2, PlayCircle, BookOpen } from 'lucide-react';
 import * as Progress from "@radix-ui/react-progress";
 import Unlockicon from '@/utils/icons/UnlockIcon';
 import { getScoreAccent } from '@/utils/color/getPercentageColor';
-import PrepLogo from '@/utils/icons/logos/PrepLogo';
 import { useGetPracticeHistory } from '../../util/apis/dashboard/practiceHistory';
-// import { dashboardOverviewData } from '../../util/types/dashboard/dashbaordOverview';
 import { practiceHistoryData } from '../../util/types/dashboard/practiceHistoryTypes';
 import { useRouter } from 'next/navigation';
 import { dashboardOverviewData } from '../../util/types/dashboard/dashbaordOverview';
 import { useAuth } from '@/context/authentication';
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import UpgradeModal from '../upgrade/UpgradeModal';
 
 function ScoreBar({ score }: { score: number }) {
   const accent = getScoreAccent(score);
   return (
-    <Progress.Root className="h-1.5 w-full rounded-full bg-slate-100 overflow-hidden mt-3" value={score}>
+    <Progress.Root className="h-1.5 w-full rounded-full bg-slate-100 dark:bg-zinc-800 overflow-hidden mt-3" value={score}>
       <Progress.Indicator
         className="h-full rounded-full transition-all duration-700"
         style={{ width: `${score}%`, background: accent }}
@@ -24,68 +24,152 @@ function ScoreBar({ score }: { score: number }) {
   );
 }
 
-function TestCard({ test }: { test:practiceHistoryData }) {
-  const subjectNames = test.subjects_selected.map((s) => s.name).join(", ");
-  const topicNames   = test.topics_selected.map((t) => t.name).join(", ");
+function TestCard({ test }: { test: practiceHistoryData }) {
+  const router = useRouter();
+  const subjectNames = test.subjects_selected.map((s) => s.name).join(", ") || "Mixed subjects";
+  const topicCount   = test.topics_selected.length;
   const date         = new Date(test.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
   const score        = test.score ?? 0;
-  const duration     = test.time_limit_minutes ? `${test.time_limit_minutes} mins` : "—";
-const router = useRouter()
+  const duration     = test.time_limit_minutes ? `${test.time_limit_minutes}m` : "untimed";
+  const isCompleted  = test.status === "completed";
+  const accent       = isCompleted ? getScoreAccent(score) : "#F7C948";
+
   return (
-    <div className="cursor-pointer group rounded-2xl border mb-3 border-[#E2E8F0] hover:scale-95 transition-all p-5"
-    onClick={()=>router.push(`/dashboard/practice/start-practice/${test.id}`)}
+    <button
+      onClick={() => router.push(`/dashboard/practice/start-practice/${test.id}`)}
+      className="w-full text-left relative overflow-hidden rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 mb-3 p-4 transition-all hover:border-slate-300 dark:hover:border-zinc-700 hover:shadow-sm focus:outline-none focus:ring-2 focus:ring-[#F7C948]/40"
     >
-      <div className="flex items-start justify-between gap-4">
+      <span aria-hidden className="absolute top-0 left-0 h-full w-1" style={{ background: accent }} />
+      <div className="flex items-start justify-between gap-4 pl-2">
         <div className="flex-1 min-w-0">
-          <p className="text-sm lg:text-base font-medium text-[#0F172B] truncate">{subjectNames}</p>
-          <p className="text-xs text-[#45556C] mt-0.5 mb-2">{date}</p>
-          <div className="flex items-center font-inter gap-3 flex-wrap">
-            <span className="flex items-center gap-1 text-xs xl:text-sm text-[#45556C]">
-              <Clock size={18} />{duration}
-            </span>
-            <span className="flex items-center gap-1 text-xs xl:text-sm text-[#45556C]">
-              <PrepLogo color="#45556C" width={18} height={18} />{topicNames}
-            </span>
-            <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full capitalize ${
-              test.status === "completed" ? "bg-emerald-50 text-emerald-600" : "bg-amber-50 text-amber-600"
+          <div className="flex items-center gap-2 flex-wrap mb-1.5">
+            <p className="text-sm font-semibold text-slate-900 dark:text-zinc-100 truncate">{subjectNames}</p>
+            <span className={`inline-flex items-center gap-1 text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded ${
+              isCompleted
+                ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400"
+                : "bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400"
             }`}>
-              {test.status.replace("_", " ")}
+              {isCompleted
+                ? <><CheckCircle2 size={9} /> Done</>
+                : <><PlayCircle size={9} /> In progress</>}
             </span>
           </div>
+          <div className="flex items-center gap-3 flex-wrap text-[11px] text-slate-500 dark:text-zinc-400">
+            <span className="inline-flex items-center gap-1 tabular-nums"><Calendar size={11} />{date}</span>
+            <span className="inline-flex items-center gap-1 tabular-nums"><Clock size={11} />{duration}</span>
+            <span className="inline-flex items-center gap-1"><BookOpen size={11} />{topicCount} topic{topicCount === 1 ? "" : "s"}</span>
+            <span className="capitalize">· {test.difficulty_level}</span>
+          </div>
         </div>
-        <div className="text-right shrink-0">
-          {test.status === "completed" ? (
-            <p className="text-2xl font-bold text-[#0F172B] font-inter leading-none">{score?.toFixed(0)}%</p>
+        <div className="text-right shrink-0 flex items-center gap-2">
+          {isCompleted ? (
+            <div>
+              <p className="text-2xl font-bold text-slate-900 dark:text-zinc-100 tabular-nums leading-none" style={{ color: accent }}>
+                {score.toFixed(0)}<span className="text-sm text-slate-400 dark:text-zinc-500 font-medium">%</span>
+              </p>
+            </div>
           ) : (
-            <p className="text-xs text-[#45556C] font-medium">In Progress</p>
+            <span className="text-[10px] font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400">Resume</span>
           )}
-          <p className="text-[10px] text-[#45556C] mt-1 capitalize">{test.difficulty_level}</p>
+          <ChevronRight size={16} className="text-slate-300 dark:text-zinc-600" />
         </div>
       </div>
-      {test.status === "completed" && <ScoreBar score={score} />}
-    </div>
+      {isCompleted && <div className="pl-2"><ScoreBar score={score} /></div>}
+    </button>
   );
 }
 
 function SkeletonCard() {
+  const bar = "bg-slate-100 dark:bg-zinc-800 animate-pulse";
   return (
-    <div className="rounded-2xl border mb-3 border-[#E2E8F0] p-5 animate-pulse">
+    <div className="rounded-xl border mb-3 border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-4">
       <div className="flex items-start justify-between gap-4">
         <div className="flex-1 min-w-0 space-y-2">
-          <div className="h-4 bg-slate-100 rounded-full w-2/3" />
-          <div className="h-3 bg-slate-100 rounded-full w-1/3" />
+          <div className={`h-4 rounded-full w-2/3 ${bar}`} />
+          <div className={`h-3 rounded-full w-1/3 ${bar}`} />
           <div className="flex items-center gap-3 mt-2">
-            <div className="h-3 bg-slate-100 rounded-full w-16" />
-            <div className="h-3 bg-slate-100 rounded-full w-24" />
-            <div className="h-5 bg-slate-100 rounded-full w-16" />
+            <div className={`h-3 rounded-full w-16 ${bar}`} />
+            <div className={`h-3 rounded-full w-24 ${bar}`} />
           </div>
         </div>
         <div className="shrink-0 space-y-1.5 text-right">
-          <div className="h-7 bg-slate-100 rounded-full w-12 ml-auto" />
-          <div className="h-3 bg-slate-100 rounded-full w-10 ml-auto" />
+          <div className={`h-7 rounded-full w-12 ml-auto ${bar}`} />
         </div>
       </div>
-      <div className="h-1.5 bg-slate-100 rounded-full w-full mt-4" />
+      <div className={`h-1.5 rounded-full w-full mt-4 ${bar}`} />
+    </div>
+  );
+}
+
+function CountdownCard({
+  overview,
+  examName,
+  examDate,
+}: {
+  overview: dashboardOverviewData | undefined;
+  examName?: string;
+  examDate?: string | null;
+}) {
+  const days = overview?.days_remaining ?? 0;
+  const readiness = Math.max(0, Math.min(100, Math.round(overview?.overall_readiness ?? 0)));
+  const target = overview?.target_score ?? "—";
+
+  // Three urgency tiers drive the whole card palette.
+  const tier =
+    days <= 7  ? { label: "Final stretch", hex: "#DC2626", soft: "bg-rose-50 dark:bg-rose-500/10",  softTxt: "text-rose-600 dark:text-rose-300",  ring: "ring-rose-200 dark:ring-rose-500/30" }
+    : days <= 30 ? { label: "Getting close", hex: "#D97706", soft: "bg-amber-50 dark:bg-amber-500/10", softTxt: "text-amber-700 dark:text-amber-300", ring: "ring-amber-200 dark:ring-amber-500/30" }
+    :              { label: "On track",      hex: "#059669", soft: "bg-emerald-50 dark:bg-emerald-500/10", softTxt: "text-emerald-700 dark:text-emerald-300", ring: "ring-emerald-200 dark:ring-emerald-500/30" };
+
+  const formattedDate = examDate
+    ? new Date(examDate).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })
+    : "Not set";
+
+  return (
+    <div className="relative overflow-hidden rounded-2xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-5">
+      <div className="flex items-start justify-between gap-3 mb-5">
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="inline-flex items-center h-7 px-2.5 rounded-md bg-[#F7C948] text-[#5A3300] font-black text-xs tracking-tight shrink-0">
+            {String(examName ?? "EXAM").toUpperCase()}
+          </span>
+          <span className="text-sm font-semibold text-slate-700 dark:text-zinc-200">countdown</span>
+        </div>
+        <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${tier.soft} ${tier.softTxt}`}>
+          {tier.label}
+        </span>
+      </div>
+
+      <div className="flex items-center gap-5">
+        <div className={`flex flex-col items-center justify-center w-24 h-24 rounded-full ring-4 ${tier.ring} bg-slate-50 dark:bg-zinc-950 shrink-0`}>
+          <p className="text-3xl font-black tabular-nums leading-none" style={{ color: tier.hex }}>{days}</p>
+          <p className="text-[10px] uppercase tracking-wider text-slate-500 dark:text-zinc-400 mt-1">days</p>
+        </div>
+
+        <div className="flex-1 min-w-0">
+          <div className="flex items-baseline justify-between mb-1">
+            <p className="text-[10px] uppercase tracking-wider font-semibold text-slate-500 dark:text-zinc-400">Readiness</p>
+            <p className="text-xs font-bold text-slate-800 dark:text-zinc-100 tabular-nums">{readiness}%</p>
+          </div>
+          <Progress.Root className="h-2 rounded-full bg-slate-100 dark:bg-zinc-800 overflow-hidden">
+            <Progress.Indicator className="h-full rounded-full transition-all duration-700" style={{ width: `${readiness}%`, background: tier.hex }} />
+          </Progress.Root>
+          <p className="text-[11px] text-slate-500 dark:text-zinc-400 mt-2 leading-relaxed">
+            {readiness >= 80 ? "You're exam-ready. Lock in with a timed mock."
+            : readiness >= 50 ? "Solid base — target your weakest topic next."
+            : "Plenty of room to grow. Try a short focused session."}
+          </p>
+        </div>
+      </div>
+
+      <div className="mt-5 pt-4 border-t border-slate-100 dark:border-zinc-800 grid grid-cols-2 gap-4 text-xs">
+        <div>
+          <p className="text-[10px] uppercase tracking-wider font-semibold text-slate-500 dark:text-zinc-400 mb-0.5">Exam date</p>
+          <p className="font-semibold text-slate-800 dark:text-zinc-100">{formattedDate}</p>
+        </div>
+        <div>
+          <p className="text-[10px] uppercase tracking-wider font-semibold text-slate-500 dark:text-zinc-400 mb-0.5">Target score</p>
+          <p className="font-semibold text-slate-800 dark:text-zinc-100 tabular-nums">{target}{typeof target === "number" || /^\d+$/.test(String(target)) ? "%" : ""}</p>
+        </div>
+      </div>
     </div>
   );
 }
@@ -96,6 +180,7 @@ interface prop {
 
 const DashboardLeft = ({ overview }: prop) => {
   const [showAllModal, setShowAllModal] = useState(false)
+  const [showUpgrade, setShowUpgrade] = useState(false)
   const [page, setPage] = useState(1)
   const { data, isLoading } = useGetPracticeHistory(page)
 const {authState:{user}}=useAuth()
@@ -133,58 +218,32 @@ const {authState:{user}}=useAuth()
               </li>
             ))}
           </ul>
-          <button className="px-5 py-2 rounded-[.5275rem] bg-linear-to-r from-[#FE9A00] to-[#FF6900] text-white text-xs font-bold hover:shadow-md transition-shadow">
+          <button
+            onClick={() => setShowUpgrade(true)}
+            className="px-5 py-2 rounded-[.5275rem] bg-linear-to-r from-[#FE9A00] to-[#FF6900] text-white text-xs font-bold hover:shadow-md transition-shadow cursor-pointer"
+          >
             Upgrade Now
           </button>
         </div>
 
         {/* Countdown card */}
-        <div className="bg-linear-to-br from-indigo-500 to-violet-600 rounded-2xl p-5 text-white" style={{ paddingTop: "34px" }}>
-          <div className="flex items-center gap-2 mb-6">
-            <Calendar size={16} className="text-indigo-200" />
-            <p className="text-base font-inter font-semibold text-white">{user?.exam_config?.preparing_for_exam} Exam Countdown</p>
-          </div>
-          <div className="flex items-center gap-6">
-            <div>
-              <h2 className="text-4xl font-inter text-white font-bold leading-none">{overview?.days_remaining ?? 0}</h2>
-              <p className="text-xs text-white/70 font-inter tracking-wide mt-1">days remaining</p>
-            </div>
-            <div className="w-px h-16 bg-white/20" />
-            <div className="flex-1">
-              <p className="text-[10px] text-white/65 font-inter">Overall Readiness</p>
-              <div className="flex items-center justify-between relative">
-                <p className="text-3xl font-inter font-semibold">{overview?.overall_readiness}%</p>
-                <span className="text-[10px] text-white/70 font-inter absolute right-0 bottom-0 whitespace-nowrap">Keep it up! 🎯</span>
-              </div>
-              <Progress.Root className="h-1.5 rounded-full bg-white/20 overflow-hidden mt-2">
-                <Progress.Indicator className="h-full rounded-full bg-white transition-all duration-700" style={{ width: `${overview?.average_score}%` }} />
-              </Progress.Root>
-            </div>
-          </div>
-          <div className="border-t border-white/20 mt-6" />
-          <div className="flex gap-10 flex-1 py-3 items-center mt-4">
-            <div>
-              <p className="text-xs text-white/65 mb-1 font-inter">Exam Date</p>
-              <p className="text-sm lg:text-base font-semibold font-inter text-white">05, march 2026</p>
-            </div>
-            <div>
-              <p className="text-xs text-white/65 mb-1 font-inter">Target Score</p>
-              <p className="text-sm lg:text-base font-semibold font-inter text-white">{overview?.total_attempts}/{overview?.target_score}</p>
-            </div>
-          </div>
-        </div>
+        <CountdownCard overview={overview} examName={user?.exam_config?.preparing_for_exam} examDate={user?.exam_config?.exam_date ?? null} />
       </div>
 
       {/* Recent Practice Tests */}
-      <div className="bg-white rounded-2xl border border-[#E2E8F0] max-md:p-4 p-6">
+      <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-slate-200 dark:border-zinc-800 max-md:p-4 p-6">
         <div className="flex items-center justify-between mb-5">
-          <h2 className="font-semibold font-inter text-[#0F172B] text-base">Recent Practice Test</h2>
+          <div>
+            <h2 className="text-base font-bold text-slate-900 dark:text-zinc-100 tracking-tight">Recent practice tests</h2>
+            <p className="text-[11px] text-slate-500 dark:text-zinc-400 mt-0.5">Your last {Math.min(5, totalCount)} sessions</p>
+          </div>
           {totalCount > 5 && (
             <button
               onClick={() => setShowAllModal(true)}
-              className="text-sm font-inter cursor-pointer text-[#155DFC] hover:text-indigo-800 transition-colors flex items-center gap-1"
+              className="inline-flex items-center gap-1 text-xs font-semibold px-3 h-8 rounded-md border border-slate-200 dark:border-zinc-700 text-slate-700 dark:text-zinc-200 hover:bg-slate-50 dark:hover:bg-zinc-800 transition-colors"
             >
-              View All ({totalCount})
+              View all
+              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-300 tabular-nums">{totalCount}</span>
             </button>
           )}
         </div>
@@ -193,7 +252,7 @@ const {authState:{user}}=useAuth()
           <div>{Array.from({ length: 3 }).map((_, i) => <SkeletonCard key={i} />)}</div>
         ) : recentTests.length === 0 ? (
           <div className="text-center py-10">
-            <p className="text-sm text-slate-400">No practice tests yet</p>
+            <p className="text-sm text-slate-400 dark:text-zinc-500 italic">No practice tests yet — start one to see it here.</p>
           </div>
         ) : (
           <div>{recentTests.map(test => <TestCard key={`${test.id}-${test.updated_at}`} test={test} />)}</div>
@@ -201,54 +260,66 @@ const {authState:{user}}=useAuth()
       </div>
 
       {/* ── View All Modal ── */}
-      {showAllModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl flex flex-col max-h-[85vh]">
-
-            {/* modal header */}
-            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 shrink-0">
-              <div>
-                <h2 className="text-base font-bold text-slate-800">All Practice Tests</h2>
-                <p className="text-xs text-slate-400 mt-0.5">{totalCount} sessions total</p>
-              </div>
-              <button
-                onClick={() => { setShowAllModal(false); setPage(1); }}
-                className="text-slate-400 hover:text-slate-600 p-1.5 rounded-lg hover:bg-slate-100 transition-colors"
-              >
-                <X size={18} />
-              </button>
+      <Dialog
+        open={showAllModal}
+        onOpenChange={v => { if (!v) { setShowAllModal(false); setPage(1); } }}
+      >
+        <DialogContent
+          showCloseButton={false}
+          className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 p-0 gap-0 text-slate-900 dark:text-zinc-100 rounded-2xl overflow-hidden flex flex-col max-h-[85vh] shadow-2xl"
+          style={{ maxWidth: 720 }}
+        >
+          {/* modal header */}
+          <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-zinc-800 shrink-0">
+            <div>
+              <DialogTitle className="text-base font-bold text-slate-900 dark:text-zinc-100">
+                All practice tests
+              </DialogTitle>
+              <DialogDescription className="text-xs text-slate-500 dark:text-zinc-400 mt-0.5 tabular-nums">
+                {totalCount} session{totalCount === 1 ? "" : "s"} total
+              </DialogDescription>
             </div>
-
-            {/* modal body */}
-            <div className="overflow-y-auto flex-1 px-6 py-4">
-              {isLoading
-                ? Array.from({ length: 5 }).map((_, i) => <SkeletonCard key={i} />)
-                : allTests.map(test => <TestCard key={`modal-${test.id}-${test.updated_at}`} test={test} />)
-              }
-            </div>
-
-            {/* pagination footer */}
-            <div className="flex items-center justify-between px-6 py-3 border-t border-slate-100 shrink-0">
-              <button
-                onClick={() => setPage(p => p - 1)}
-                disabled={!hasPrev}
-                className="text-xs font-semibold px-4 py-2 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
-              >
-                ← Previous
-              </button>
-              <span className="text-xs text-slate-400">Page {page}</span>
-              <button
-                onClick={() => setPage(p => p + 1)}
-                disabled={!hasNext}
-                className="text-xs font-semibold px-4 py-2 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
-              >
-                Next →
-              </button>
-            </div>
-
+            <button
+              onClick={() => { setShowAllModal(false); setPage(1); }}
+              className="text-slate-400 dark:text-zinc-500 hover:text-slate-700 dark:hover:text-zinc-200 p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors"
+              aria-label="Close"
+            >
+              <X size={18} />
+            </button>
           </div>
-        </div>
-      )}
+
+          {/* modal body */}
+          <div className="overflow-y-auto flex-1 px-6 py-4 bg-slate-50/50 dark:bg-zinc-950/50">
+            {isLoading
+              ? Array.from({ length: 3 }).map((_, i) => <SkeletonCard key={i} />)
+              : allTests.length === 0
+                ? <p className="text-center text-sm text-slate-400 dark:text-zinc-500 italic py-10">No sessions on this page.</p>
+                : allTests.map(test => <TestCard key={`modal-${test.id}-${test.updated_at}`} test={test} />)
+            }
+          </div>
+
+          {/* pagination footer */}
+          <div className="flex items-center justify-between px-6 py-3 border-t border-slate-100 dark:border-zinc-800 shrink-0">
+            <button
+              onClick={() => setPage(p => p - 1)}
+              disabled={!hasPrev}
+              className="text-xs font-semibold px-4 py-2 rounded-lg border border-slate-200 dark:border-zinc-700 text-slate-600 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-800 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+            >
+              ← Previous
+            </button>
+            <span className="text-xs text-slate-500 dark:text-zinc-400 tabular-nums">Page {page}</span>
+            <button
+              onClick={() => setPage(p => p + 1)}
+              disabled={!hasNext}
+              className="text-xs font-semibold px-4 py-2 rounded-lg border border-slate-200 dark:border-zinc-700 text-slate-600 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-800 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+            >
+              Next →
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <UpgradeModal open={showUpgrade} onClose={() => setShowUpgrade(false)} />
 
     </div>
   );

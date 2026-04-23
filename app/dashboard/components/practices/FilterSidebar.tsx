@@ -26,7 +26,7 @@ const MY_PROGRESS: ProgressBarEntry[] = [
 
 function SidebarGroupLabel({ children }: { children: React.ReactNode }) {
   return (
-    <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mt-5 mb-1 px-2">
+    <p className="text-[11px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-widest mt-5 mb-1 px-2">
       {children}
     </p>
   );
@@ -43,7 +43,7 @@ const FilterSidebar = ({ filters, setFilters, onExamSelect }: FilterSidebarProps
 
   return (
     <aside className="w-56 shrink-0 pt-1">
-      <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2 px-2">
+      <p className="text-[11px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-widest mb-2 px-2">
         FILTER
       </p>
 
@@ -58,7 +58,7 @@ const FilterSidebar = ({ filters, setFilters, onExamSelect }: FilterSidebarProps
 
         {isLoading ? (
           Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="h-8 mx-2 rounded-lg bg-slate-100 animate-pulse" />
+            <div key={i} className="h-8 mx-2 rounded-lg bg-slate-100 dark:bg-zinc-800 animate-pulse" />
           ))
         ) : (
           rawList.map((exam) => (
@@ -102,17 +102,17 @@ const FilterSidebar = ({ filters, setFilters, onExamSelect }: FilterSidebarProps
         ))}
       </div>
 
-      <div className="mt-6 pt-4 border-t border-slate-200">
-        <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-3 px-2">
+      <div className="mt-6 pt-4 border-t border-slate-200 dark:border-zinc-800">
+        <p className="text-[11px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-widest mb-3 px-2">
           My Progress
         </p>
         {MY_PROGRESS.map(({ label, pct, color }) => (
           <div key={label} className="mb-3 px-2">
             <div className="flex justify-between text-xs mb-1">
-              <span className="text-slate-600 font-medium">{label}</span>
-              <span className="text-slate-400">{pct}%</span>
+              <span className="text-slate-600 dark:text-zinc-300 font-medium">{label}</span>
+              <span className="text-slate-400 dark:text-zinc-500">{pct}%</span>
             </div>
-            <div className="h-1.5 rounded-full bg-slate-200 overflow-hidden">
+            <div className="h-1.5 rounded-full bg-slate-200 dark:bg-zinc-800 overflow-hidden">
               <div className="h-full rounded-full" style={{ width: `${pct}%`, background: color }} />
             </div>
           </div>
