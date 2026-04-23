@@ -472,7 +472,7 @@ export default function PracticeExamsPage() {
                 {/* Dim grid while fetching next page (keeps content visible) */}
                 <div data-tour="practice-list" className={`grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 transition-opacity duration-200 ${isFetching && !isLoading ? "opacity-60 pointer-events-none" : "opacity-100"}`}>
                   {filtered.map((exam, i) => (
-                    <div key={exam.id} data-tour={i === 0 ? "practice-card" : undefined}>
+                    <div key={exam.id} data-tour={i === 0 ? "practice-card" : undefined} className="h-full">
                       <ExamCard
                         exam={exam}
                         isPremiumLocked={exam.access === "premium"}

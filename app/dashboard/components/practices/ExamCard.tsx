@@ -37,7 +37,7 @@ const ExamCard = ({ exam, isPremiumLocked,onStart }: ExamCardProps) => {
     // console.log(exam);
     
   return (
-    <div className={`bg-white dark:bg-zinc-900 rounded-[.875rem] cursor-pointer border py-4 flex flex-col gap-3 transition-all duration-200 hover:shadow-md border-[#E2E8F0] dark:border-zinc-800`}>
+    <div className={`bg-white dark:bg-zinc-900 rounded-[.875rem] cursor-pointer border py-4 flex flex-col gap-3 h-full transition-all duration-200 hover:shadow-md border-[#E2E8F0] dark:border-zinc-800`}>
 
       {/* Name + badge + description */}
       <div className="px-4  border-b border-[#EEF0F4] dark:border-zinc-800 pb-3">
