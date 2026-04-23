@@ -15,6 +15,16 @@ import {
   downloadProctorPDF,
   openProctorPDF,
 } from "@/app/dashboard/util/proctor/report";
+import CoachFeedbackModal from "@/app/dashboard/components/coach/CoachFeedbackModal";
+import { TourAutoStart } from "@/app/dashboard/util/tour/TourContext";
+import { recordScore, getPersonalBest } from "@/app/dashboard/util/shared/personalBests";
+import ConfettiBurst from "@/app/dashboard/components/celebrate/ConfettiBurst";
+import {
+  AIFeedbackRequest,
+  MistakeAnalysisRequest,
+  WeaknessPlanRequest,
+} from "@/app/dashboard/util/ai/types";
+import toast from "react-hot-toast";
 import { useAuth } from "@/context/authentication";
 import { useTheme } from "@/context/theme";
 import * as Avatar from "@radix-ui/react-avatar";
@@ -25,7 +35,7 @@ import { formatAxiosErrorMessage } from "@/utils";
 import { AxiosError } from "axios";
 import {
   Keyboard, X as XIcon, Zap, Clock3,
-  Play, Pause, BarChart3, ArrowLeft, Sun, Moon,
+  Play, Pause, BarChart3, ArrowLeft, Sun, Moon, Sparkles, ListChecks,
   ChevronLeft, ChevronRight, Check, Flag, Trophy, Download, Eye,
   Calculator as CalcIcon,
 } from "lucide-react";
@@ -65,6 +75,12 @@ export default function PracticeExamUI({ params }: { params: Promise<{ sessionId
   const [seconds, setSeconds]     = useState(0);
   const [paused, setPaused]       = useState(false);
   const [sessionResult, setSessionResult] = useState<{ score: number; correct_answers: number; total_questions: number } | null>(null);
+  const [celebrate, setCelebrate] = useState(false);
+  const [prevBest, setPrevBest] = useState<number | null>(null);
+  const [coachOpen, setCoachOpen] = useState(false);
+  const [coachRequest, setCoachRequest] = useState<AIFeedbackRequest | null>(null);
+  const [mistakesRequest, setMistakesRequest] = useState<MistakeAnalysisRequest | null>(null);
+  const [planRequest, setPlanRequest] = useState<WeaknessPlanRequest | null>(null);
   const [proctoring, setProctoring] = useState(false);
   const [proctorReport, setProctorReport] = useState<StoredProctorReport | null>(null);
   const incidentsRef = useRef<StoredIncident[]>([]);
@@ -203,6 +219,89 @@ export default function PracticeExamUI({ params }: { params: Promise<{ sessionId
       {
         onSuccess: (res) => {
           setSessionResult(res.data);
+
+          // Personal-best celebration: capture the previous high for this
+          // exam type *before* we persist the new one, so the banner can
+          // show "beat your X%!". First-ever run also counts as a best.
+          if (session) {
+            const examKey = String(session.exam_type ?? "");
+            const before = getPersonalBest(examKey);
+            setPrevBest(before);
+            const isBest = recordScore(examKey, res.data.score);
+            if (isBest) setCelebrate(true);
+          }
+
+          // Snapshot session context for the AI coach. Weak/strong split is
+          // an estimate — the server answer key isn't on the client, so the
+          // backend will replace this with authoritative per-topic numbers.
+          if (session) {
+            const scoreRate = res.data.total_questions > 0
+              ? res.data.correct_answers / res.data.total_questions
+              : 0;
+            // Attempted-per-topic proxies for "familiarity" — topics with
+            // more attempts land in the stronger bucket, fewer in the weaker.
+            const topicAttempts = new Map<string, number>();
+            questions.forEach((q, i) => {
+              if (answers[i] == null) return;
+              const name = q.topic?.name ?? "General";
+              topicAttempts.set(name, (topicAttempts.get(name) ?? 0) + 1);
+            });
+            const ranked = Array.from(topicAttempts.entries())
+              .map(([name, attempts]) => ({ name, attempts }))
+              .sort((a, b) => b.attempts - a.attempts);
+            const mid = Math.ceil(ranked.length / 2);
+            const strongTopics = ranked.slice(0, mid).map(r => r.name);
+            const weakTopics   = ranked.slice(mid).map(r => r.name);
+
+            const totalAnswered = Object.keys(answers).length || 1;
+            const avgTime = Math.max(0, Math.round((totalSecs - seconds) / totalAnswered));
+
+            setCoachRequest({
+              session_id: session.id,
+              score: res.data.score,
+              accuracy: Math.round(scoreRate * 100),
+              avgTime,
+              totalQuestions: TOTAL,
+              weakTopics,
+              strongTopics,
+            });
+
+            // Mistake payload — client doesn't know which answers are wrong
+            // (server-side check), so we approximate: take questions the user
+            // was least confident on plus any answered in a below-average
+            // topic. Backend will replace this with the authoritative set.
+            const estimatedWrong = Math.max(
+              0,
+              res.data.total_questions - res.data.correct_answers,
+            );
+            const candidateIdx = Object.keys(answers).map(Number);
+            // Prefer "guess" confidence, then "likely", then fall through.
+            const prioritized = candidateIdx.sort((a, b) => {
+              const rank = (c: typeof confidence[number]) =>
+                c === "guess" ? 0 : c === "likely" ? 1 : c === "certain" ? 2 : 3;
+              return rank(confidence[a]) - rank(confidence[b]);
+            });
+            const wrongSample = prioritized.slice(0, estimatedWrong).map(i => {
+              const q = questions[i];
+              const sel = answers[i] != null ? q.options[answers[i]] : null;
+              return {
+                text: q.text,
+                selected_answer: sel?.option_text,
+                topic: q.topic?.name,
+                explanation: q.explanation,
+              };
+            });
+            setMistakesRequest({
+              session_id: session.id,
+              questions: wrongSample,
+            });
+
+            setPlanRequest({
+              session_id: session.id,
+              topics: weakTopics,
+            });
+          }
+
           if (proctoring && session) {
             const endedIso = new Date().toISOString();
             const startedIso = sessionStartRef.current;
@@ -273,8 +372,10 @@ export default function PracticeExamUI({ params }: { params: Promise<{ sessionId
   return (
     <div className="flex flex-col h-screen overflow-hidden bg-slate-50 dark:bg-zinc-950 text-slate-900 dark:text-zinc-100 font-inter">
 
+      <TourAutoStart tourId="session" />
+
       {/* ── Header ── */}
-      <header className={`flex items-center px-4 sm:px-6 bg-white dark:bg-zinc-900 border-b border-slate-200 dark:border-zinc-800 shrink-0 gap-3 transition-all duration-300 overflow-hidden ${focus ? "h-0 border-b-0 opacity-0" : "h-12 opacity-100"}`}>
+      <header data-tour="session-header" className={`flex items-center px-4 sm:px-6 bg-white dark:bg-zinc-900 border-b border-slate-200 dark:border-zinc-800 shrink-0 gap-3 transition-all duration-300 overflow-hidden ${focus ? "h-0 border-b-0 opacity-0" : "h-12 opacity-100"}`}>
         <button
           onClick={() => router.push("/dashboard/practice")}
           title="Back to practice"
@@ -488,7 +589,7 @@ export default function PracticeExamUI({ params }: { params: Promise<{ sessionId
 
         {/* Center: question canvas */}
         <div className="flex-1 min-w-0 overflow-y-auto">
-          <div className="max-w-3xl mx-auto px-4 sm:px-8 py-8 sm:py-10">
+          <div data-tour="session-question" className="max-w-3xl mx-auto px-4 sm:px-8 py-8 sm:py-10">
 
           {/* Meta row */}
           <div className="flex items-start justify-between gap-3 mb-5">
@@ -593,7 +694,7 @@ export default function PracticeExamUI({ params }: { params: Promise<{ sessionId
 
           {/* Confidence capture */}
           {selectedAnswer !== null && (
-            <div className="flex items-center justify-between gap-3 flex-wrap pt-4 border-t border-slate-200 dark:border-zinc-800">
+            <div data-tour="session-confidence" className="flex items-center justify-between gap-3 flex-wrap pt-4 border-t border-slate-200 dark:border-zinc-800">
               <p className="text-xs font-semibold text-slate-600 dark:text-zinc-400 inline-flex items-center gap-1.5">
                 <Zap size={12} className="text-[#F7C948]" />
                 How confident?
@@ -646,7 +747,7 @@ export default function PracticeExamUI({ params }: { params: Promise<{ sessionId
       </div>
 
       {/* ── Dock ── */}
-      <footer className="bg-white dark:bg-zinc-900 border-t border-slate-200 dark:border-zinc-800 shrink-0">
+      <footer data-tour="session-footer" className="bg-white dark:bg-zinc-900 border-t border-slate-200 dark:border-zinc-800 shrink-0">
         <div className="flex items-center gap-3 px-4 sm:px-6 py-2.5">
           <div className="flex-1 flex items-center justify-center overflow-x-auto" style={{ scrollbarWidth: "none" }}>
             <div className="flex items-center gap-1.5 min-w-max px-2">
@@ -757,6 +858,20 @@ export default function PracticeExamUI({ params }: { params: Promise<{ sessionId
               <h2 className="text-base font-semibold text-slate-900 dark:text-zinc-100">Session complete</h2>
               <p className="text-xs text-slate-500 dark:text-zinc-400 mt-0.5">Here&apos;s how you did.</p>
             </div>
+
+            {/* Personal best banner — shows only when we actually beat it */}
+            {celebrate && (
+              <div className="w-full rounded-xl bg-linear-to-br from-[#FFFBEB] to-[#FFF7ED] dark:from-amber-500/15 dark:to-orange-500/15 border border-[#F7C948] dark:border-amber-500/40 px-4 py-3 text-center">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-[#E17100] dark:text-amber-300">
+                  🎉 New personal best!
+                </p>
+                <p className="text-xs text-[#5A3300] dark:text-amber-200 mt-0.5 leading-snug">
+                  {prevBest != null
+                    ? <>You just beat your previous best of <span className="font-bold tabular-nums">{prevBest.toFixed(0)}%</span> on this exam.</>
+                    : <>First run on this exam — you set the bar.</>}
+                </p>
+              </div>
+            )}
             <div className="w-full rounded-lg border border-slate-200 dark:border-zinc-800 p-4 flex flex-col gap-3">
               <div className="flex justify-between items-baseline">
                 <span className="text-xs text-slate-500 dark:text-zinc-400">Score</span>
@@ -800,6 +915,27 @@ export default function PracticeExamUI({ params }: { params: Promise<{ sessionId
                 </div>
               </div>
             )}
+
+            {coachRequest && (
+              <button
+                onClick={() => setCoachOpen(true)}
+                className="w-full h-10 rounded-md text-sm font-bold text-white inline-flex items-center justify-center gap-1.5 transition-all hover:shadow-md hover:-translate-y-0.5"
+                style={{ background: "linear-gradient(135deg, #FE9A00, #FF6900)" }}
+              >
+                <Sparkles size={14} fill="currentColor" />
+                Get AI coach feedback
+              </button>
+            )}
+
+            {session && (
+              <button
+                onClick={() => router.push(`/dashboard/practice/review/${session.id}`)}
+                className="w-full h-10 rounded-md text-sm font-semibold border border-slate-200 dark:border-zinc-700 text-slate-700 dark:text-zinc-200 hover:bg-slate-50 dark:hover:bg-zinc-800 transition-colors inline-flex items-center justify-center gap-1.5"
+              >
+                <ListChecks size={14} />
+                Review answers
+              </button>
+            )}
             <div className="flex w-full gap-2">
               <button
                 onClick={() => router.push("/dashboard/progress")}
@@ -828,11 +964,33 @@ export default function PracticeExamUI({ params }: { params: Promise<{ sessionId
       />
 
       {proctoring && (
-        <ProctorPanel
-          onIncident={handleIncident}
-          sessionStartIso={sessionStartRef.current}
-        />
+        <div data-tour="session-proctor">
+          <ProctorPanel
+            onIncident={handleIncident}
+            sessionStartIso={sessionStartRef.current}
+          />
+        </div>
       )}
+
+      <CoachFeedbackModal
+        open={coachOpen}
+        onClose={() => setCoachOpen(false)}
+        overviewRequest={coachRequest}
+        mistakesRequest={mistakesRequest}
+        planRequest={planRequest}
+        onPracticeWrong={(questions) => {
+          // Hook-point for the backend: POST these question IDs to create a
+          // focused re-attempt session, then router.push into it. For now
+          // surface a toast so the UX loop feels complete.
+          toast.success(
+            `${questions.length} question${questions.length === 1 ? "" : "s"} queued — a focused re-attempt session is coming.`,
+            { duration: 4000 },
+          );
+          router.push("/dashboard/practice");
+        }}
+      />
+
+      <ConfettiBurst active={celebrate} onDone={() => setCelebrate(false)} />
 
       {calcOpen && <Calculator onClose={() => setCalcOpen(false)} />}
 

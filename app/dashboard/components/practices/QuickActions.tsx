@@ -73,9 +73,9 @@ export default function QuickActions({ onRandom, onQuickQuiz, onWeakTopics, onAI
             >
               {a.icon}
             </div>
-            <p className="text-xs font-bold text-[#0F172B] leading-tight">{a.title}</p>
+            <p className="text-xs font-bold text-[#0F172B] dark:text-white leading-tight">{a.title}</p>
           </div>
-          <p className="text-[11px] text-[#45556C] leading-snug">{a.sub}</p>
+          <p className="text-[11px] text-[#45556C] dark:text-white/80 leading-snug">{a.sub}</p>
         </button>
       ))}
     </div>

@@ -15,6 +15,7 @@ import { X, SlidersHorizontal, ChevronLeft, ChevronRight, ArrowUpDown, Sparkles 
 import { PAGE_SIZE, useGetPracticeExamList } from "../util/apis/practice/examsList";
 import { useGetAvailableExamsDetails } from "../util/apis/practice/availableExamsDetails";
 import { availableData } from "../util/types/dashboard/examlisttypes";
+import { TourAutoStart } from "../util/tour/TourContext";
 
 export interface Exam {
   id: number;
@@ -305,6 +306,7 @@ export default function PracticeExamsPage() {
   return (
     <div className="bg-white dark:bg-zinc-950 font-inter min-h-screen text-slate-900 dark:text-zinc-100">
       <DashboardHeader />
+      <TourAutoStart tourId="practice" />
 
       <div className="max-w-400 mx-auto px-4 sm:px-6 py-6">
         <ActiveSessionsStrip
@@ -369,7 +371,7 @@ export default function PracticeExamsPage() {
                   <span className="font-semibold text-[#0F172B] dark:text-zinc-200">{totalCount > 0 ? totalCount : filtered.length}</span> exams available for your account
                 </p>
               </div>
-              <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
+              <div data-tour="practice-filters" className="flex items-center gap-2 sm:gap-3 flex-wrap">
                 <div className="relative">
                   <ArrowUpDown size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-zinc-500 pointer-events-none" />
                   <select
@@ -406,6 +408,7 @@ export default function PracticeExamsPage() {
             </div>
 
             <button
+              data-tour="practice-intake"
               onClick={() => setIntakeOpen(true)}
               className="sm:hidden w-full flex items-center justify-center gap-2 text-white font-bold text-sm px-5 py-3 rounded-[10px] transition-all shadow-sm mb-4"
               style={{ background: "linear-gradient(135deg, #FE9A00, #FF6900)" }}
@@ -467,14 +470,15 @@ export default function PracticeExamsPage() {
             ) : (
               <>
                 {/* Dim grid while fetching next page (keeps content visible) */}
-                <div className={`grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 transition-opacity duration-200 ${isFetching && !isLoading ? "opacity-60 pointer-events-none" : "opacity-100"}`}>
-                  {filtered.map(exam => (
-                    <ExamCard
-                      key={exam.id}
-                      exam={exam}
-                      isPremiumLocked={exam.access === "premium"}
-                      onStart={() => setSessionExam(exam)}
-                    />
+                <div data-tour="practice-list" className={`grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 transition-opacity duration-200 ${isFetching && !isLoading ? "opacity-60 pointer-events-none" : "opacity-100"}`}>
+                  {filtered.map((exam, i) => (
+                    <div key={exam.id} data-tour={i === 0 ? "practice-card" : undefined}>
+                      <ExamCard
+                        exam={exam}
+                        isPremiumLocked={exam.access === "premium"}
+                        onStart={() => setSessionExam(exam)}
+                      />
+                    </div>
                   ))}
                 </div>
 

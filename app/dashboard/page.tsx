@@ -12,6 +12,8 @@ import PrepLogo from "@/utils/icons/logos/PrepLogo";
 import RibbonIcon from "@/utils/icons/RibbonIcon";
 import { useGetDashboardOverview } from "./util/apis/dashboard/fetchDashboardOverview";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import CoachDashboardWidget from "./components/coach/CoachDashboardWidget";
+import { DashboardInsightRequest } from "./util/ai/types";
 
 // Deterministic accent color based on the exam name so each badge stays the
 // same color across renders — avoids Math.random reshuffling on every render.
@@ -79,6 +81,18 @@ export default function Dashboard() {
   const dailyTip = response?.data?.daily_tip ?? DAILY_TIP;
   const [showAllExams, setShowAllExams] = useState(false);
 
+  // Build the dashboard-glance coach request from the overview snapshot.
+  // Fields the backend doesn't yet surface (improvement delta, recentMistakes
+  // count) fall back to reasonable defaults — the coach endpoint will compute
+  // real values once available.
+  const coachRequest: DashboardInsightRequest | null = overview ? {
+    accuracy: overview.average_score ?? 0,
+    avgTime: 60,
+    weakTopics: [],
+    recentMistakes: 0,
+    improvement: 0,
+  } : null;
+
   const STATS = [
     {
       icon: <Trophy size={28} />,
@@ -134,7 +148,7 @@ export default function Dashboard() {
         </div>
 
         {/* Stats row */}
-        <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
+        <div data-tour="dashboard-stats" className="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
           {STATS.map(s => (
             <StatCard key={s.label} {...s} />
           ))}
@@ -144,6 +158,11 @@ export default function Dashboard() {
         {/* Today's focus */}
         <div className="mb-6">
           <TodayFocus />
+        </div>
+
+        {/* AI coach at-a-glance */}
+        <div data-tour="dashboard-coach" className="mb-6">
+          <CoachDashboardWidget request={coachRequest} />
         </div>
 
         {/* Insight row */}

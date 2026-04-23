@@ -125,7 +125,7 @@ function CountdownCard({
     : "Not set";
 
   return (
-    <div className="relative overflow-hidden rounded-2xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-5">
+    <div data-tour="exam-countdown" className="relative overflow-hidden rounded-2xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-5">
       <div className="flex items-start justify-between gap-3 mb-5">
         <div className="flex items-center gap-2 min-w-0">
           <span className="inline-flex items-center h-7 px-2.5 rounded-md bg-[#F7C948] text-[#5A3300] font-black text-xs tracking-tight shrink-0">
@@ -231,7 +231,7 @@ const {authState:{user}}=useAuth()
       </div>
 
       {/* Recent Practice Tests */}
-      <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-slate-200 dark:border-zinc-800 max-md:p-4 p-6">
+      <div data-tour="recent-tests" className="bg-white dark:bg-zinc-900 rounded-2xl border border-slate-200 dark:border-zinc-800 max-md:p-4 p-6">
         <div className="flex items-center justify-between mb-5">
           <div>
             <h2 className="text-base font-bold text-slate-900 dark:text-zinc-100 tracking-tight">Recent practice tests</h2>

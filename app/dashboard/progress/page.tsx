@@ -10,6 +10,20 @@ import TopicMasteryGrid from "../components/progress/TopicMasteryGrid";
 import AccuracyTrend from "../components/progress/AccuracyTrend";
 import TimeAnalytics from "../components/progress/TimeAnalytics";
 import Achievements from "../components/progress/Achievements";
+import CoachProgressPanel from "../components/coach/CoachProgressPanel";
+import { ProgressInsightRequest } from "../util/ai/types";
+import { TourAutoStart } from "../util/tour/TourContext";
+
+// Placeholder request — backend will compute the real trend values from the
+// user's session history. Typed here so the component gets realistic mock
+// copy during UI dev.
+const PROGRESS_REQUEST: ProgressInsightRequest = {
+  accuracyTrend: "increasing",
+  avgTimeTrend: "flat",
+  strongTopics: ["Algebra", "Reading comprehension"],
+  weakTopics: ["Geometry", "Data interpretation"],
+  consistency: "medium",
+};
 
 export default function ProgressPage() {
   return (
@@ -26,8 +40,17 @@ export default function ProgressPage() {
           </p>
         </header>
 
+        <TourAutoStart tourId="progress" />
+
         <SectionLabel title="Summary" />
-        <ProgressKpis />
+        <div data-tour="progress-kpis">
+          <ProgressKpis />
+        </div>
+
+        <SectionLabel title="AI insight" />
+        <div data-tour="progress-ai" className="mb-8">
+          <CoachProgressPanel request={PROGRESS_REQUEST} />
+        </div>
 
         <SectionLabel title="Exam projection" />
         <PredictedScore />
@@ -50,7 +73,7 @@ export default function ProgressPage() {
         </div>
 
         <SectionLabel title="Content mastery" />
-        <div className="mb-8">
+        <div data-tour="progress-mastery" className="mb-8">
           <TopicMasteryGrid />
         </div>
 

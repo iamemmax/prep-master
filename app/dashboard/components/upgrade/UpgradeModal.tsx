@@ -92,7 +92,7 @@ export default function UpgradeModal({
         style={{ maxWidth: 820 }}
       >
         {/* Hero */}
-        <div className="relative px-6 py-5 border-b border-slate-100 dark:border-zinc-800 bg-gradient-to-br from-[#FFFBEB] via-white to-[#FFF7ED] dark:from-amber-500/10 dark:via-zinc-900 dark:to-orange-500/10">
+        <div className="relative px-6 py-5 border-b border-slate-100 dark:border-zinc-800 bg-linear-to-br from-[#FFFBEB] via-white to-[#FFF7ED] dark:from-amber-500/10 dark:via-zinc-900 dark:to-orange-500/10">
           <div className="flex items-start justify-between gap-4">
             <div className="flex items-start gap-3">
               <span className="inline-flex items-center justify-center w-10 h-10 rounded-xl bg-[#F7C948] text-[#5A3300] shrink-0 shadow-sm">

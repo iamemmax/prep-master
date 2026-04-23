@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import * as Avatar from "@radix-ui/react-avatar";
 import { useEffect } from "react";
-import { Sun, Moon, Monitor, User, BookOpen, Bell, Palette, Shield, LogOut, Check, ShieldCheck, Download, Trash2, FileText, Eye } from "lucide-react";
+import { Sun, Moon, Monitor, User, BookOpen, Bell, Palette, Shield, LogOut, Check, ShieldCheck, Download, Trash2, FileText, Eye, Sparkles } from "lucide-react";
 import DashboardHeader from "../components/dashboard/DashboardHeader";
 import { useAuth } from "@/context/authentication";
 import { useTheme, Theme } from "@/context/theme";
@@ -15,11 +15,14 @@ import {
   downloadProctorPDF,
   openProctorPDF,
 } from "../util/proctor/report";
+import { useTour, TourAutoStart } from "../util/tour/TourContext";
+import { TOUR_META, TourId } from "../util/tour/tourSteps";
 
 export default function ProfilePage() {
   const router = useRouter();
   const { authDispatch, authState: { user } } = useAuth();
   const { theme, setTheme } = useTheme();
+  const { startTour, resetTour } = useTour();
 
   const [firstName, setFirstName] = useState(user?.user?.first_name ?? "");
   const [lastName, setLastName]   = useState(user?.user?.last_name  ?? "");
@@ -39,14 +42,27 @@ export default function ProfilePage() {
     () => (typeof window === "undefined" ? [] : listProctorReports()),
   );
 
-  // Proctoring preferences (persisted)
-  const [proctorByDefault, setProctorByDefault]   = useState(false);
-  const [proctorCamera, setProctorCamera]         = useState(true);
-  const [proctorAudio, setProctorAudio]           = useState(false);
-  const [proctorPhone, setProctorPhone]           = useState(true);
-  const [proctorMultiPerson, setProctorMultiPerson] = useState(true);
-  const [proctorGaze, setProctorGaze]             = useState(true);
-  const [proctorSensitivity, setProctorSensitivity] = useState<"low" | "medium" | "high">("medium");
+  // Proctoring preferences — read once from localStorage via lazy init so
+  // we don't need a mount effect to hydrate. Keeps the "set on every render"
+  // lint rule clean and avoids an extra render on first paint.
+  const [prefsInitial] = useState(() => {
+    if (typeof window === "undefined") return null;
+    try {
+      const raw = localStorage.getItem("prep:proctor_prefs");
+      return raw ? (JSON.parse(raw) as Record<string, unknown>) : null;
+    } catch { return null; }
+  });
+  const boolOr = (v: unknown, fallback: boolean) => typeof v === "boolean" ? v : fallback;
+  const sensOr = (v: unknown): "low" | "medium" | "high" =>
+    v === "low" || v === "medium" || v === "high" ? v : "medium";
+
+  const [proctorByDefault, setProctorByDefault]     = useState(() => boolOr(prefsInitial?.byDefault, false));
+  const [proctorCamera, setProctorCamera]           = useState(() => boolOr(prefsInitial?.camera, true));
+  const [proctorAudio, setProctorAudio]             = useState(() => boolOr(prefsInitial?.audio, false));
+  const [proctorPhone, setProctorPhone]             = useState(() => boolOr(prefsInitial?.phone, true));
+  const [proctorMultiPerson, setProctorMultiPerson] = useState(() => boolOr(prefsInitial?.multiPerson, true));
+  const [proctorGaze, setProctorGaze]               = useState(() => boolOr(prefsInitial?.gaze, true));
+  const [proctorSensitivity, setProctorSensitivity] = useState<"low" | "medium" | "high">(() => sensOr(prefsInitial?.sensitivity));
 
   const handleDownloadReport = (report: StoredProctorReport) => {
     try { downloadProctorPDF(report); } catch { /* noop */ }
@@ -55,24 +71,6 @@ export default function ProfilePage() {
     deleteProctorReport(id);
     setProctorReports(listProctorReports());
   };
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const raw = localStorage.getItem("prep:proctor_prefs");
-    if (!raw) return;
-    try {
-      const p = JSON.parse(raw);
-      if (typeof p.byDefault === "boolean") setProctorByDefault(p.byDefault);
-      if (typeof p.camera === "boolean")    setProctorCamera(p.camera);
-      if (typeof p.audio === "boolean")     setProctorAudio(p.audio);
-      if (typeof p.phone === "boolean")     setProctorPhone(p.phone);
-      if (typeof p.multiPerson === "boolean") setProctorMultiPerson(p.multiPerson);
-      if (typeof p.gaze === "boolean")      setProctorGaze(p.gaze);
-      if (p.sensitivity === "low" || p.sensitivity === "medium" || p.sensitivity === "high") {
-        setProctorSensitivity(p.sensitivity);
-      }
-    } catch { /* ignore */ }
-  }, []);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -97,6 +95,7 @@ export default function ProfilePage() {
   return (
     <div className="bg-slate-50 dark:bg-zinc-950 min-h-screen">
       <DashboardHeader />
+      <TourAutoStart tourId="profile" />
 
       <main className="max-w-4xl mx-auto px-4 sm:px-6 py-8">
         <header className="mb-6 pb-5 border-b border-slate-200 dark:border-zinc-800">
@@ -243,8 +242,38 @@ export default function ProfilePage() {
           </div>
         </Section>
 
+        {/* Onboarding / help */}
+        <Section title="Getting started" icon={<Sparkles size={14} />}>
+          <div data-tour="profile-replay">
+            <p className="text-xs text-slate-500 dark:text-zinc-400 mb-3">
+              Replay any guided tour. Each one takes under a minute.
+            </p>
+            <ul className="divide-y divide-slate-100 dark:divide-zinc-800">
+              {(Object.keys(TOUR_META) as TourId[]).map(tourId => {
+                const meta = TOUR_META[tourId];
+                return (
+                  <li key={tourId} className="flex items-center gap-4 py-3">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-slate-800 dark:text-zinc-100">{meta.title}</p>
+                      <p className="text-xs text-slate-500 dark:text-zinc-400 mt-0.5">{meta.subtitle}</p>
+                    </div>
+                    <button
+                      onClick={() => { resetTour(tourId); startTour(tourId); }}
+                      className="shrink-0 inline-flex items-center gap-1.5 text-xs font-semibold px-3 h-8 rounded-md border border-slate-200 dark:border-zinc-700 text-slate-700 dark:text-zinc-200 hover:bg-slate-50 dark:hover:bg-zinc-800 transition-colors"
+                    >
+                      <Sparkles size={11} className="text-[#F7C948]" fill="currentColor" />
+                      Replay
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        </Section>
+
         {/* Proctoring */}
         <Section title="Proctoring" icon={<ShieldCheck size={14} />}>
+          <div data-tour="profile-proctor-prefs" />
           <ToggleRow
             label="Enable proctoring by default"
             description="Turn on the proctor panel automatically when starting a new session."
@@ -309,7 +338,7 @@ export default function ProfilePage() {
             last
           />
 
-          <div className="mt-4 pt-4 border-t border-slate-100 dark:border-zinc-800 rounded-lg bg-amber-50/60 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/30 px-3 py-2.5">
+          <div className="mt-4 pt-4 border-t border-slate-100 dark:border-zinc-800 rounded-lg bg-amber-50/60 dark:bg-amber-500/10 border px-3 py-2.5">
             <p className="text-[11px] text-[#894B00] dark:text-amber-300 leading-relaxed">
               <span className="font-semibold">Heads up.</span> Once a proctored session starts, the monitor can be minimized but not closed until the session ends.
             </p>
@@ -318,6 +347,7 @@ export default function ProfilePage() {
 
         {/* Proctoring reports */}
         <Section title="Proctoring reports" icon={<FileText size={14} />}>
+          <div data-tour="profile-reports" />
           <p className="text-xs text-slate-500 dark:text-zinc-400 mb-3">
             PDF reports generated at the end of each proctored session. Stored locally on this device.
           </p>

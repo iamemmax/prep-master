@@ -9,6 +9,7 @@ import { useTheme } from "@/context/theme";
 import { useRouter, usePathname } from "next/navigation";
 import { Crown, Menu, X, Sun, Moon, Settings } from "lucide-react";
 import PrepLogo from "@/utils/icons/logos/PrepLogo";
+import UpgradeModal from "../upgrade/UpgradeModal";
 
 const NAV_LINKS = [
   { label: "Dashboard", disable: false, href: "/dashboard"          },
@@ -22,6 +23,7 @@ const DashboardHeader = () => {
   const { authDispatch, authState: { user } } = useAuth();
   const { resolved, toggle } = useTheme();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [upgradeOpen, setUpgradeOpen] = useState(false);
 
   const handleLogout = () => {
     authDispatch({ type: "LOGOUT" });
@@ -71,6 +73,7 @@ const initials = `${user?.user?.first_name?.charAt(0) ?? ""}${user?.user?.last_n
                 <Link
                   key={href}
                   href={href}
+                  data-tour={href === "/dashboard/practice" ? "nav-practice" : href === "/dashboard/progress" ? "nav-progress" : undefined}
                   className={`${baseClass} ${
                     isActive
                       ? "font-semibold text-[#F7C948]"
@@ -97,7 +100,11 @@ const initials = `${user?.user?.first_name?.charAt(0) ?? ""}${user?.user?.last_n
             </button>
 
             {/* Upgrade — hidden on mobile */}
-            <button className="hidden sm:flex items-center gap-1.5 px-4 py-2 rounded-[.5275rem] bg-linear-to-r from-[#FE9A00] to-[#FF6900] text-white text-sm lg:text-base font-inter font-bold shadow-sm hover:shadow-md transition-shadow">
+            <button
+              data-tour="header-upgrade"
+              onClick={() => setUpgradeOpen(true)}
+              className="hidden sm:flex items-center gap-1.5 px-4 py-2 rounded-[.5275rem] bg-linear-to-r from-[#FE9A00] to-[#FF6900] text-white text-sm lg:text-base font-inter font-bold shadow-sm hover:shadow-md transition-shadow cursor-pointer"
+            >
               <Crown size={15} />
               Upgrade
             </button>
@@ -213,13 +220,17 @@ const initials = `${user?.user?.first_name?.charAt(0) ?? ""}${user?.user?.last_n
           </Link>
 
           {/* Upgrade on mobile */}
-          <button className="mt-1 flex items-center justify-center gap-1.5 px-4 py-3 rounded-xl bg-linear-to-r from-[#FE9A00] to-[#FF6900] text-white text-sm font-inter font-bold">
+          <button
+            onClick={() => { setMobileOpen(false); setUpgradeOpen(true); }}
+            className="mt-1 flex items-center justify-center gap-1.5 px-4 py-3 rounded-xl bg-linear-to-r from-[#FE9A00] to-[#FF6900] text-white text-sm font-inter font-bold cursor-pointer"
+          >
             <Crown size={15} />
             Upgrade to Pro
           </button>
         </nav>
       </div>
 
+      <UpgradeModal open={upgradeOpen} onClose={() => setUpgradeOpen(false)} />
     </header>
   );
 };
