@@ -99,7 +99,10 @@ export default function ProctorPanel({ onIncident, sessionStartIso }: ProctorPan
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const [cameraOk, setCameraOk]     = useState<boolean | null>(null);
   const [modelState, setModelState] = useState<"loading" | "ready" | "error">("loading");
-  const [minimized, setMinimized]   = useState(false);
+  const [minimized, setMinimized]   = useState(() => {
+    if (typeof window === "undefined") return false;
+    return window.innerWidth < 640;
+  });
   const [detection, setDetection]   = useState<Detection>(INITIAL_DETECTION);
   const [incidentCount, setIncidentCount] = useState(0);
   const [elapsed, setElapsed]       = useState(0);
@@ -414,7 +417,7 @@ export default function ProctorPanel({ onIncident, sessionStartIso }: ProctorPan
       <button
         onClick={() => setMinimized(false)}
         title="Restore proctor panel"
-        className="fixed bottom-14 left-0 z-40 flex items-center gap-2 bg-[#0F172B] text-white text-[10px] sm:text-xs font-bold px-3 py-2 rounded-r-xl shadow-lg hover:shadow-xl ring-1 ring-emerald-500/40 transition-all group"
+        className="fixed bottom-20 sm:bottom-14 left-0 z-40 flex items-center gap-2 bg-[#0F172B] text-white text-[10px] sm:text-xs font-bold px-3 py-2 rounded-r-xl shadow-lg hover:shadow-xl ring-1 ring-emerald-500/40 transition-all group"
       >
         <span className="relative flex items-center">
           <ShieldCheck size={14} className="text-emerald-400" />
@@ -433,7 +436,7 @@ export default function ProctorPanel({ onIncident, sessionStartIso }: ProctorPan
 
   return (
     <div
-      className="fixed bottom-12 left-0 z-40 w-72 rounded-r-2xl bg-[#0F172B] text-white shadow-2xl overflow-hidden border-y border-r border-white/10"
+      className="fixed bottom-20 sm:bottom-12 left-0 z-40 w-44 sm:w-72 rounded-r-2xl bg-[#0F172B] text-white shadow-2xl overflow-hidden border-y border-r border-white/10"
     >
       {/* Header */}
       <div className="flex items-center justify-between px-3 py-2 border-b border-white/10">
@@ -458,7 +461,7 @@ export default function ProctorPanel({ onIncident, sessionStartIso }: ProctorPan
       </div>
 
       {/* Video w/ overlay */}
-      <div className="relative aspect-4/3 bg-slate-900">
+      <div className="relative aspect-square sm:aspect-4/3 bg-slate-900">
         {cameraOk ? (
           <video
             ref={videoRef}

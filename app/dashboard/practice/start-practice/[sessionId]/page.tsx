@@ -37,7 +37,7 @@ import {
   Keyboard, X as XIcon, Zap, Clock3,
   Play, Pause, BarChart3, ArrowLeft, Sun, Moon, Sparkles, ListChecks,
   ChevronLeft, ChevronRight, Check, Flag, Trophy, Download, Eye,
-  Calculator as CalcIcon,
+  Calculator as CalcIcon, Maximize, Minimize,
 } from "lucide-react";
 
 type Confidence = "guess" | "likely" | "certain";
@@ -93,11 +93,33 @@ export default function PracticeExamUI({ params }: { params: Promise<{ sessionId
   const [shortcuts, setShortcuts]     = useState(false);
   const [statsOpen, setStatsOpen]     = useState(false);
   const [calcOpen, setCalcOpen]       = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
     setProctoring(sessionStorage.getItem("prep:proctoring") === "on");
   }, []);
+
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    const sync = () => setIsFullscreen(!!document.fullscreenElement);
+    sync();
+    document.addEventListener("fullscreenchange", sync);
+    return () => document.removeEventListener("fullscreenchange", sync);
+  }, []);
+
+  const toggleFullscreen = async () => {
+    if (typeof document === "undefined") return;
+    try {
+      if (!document.fullscreenElement) {
+        await document.documentElement.requestFullscreen();
+      } else {
+        await document.exitFullscreen();
+      }
+    } catch {
+      /* user denied or unsupported */
+    }
+  };
 
   useEffect(() => { setQElapsed(0); }, [current]);
 
@@ -152,7 +174,7 @@ export default function PracticeExamUI({ params }: { params: Promise<{ sessionId
 
   if (!sessionId || isLoading || !session || questions.length === 0) {
     return (
-      <div className="flex h-screen items-center justify-center bg-slate-50 dark:bg-zinc-950">
+      <div className="flex h-screen h-dvh items-center justify-center bg-slate-50 dark:bg-zinc-950">
         <div className="w-8 h-8 rounded-full border-2 border-slate-400 dark:border-zinc-500 border-t-transparent animate-spin" />
       </div>
     );
@@ -370,7 +392,7 @@ export default function PracticeExamUI({ params }: { params: Promise<{ sessionId
   const flaggedCount  = flagged.size;
 
   return (
-    <div className="flex flex-col h-screen overflow-hidden bg-slate-50 dark:bg-zinc-950 text-slate-900 dark:text-zinc-100 font-inter">
+    <div className="flex flex-col h-screen h-dvh overflow-hidden bg-slate-50 dark:bg-zinc-950 text-slate-900 dark:text-zinc-100 font-inter">
 
       <TourAutoStart tourId="session" />
 
@@ -408,6 +430,9 @@ export default function PracticeExamUI({ params }: { params: Promise<{ sessionId
           </IconBtn>
           <IconBtn onClick={() => setCalcOpen(v => !v)} label="Calculator">
             <CalcIcon size={13} />
+          </IconBtn>
+          <IconBtn onClick={toggleFullscreen} label={isFullscreen ? "Exit fullscreen" : "Fullscreen"}>
+            {isFullscreen ? <Minimize size={13} /> : <Maximize size={13} />}
           </IconBtn>
           <IconBtn onClick={toggleTheme} label={themeMode === "dark" ? "Light mode" : "Dark mode"}>
             {themeMode === "dark" ? <Sun size={13} /> : <Moon size={13} />}
