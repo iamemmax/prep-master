@@ -38,6 +38,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { cn } from "@/lib/utils";
 import { formatAxiosErrorMessage } from "@/utils";
 import { AxiosError } from "axios";
 import {
@@ -400,7 +401,7 @@ export default function PracticeExamUI({ params }: { params: Promise<{ sessionId
   const flaggedCount  = flagged.size;
 
   return (
-    <div className="flex flex-col h-screen h-dvh overflow-hidden bg-slate-50 dark:bg-zinc-950 text-slate-900 dark:text-zinc-100 font-inter">
+    <div className="flex flex-col h-dvh overflow-hidden bg-slate-50 dark:bg-zinc-950 text-slate-900 dark:text-zinc-100 font-inter">
 
       <TourAutoStart tourId="session" />
 
@@ -864,14 +865,17 @@ export default function PracticeExamUI({ params }: { params: Promise<{ sessionId
 
       {/* ── Paused overlay ── */}
       {paused && (
-        <div className="fixed inset-0 z-40 flex items-center justify-center bg-slate-900/70 dark:bg-black/70 backdrop-blur-sm pointer-events-none">
-          <div className="flex flex-col items-center gap-3 pointer-events-auto">
+        <div
+          className="fixed inset-0 z-60 flex items-center justify-center bg-slate-900/70 dark:bg-black/70 backdrop-blur-sm"
+          onClick={() => setPaused(false)}
+        >
+          <div className="flex flex-col items-center gap-3" onClick={(e) => e.stopPropagation()}>
             <div className="w-16 h-16 rounded-full bg-white/10 border border-white/20 flex items-center justify-center backdrop-blur-xl">
               <Pause size={22} className="text-white" fill="white" />
             </div>
             <p className="text-white font-semibold text-base">Paused</p>
             <p className="text-white/60 text-xs">
-              Press <kbd className="bg-white/10 text-white px-1.5 py-0.5 rounded text-[10px] font-mono">Space</kbd> to resume
+              Press <kbd className="bg-white/10 text-white px-1.5 py-0.5 rounded text-[10px] font-mono">Space</kbd> or tap anywhere to resume
             </p>
           </div>
         </div>
@@ -884,7 +888,7 @@ export default function PracticeExamUI({ params }: { params: Promise<{ sessionId
 >
   <DialogContent
     showCloseButton={false}
-    className="sm:max-w-md bg-white dark:bg-zinc-900 border-slate-200 dark:border-zinc-800 p-0 overflow-hidden gap-0"
+    className="sm:max-w-md max-h-[90dvh] overflow-y-auto bg-white dark:bg-zinc-900 border-slate-200 dark:border-zinc-800 p-0 gap-0"
   >
     {sessionResult && (() => {
       const pct = sessionResult.score;
