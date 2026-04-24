@@ -31,6 +31,13 @@ import * as Avatar from "@radix-ui/react-avatar";
 import { SmallSpinner } from "@/components/ui/Spinner";
 import { ErrorModal } from "@/components/ui/ErrorModal";
 import { useErrorModalState } from "@/hooks";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { formatAxiosErrorMessage } from "@/utils";
 import { AxiosError } from "axios";
 import {
@@ -871,111 +878,162 @@ export default function PracticeExamUI({ params }: { params: Promise<{ sessionId
       )}
 
       {/* ── Result modal ── */}
-      {sessionResult && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="bg-white dark:bg-zinc-900 rounded-xl shadow-2xl w-full max-w-sm p-6 flex flex-col items-center gap-4 border border-slate-200 dark:border-zinc-800">
-            <div className="w-14 h-14 rounded-full bg-amber-50 dark:bg-amber-500/10 flex items-center justify-center">
-              <Trophy size={24} className="text-[#F7C948]" />
-            </div>
-            <div className="text-center">
-              <h2 className="text-base font-semibold text-slate-900 dark:text-zinc-100">Session complete</h2>
-              <p className="text-xs text-slate-500 dark:text-zinc-400 mt-0.5">Here&apos;s how you did.</p>
+    <Dialog
+  open={!!sessionResult}
+  onOpenChange={(open) => { if (!open) setSessionResult(null); }}
+>
+  <DialogContent
+    showCloseButton={false}
+    className="sm:max-w-md bg-white dark:bg-zinc-900 border-slate-200 dark:border-zinc-800 p-0 overflow-hidden gap-0"
+  >
+    {sessionResult && (() => {
+      const pct = sessionResult.score;
+      const tone =
+        pct >= 75 ? "emerald" :
+        pct >= 50 ? "amber" : "rose";
+      const ringColor =
+        tone === "emerald" ? "#10b981" :
+        tone === "amber" ? "#F7C948" : "#f43f5e";
+      const R = 52;
+      const C = 2 * Math.PI * R;
+
+      return (
+        <>
+          {/* HERO — score ring */}
+          <div
+            className={cn(
+              "relative px-6 pt-8 pb-6 text-center transition-colors",
+              celebrate
+                ? "bg-linear-to-b from-amber-50 to-transparent dark:from-amber-500/10"
+                : "bg-linear-to-b from-slate-50/50 to-transparent dark:from-zinc-800/30"
+            )}
+          >
+            <DialogHeader className="items-center text-center sm:text-center mb-5">
+              <DialogTitle className="text-[13px] font-medium text-slate-500 dark:text-zinc-400 tracking-wide">
+                {celebrate ? "🎉  New personal best!" : "Session complete"}
+              </DialogTitle>
+              <DialogDescription className="sr-only">Your session results</DialogDescription>
+            </DialogHeader>
+
+            {/* Circular score */}
+            <div className="relative inline-flex items-center justify-center w-32 h-32 mx-auto">
+              <svg className="w-32 h-32 -rotate-90" viewBox="0 0 120 120" aria-hidden>
+                <circle
+                  cx="60" cy="60" r={R}
+                  strokeWidth="8"
+                  fill="none"
+                  className="stroke-slate-100 dark:stroke-zinc-800"
+                />
+                <circle
+                  cx="60" cy="60" r={R}
+                  strokeWidth="8"
+                  strokeLinecap="round"
+                  fill="none"
+                  stroke={ringColor}
+                  strokeDasharray={C}
+                  strokeDashoffset={C * (1 - pct / 100)}
+                  style={{ transition: "stroke-dashoffset 900ms cubic-bezier(.22,1,.36,1)" }}
+                />
+              </svg>
+              <div className="absolute inset-0 flex flex-col items-center justify-center">
+                <span className="text-[32px] leading-none font-semibold tabular-nums text-slate-900 dark:text-zinc-100">
+                  {Math.round(pct)}
+                  <span className="text-lg text-slate-400 dark:text-zinc-500 ml-0.5">%</span>
+                </span>
+                <span className="text-[11px] text-slate-500 dark:text-zinc-400 tabular-nums mt-1.5">
+                  {sessionResult.correct_answers} / {sessionResult.total_questions} correct
+                </span>
+              </div>
             </div>
 
-            {/* Personal best banner — shows only when we actually beat it */}
+            {/* Celebration subline */}
             {celebrate && (
-              <div className="w-full rounded-xl bg-linear-to-br from-[#FFFBEB] to-[#FFF7ED] dark:from-amber-500/15 dark:to-orange-500/15 border border-[#F7C948] dark:border-amber-500/40 px-4 py-3 text-center">
-                <p className="text-[10px] font-bold uppercase tracking-wider text-[#E17100] dark:text-amber-300">
-                  🎉 New personal best!
-                </p>
-                <p className="text-xs text-[#5A3300] dark:text-amber-200 mt-0.5 leading-snug">
-                  {prevBest != null
-                    ? <>You just beat your previous best of <span className="font-bold tabular-nums">{prevBest.toFixed(0)}%</span> on this exam.</>
-                    : <>First run on this exam — you set the bar.</>}
-                </p>
-              </div>
+              <p className="text-xs text-slate-600 dark:text-zinc-300 mt-4">
+                {prevBest != null
+                  ? <>Previous best: <span className="font-semibold tabular-nums">{prevBest.toFixed(0)}%</span></>
+                  : <>First run on this exam — you set the bar.</>}
+              </p>
             )}
-            <div className="w-full rounded-lg border border-slate-200 dark:border-zinc-800 p-4 flex flex-col gap-3">
-              <div className="flex justify-between items-baseline">
-                <span className="text-xs text-slate-500 dark:text-zinc-400">Score</span>
-                <span className="text-2xl font-semibold text-slate-900 dark:text-zinc-100 tabular-nums">
-                  {parseFloat(sessionResult.score.toFixed(2))}<span className="text-base text-slate-400">%</span>
-                </span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-xs text-slate-500 dark:text-zinc-400">Correct answers</span>
-                <span className="text-sm font-semibold text-slate-800 dark:text-zinc-200 tabular-nums">
-                  {sessionResult.correct_answers} / {sessionResult.total_questions}
-                </span>
-              </div>
-              <div className="w-full h-1.5 bg-slate-100 dark:bg-zinc-800 rounded-full overflow-hidden">
-                <div
-                  className="h-full rounded-full bg-[#F7C948]"
-                  style={{ width: `${(sessionResult.correct_answers / sessionResult.total_questions) * 100}%` }}
-                />
-              </div>
-            </div>
+          </div>
+
+          {/* ACTIONS */}
+          <div className="px-6 pb-6 pt-1 flex flex-col gap-2">
+
+            {/* Proctoring — compact inline row */}
             {proctorReport && (
-              <div className="w-full">
-                <p className="text-[11px] text-slate-500 dark:text-zinc-400 mb-1.5 text-center">
-                  Proctoring report · {proctorReport.incidents.length} incident{proctorReport.incidents.length === 1 ? "" : "s"}
-                </p>
-                <div className="flex w-full gap-2">
+              <div className="flex items-center justify-between gap-2 rounded-lg border border-slate-200 dark:border-zinc-800 bg-slate-50/60 dark:bg-zinc-800/30 pl-3 pr-2 py-2">
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className={cn(
+                    "w-1.5 h-1.5 rounded-full shrink-0",
+                    proctorReport.incidents.length === 0 ? "bg-emerald-500" : "bg-amber-500"
+                  )} />
+                  <p className="text-xs text-slate-700 dark:text-zinc-300 truncate whitespace-nowrap">
+                    Proctoring · {proctorReport.incidents.length} incident{proctorReport.incidents.length === 1 ? "" : "s"}
+                  </p>
+                </div>
+                <div className="flex items-center gap-0.5 shrink-0">
                   <button
                     onClick={() => openProctorPDF(proctorReport)}
-                    className="flex-1 h-10 rounded-md text-sm font-semibold bg-[#F7C948] text-[#5A3300] hover:bg-[#F0BC2F] transition-colors inline-flex items-center justify-center gap-1.5"
+                    className="p-1.5 rounded-md text-slate-500 dark:text-zinc-400 hover:bg-white hover:text-slate-900 dark:hover:bg-zinc-700 dark:hover:text-zinc-100 transition-colors"
+                    aria-label="View proctoring report"
                   >
                     <Eye size={14} />
-                    View
                   </button>
                   <button
                     onClick={() => downloadProctorPDF(proctorReport)}
-                    className="flex-1 h-10 rounded-md text-sm font-semibold border border-slate-200 dark:border-zinc-700 text-slate-700 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-800 transition-colors inline-flex items-center justify-center gap-1.5"
+                    className="p-1.5 rounded-md text-slate-500 dark:text-zinc-400 hover:bg-white hover:text-slate-900 dark:hover:bg-zinc-700 dark:hover:text-zinc-100 transition-colors"
+                    aria-label="Download proctoring report"
                   >
                     <Download size={14} />
-                    Download
                   </button>
                 </div>
               </div>
             )}
 
+            {/* AI coach — featured */}
             {coachRequest && (
               <button
                 onClick={() => setCoachOpen(true)}
-                className="w-full h-10 rounded-md text-sm font-bold text-white inline-flex items-center justify-center gap-1.5 transition-all hover:shadow-md hover:-translate-y-0.5"
+                className="group w-full h-11 rounded-lg text-sm font-semibold text-white inline-flex items-center justify-center gap-2 transition-all hover:shadow-lg hover:shadow-orange-500/25 whitespace-nowrap"
                 style={{ background: "linear-gradient(135deg, #FE9A00, #FF6900)" }}
               >
-                <Sparkles size={14} fill="currentColor" />
+                <Sparkles size={14} fill="currentColor" className="group-hover:rotate-12 transition-transform" />
                 Get AI coach feedback
               </button>
             )}
 
-            {session && (
-              <button
-                onClick={() => router.push(`/dashboard/practice/review/${session.id}`)}
-                className="w-full h-10 rounded-md text-sm font-semibold border border-slate-200 dark:border-zinc-700 text-slate-700 dark:text-zinc-200 hover:bg-slate-50 dark:hover:bg-zinc-800 transition-colors inline-flex items-center justify-center gap-1.5"
-              >
-                <ListChecks size={14} />
-                Review answers
-              </button>
-            )}
-            <div className="flex w-full gap-2">
+            {/* Secondary row: Review + Progress */}
+            <div className="flex items-center gap-2">
+              {session && (
+                <button
+                  onClick={() => router.push(`/dashboard/practice/review/${session.id}`)}
+                  className="flex-1 h-10 rounded-lg text-sm font-semibold border border-slate-200 dark:border-zinc-700 text-slate-700 dark:text-zinc-200 hover:bg-slate-50 dark:hover:bg-zinc-800 transition-colors inline-flex items-center justify-center gap-1.5 whitespace-nowrap"
+                >
+                  <ListChecks size={14} />
+                  Review
+                </button>
+              )}
               <button
                 onClick={() => router.push("/dashboard/progress")}
-                className="flex-1 h-10 rounded-md text-sm font-semibold border border-slate-200 dark:border-zinc-700 text-slate-700 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-800 transition-colors"
+                className="flex-1 h-10 rounded-lg text-sm font-semibold border border-slate-200 dark:border-zinc-700 text-slate-700 dark:text-zinc-200 hover:bg-slate-50 dark:hover:bg-zinc-800 transition-colors whitespace-nowrap"
               >
-                View progress
-              </button>
-              <button
-                onClick={() => router.push("/dashboard/practice")}
-                className="flex-1 h-10 rounded-md text-sm font-semibold bg-slate-900 dark:bg-zinc-100 text-white dark:text-zinc-900 hover:bg-slate-800 dark:hover:bg-zinc-200 transition-colors"
-              >
-                Back to practice
+                Progress
               </button>
             </div>
+
+            {/* Primary CTA */}
+            <button
+              onClick={() => router.push("/dashboard/practice")}
+              className="w-full h-11 rounded-lg text-sm font-semibold bg-slate-900 dark:bg-zinc-100 text-white dark:text-zinc-900 hover:bg-slate-800 dark:hover:bg-zinc-200 transition-colors whitespace-nowrap"
+            >
+              Back to practice
+            </button>
           </div>
-        </div>
-      )}
+        </>
+      );
+    })()}
+  </DialogContent>
+</Dialog>
 
       <ErrorModal
         isErrorModalOpen={isErrorModalOpen}
@@ -1018,47 +1076,40 @@ export default function PracticeExamUI({ params }: { params: Promise<{ sessionId
       {calcOpen && <Calculator onClose={() => setCalcOpen(false)} />}
 
       {/* ── Shortcuts overlay ── */}
-      {shortcuts && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={() => setShortcuts(false)}>
-          <div
-            onClick={(e) => e.stopPropagation()}
-            className="bg-white dark:bg-zinc-900 rounded-xl shadow-2xl w-full max-w-sm p-5 flex flex-col gap-3 border border-slate-200 dark:border-zinc-800"
-          >
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Keyboard size={15} className="text-slate-500 dark:text-zinc-400" />
-                <p className="text-sm font-semibold text-slate-900 dark:text-zinc-100">Keyboard shortcuts</p>
+      <Dialog open={shortcuts} onOpenChange={setShortcuts}>
+        <DialogContent className="sm:max-w-sm bg-white dark:bg-zinc-900 border-slate-200 dark:border-zinc-800 gap-3">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-sm font-semibold text-slate-900 dark:text-zinc-100">
+              <Keyboard size={15} className="text-slate-500 dark:text-zinc-400" />
+              Keyboard shortcuts
+            </DialogTitle>
+            <DialogDescription className="sr-only">Keyboard shortcuts reference for this practice session.</DialogDescription>
+          </DialogHeader>
+          <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs">
+            {[
+              ["A – D",  "Select answer"],
+              ["1 – 9",  "Select answer"],
+              ["→",      "Next question"],
+              ["←",      "Previous"],
+              ["F",      "Flag question"],
+              ["Space",  "Pause / resume"],
+              ["Z",      "Focus mode"],
+              ["?",      "Show this panel"],
+              ["Esc",    "Close overlays"],
+            ].map(([keys, label]) => (
+              <div key={keys} className="flex items-center justify-between gap-2 py-1">
+                <span className="text-slate-500 dark:text-zinc-400">{label}</span>
+                <kbd className="inline-flex items-center justify-center min-w-10 px-1.5 h-5 rounded bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-200 text-[10px] font-bold border border-slate-200 dark:border-zinc-700">
+                  {keys}
+                </kbd>
               </div>
-              <button onClick={() => setShortcuts(false)} className="text-slate-400 dark:text-zinc-500 hover:text-slate-700 dark:hover:text-zinc-200 p-1 rounded">
-                <XIcon size={16} />
-              </button>
-            </div>
-            <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs">
-              {[
-                ["A – D",  "Select answer"],
-                ["1 – 9",  "Select answer"],
-                ["→",      "Next question"],
-                ["←",      "Previous"],
-                ["F",      "Flag question"],
-                ["Space",  "Pause / resume"],
-                ["Z",      "Focus mode"],
-                ["?",      "Show this panel"],
-                ["Esc",    "Close overlays"],
-              ].map(([keys, label]) => (
-                <div key={keys} className="flex items-center justify-between gap-2 py-1">
-                  <span className="text-slate-500 dark:text-zinc-400">{label}</span>
-                  <kbd className="inline-flex items-center justify-center min-w-10 px-1.5 h-5 rounded bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-200 text-[10px] font-bold border border-slate-200 dark:border-zinc-700">
-                    {keys}
-                  </kbd>
-                </div>
-              ))}
-            </div>
-            <p className="text-[10px] text-slate-400 dark:text-zinc-500 italic mt-1">
-              Tip: hover any option and click × to eliminate it.
-            </p>
+            ))}
           </div>
-        </div>
-      )}
+          <p className="text-[10px] text-slate-400 dark:text-zinc-500 italic mt-1">
+            Tip: hover any option and click × to eliminate it.
+          </p>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
