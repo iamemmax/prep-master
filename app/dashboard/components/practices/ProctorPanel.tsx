@@ -97,12 +97,11 @@ interface ProctorPanelProps {
 
 export default function ProctorPanel({ onIncident, sessionStartIso }: ProctorPanelProps = {}) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
   const [cameraOk, setCameraOk]     = useState<boolean | null>(null);
+  const [cameraError, setCameraError] = useState<string>("");
   const [modelState, setModelState] = useState<"loading" | "ready" | "error">("loading");
-  const [minimized, setMinimized]   = useState(() => {
-    if (typeof window === "undefined") return false;
-    return window.innerWidth < 640;
-  });
+  const [minimized, setMinimized]   = useState(false);
   const [detection, setDetection]   = useState<Detection>(INITIAL_DETECTION);
   const [incidentCount, setIncidentCount] = useState(0);
   const [elapsed, setElapsed]       = useState(0);
@@ -114,12 +113,18 @@ export default function ProctorPanel({ onIncident, sessionStartIso }: ProctorPan
   const onIncidentRef = useRef(onIncident);
   useEffect(() => { onIncidentRef.current = onIncident; }, [onIncident]);
 
-  // Webcam
+  // Webcam — acquire the stream and store it; attachment to the <video> happens
+  // in a second effect so we don't lose the stream when the element isn't yet
+  // in the DOM on first render (mobile-critical: the initial render shows a
+  // loader, so videoRef.current is null when the getUserMedia promise resolves).
   useEffect(() => {
-    let stream: MediaStream | null = null;
+    let cancelled = false;
     (async () => {
       try {
-        stream = await navigator.mediaDevices.getUserMedia({
+        if (!navigator.mediaDevices?.getUserMedia) {
+          throw new Error("getUserMedia unsupported (needs HTTPS)");
+        }
+        const stream = await navigator.mediaDevices.getUserMedia({
           video: {
             width:  { ideal: 1280 },
             height: { ideal: 720 },
@@ -127,17 +132,36 @@ export default function ProctorPanel({ onIncident, sessionStartIso }: ProctorPan
           },
           audio: false,
         });
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
-          await videoRef.current.play();
+        if (cancelled) {
+          stream.getTracks().forEach(t => t.stop());
+          return;
         }
+        streamRef.current = stream;
         setCameraOk(true);
-      } catch {
+      } catch (err) {
+        if (cancelled) return;
+        const msg = err instanceof Error ? err.message : "Camera error";
+        setCameraError(msg);
         setCameraOk(false);
       }
     })();
-    return () => { stream?.getTracks().forEach(t => t.stop()); };
+    return () => {
+      cancelled = true;
+      streamRef.current?.getTracks().forEach(t => t.stop());
+      streamRef.current = null;
+    };
   }, []);
+
+  // Attach the stream once both the stream and video element exist.
+  useEffect(() => {
+    if (cameraOk !== true) return;
+    const video = videoRef.current;
+    const stream = streamRef.current;
+    if (!video || !stream) return;
+    if (video.srcObject === stream) return;
+    video.srcObject = stream;
+    video.play().catch(() => { /* mobile autoplay hiccup — muted+playsInline usually saves us */ });
+  }, [cameraOk, minimized]);
 
   // Load MediaPipe face detector + COCO-SSD object detector, then run the loop
   useEffect(() => {
@@ -436,10 +460,10 @@ export default function ProctorPanel({ onIncident, sessionStartIso }: ProctorPan
 
   return (
     <div
-      className="fixed bottom-20 sm:bottom-12 left-0 z-40 w-44 sm:w-72 rounded-r-2xl bg-[#0F172B] text-white shadow-2xl overflow-hidden border-y border-r border-white/10"
+      className="fixed bottom-0 sm:bottom-12 left-0 z-40 w-36 sm:w-72 rounded-tr-2xl sm:rounded-r-2xl sm:rounded-tl-none bg-[#0F172B] text-white shadow-2xl overflow-hidden border-t sm:border-y border-r border-white/10"
     >
       {/* Header */}
-      <div className="flex items-center justify-between px-3 py-2 border-b border-white/10">
+      <div className="hidden sm:flex items-center justify-between px-3 py-2 border-b border-white/10">
         <div className="flex items-center gap-1.5">
           <ShieldCheck size={14} className="text-emerald-400" />
           <span className="text-[11px] font-bold">Proctoring active</span>
@@ -462,21 +486,24 @@ export default function ProctorPanel({ onIncident, sessionStartIso }: ProctorPan
 
       {/* Video w/ overlay */}
       <div className="relative aspect-square sm:aspect-4/3 bg-slate-900">
-        {cameraOk ? (
-          <video
-            ref={videoRef}
-            muted
-            playsInline
-            className="absolute inset-0 w-full h-full object-cover"
-            style={{ transform: "scaleX(-1)" }}
-          />
-        ) : cameraOk === false ? (
-          <div className="absolute inset-0 flex flex-col items-center justify-center text-center px-4 bg-linear-to-br from-slate-900 to-slate-800">
+        <video
+          ref={videoRef}
+          muted
+          playsInline
+          autoPlay
+          className={`absolute inset-0 w-full h-full object-cover transition-opacity ${cameraOk ? "opacity-100" : "opacity-0"}`}
+          style={{ transform: "scaleX(-1)" }}
+        />
+        {cameraOk === false && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center text-center px-3 bg-linear-to-br from-slate-900 to-slate-800">
             <VideoOff size={22} className="text-white/40 mb-2" />
             <p className="text-[11px] text-white/70 font-semibold">Camera unavailable</p>
-            <p className="text-[10px] text-white/40 mt-0.5">Running without detection</p>
+            <p className="text-[10px] text-white/40 mt-0.5 break-words">
+              {cameraError || "Running without detection"}
+            </p>
           </div>
-        ) : (
+        )}
+        {cameraOk === null && (
           <div className="absolute inset-0 flex items-center justify-center">
             <Video size={18} className="text-white/40 animate-pulse" />
           </div>
