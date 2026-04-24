@@ -15,6 +15,13 @@ import {
   downloadProctorPDF,
   openProctorPDF,
 } from "../util/proctor/report";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useTour, TourAutoStart } from "../util/tour/TourContext";
 import { TOUR_META, TourId } from "../util/tour/tourSteps";
 
@@ -147,14 +154,16 @@ export default function ProfilePage() {
         <Section title="Exam preferences" icon={<BookOpen size={14} />}>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <Field label="Target exam">
-              <select value={targetExam} onChange={e => setTargetExam(e.target.value)} className="ip">
-                <option>SAT</option>
-                <option>ACT</option>
-                <option>GRE</option>
-                <option>GMAT</option>
-                <option>IELTS</option>
-                <option>TOEFL</option>
-              </select>
+              <Select value={targetExam} onValueChange={setTargetExam}>
+                <SelectTrigger className="ip justify-between">
+                  <SelectValue placeholder="Select exam" />
+                </SelectTrigger>
+                <SelectContent>
+                  {["SAT", "ACT", "GRE", "GMAT", "IELTS", "TOEFL"].map(x => (
+                    <SelectItem key={x} value={x}>{x}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </Field>
             <Field label="Exam date">
               <input
@@ -181,19 +190,29 @@ export default function ProfilePage() {
           <p className="text-xs font-semibold text-slate-700 dark:text-zinc-200 mb-3">Session defaults</p>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <Field label="Mode">
-              <select value={defaultMode} onChange={e => setDefaultMode(e.target.value as typeof defaultMode)} className="ip">
-                <option value="timed">Timed</option>
-                <option value="untimed">Untimed</option>
-                <option value="topic-focus">Topic focus</option>
-              </select>
+              <Select value={defaultMode} onValueChange={v => setDefaultMode(v as typeof defaultMode)}>
+                <SelectTrigger className="ip justify-between">
+                  <SelectValue placeholder="Select mode" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="timed">Timed</SelectItem>
+                  <SelectItem value="untimed">Untimed</SelectItem>
+                  <SelectItem value="topic-focus">Topic focus</SelectItem>
+                </SelectContent>
+              </Select>
             </Field>
             <Field label="Difficulty">
-              <select value={defaultDiff} onChange={e => setDefaultDiff(e.target.value as typeof defaultDiff)} className="ip">
-                <option value="easy">Easy</option>
-                <option value="medium">Medium</option>
-                <option value="hard">Hard</option>
-                <option value="mixed">Mixed</option>
-              </select>
+              <Select value={defaultDiff} onValueChange={v => setDefaultDiff(v as typeof defaultDiff)}>
+                <SelectTrigger className="ip justify-between">
+                  <SelectValue placeholder="Select difficulty" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="easy">Easy</SelectItem>
+                  <SelectItem value="medium">Medium</SelectItem>
+                  <SelectItem value="hard">Hard</SelectItem>
+                  <SelectItem value="mixed">Mixed</SelectItem>
+                </SelectContent>
+              </Select>
             </Field>
             <Field label="Questions per session">
               <input

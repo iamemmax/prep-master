@@ -117,6 +117,16 @@ const [proctoring, setProctoring] = useState<boolean>(() => {
 });
 const {mutate:handleStart,isPending} = useStartPracticeExam()
 const onSubmit = (data: z.output<typeof sessionSchema>) => {
+  // Enter browser fullscreen synchronously on the user's click so the gesture
+  // requirement of the Fullscreen API is satisfied. Silently no-ops on
+  // platforms that don't support element fullscreen (iOS Safari).
+  if (typeof document !== "undefined" && !document.fullscreenElement) {
+    const el = document.documentElement as HTMLElement & {
+      webkitRequestFullscreen?: () => Promise<void>;
+    };
+    const req = el.requestFullscreen ?? el.webkitRequestFullscreen;
+    req?.call(el).catch(() => { /* denied or unsupported */ });
+  }
   handleStart(data,{
     onSuccess:(res)=>{
        if (typeof window !== "undefined") {
