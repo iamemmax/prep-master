@@ -568,15 +568,15 @@ const subjectsBlocked =
             </div>
 
             {/* Proctoring */}
-            <div className={`rounded-xl border p-3 transition-all ${proctoring ? "border-emerald-300 bg-emerald-50/50" : "border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900"}`}>
+            <div className={`rounded-xl border p-3 transition-all ${proctoring ? "border-emerald-300 bg-emerald-50/50 dark:border-emerald-500/40 dark:bg-emerald-500/10" : "border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900"}`}>
               <div className="flex items-center justify-between">
                 <div className="flex items-start gap-2 min-w-0">
-                  <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${proctoring ? "bg-emerald-100" : "bg-slate-100"}`}>
-                    <ShieldCheck size={14} className={proctoring ? "text-emerald-600" : "text-slate-400"} />
+                  <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${proctoring ? "bg-emerald-100 dark:bg-emerald-500/20" : "bg-slate-100 dark:bg-zinc-800"}`}>
+                    <ShieldCheck size={14} className={proctoring ? "text-emerald-600 dark:text-emerald-400" : "text-slate-400 dark:text-zinc-500"} />
                   </div>
                   <div className="min-w-0">
-                    <p className="text-xs font-semibold text-slate-700 dark:text-zinc-300 leading-tight">Enable proctoring</p>
-                    <p className="text-[10px] text-slate-400 leading-snug mt-0.5">
+                    <p className="text-xs font-semibold text-slate-700 dark:text-zinc-200 leading-tight">Enable proctoring</p>
+                    <p className="text-[10px] text-slate-400 dark:text-white/70 leading-snug mt-0.5">
                       Webcam monitors for phones, second person, and looking away
                     </p>
                   </div>
@@ -584,7 +584,7 @@ const subjectsBlocked =
                 <button
                   type="button"
                   onClick={() => setProctoring(p => !p)}
-                  className={`relative rounded-full transition-colors duration-200 shrink-0 ml-2 ${proctoring ? "bg-emerald-500" : "bg-slate-200"}`}
+                  className={`relative rounded-full transition-colors duration-200 shrink-0 ml-2 ${proctoring ? "bg-emerald-500 dark:bg-emerald-500" : "bg-slate-200 dark:bg-zinc-700"}`}
                   style={{ width: 40, height: 22 }}
                   aria-pressed={proctoring}
                 >
@@ -592,7 +592,7 @@ const subjectsBlocked =
                 </button>
               </div>
               {proctoring && (
-                <p className="text-[10px] text-emerald-700 mt-2 pl-9">
+                <p className="text-[10px] text-emerald-700 dark:text-emerald-300 mt-2 pl-9">
                   You&apos;ll be prompted for camera access when the session starts.
                 </p>
               )}
