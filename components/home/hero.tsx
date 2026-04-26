@@ -1,9 +1,11 @@
 // Hero.tsx
+"use client"
 import Image from "next/image"
 import Link from "next/link"
 import { ArrowRight, Upload, Zap, Shield, Clock, Globe, LayoutGrid, TrendingUp, Users, MessageSquareText } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import MotionReveal from "@/components/shared/motion-reveal"
+import { useAuth } from "@/context/authentication"
 
 const TRUST_BADGES = [
   { icon: Shield, label: "Bank-grade security" },
@@ -28,6 +30,7 @@ const STATS: Stat[] = [
 
 // page.tsx or wherever you compose them
 export default function Hero() {
+  const {authState:{isAuthenticated}}= useAuth()
   return (
     <>
       <section className="relative isolate overflow-clip bg-[#f4f5f7]">
@@ -83,7 +86,7 @@ export default function Hero() {
       size={"lg"}
       className="h-12 sm:px-6! px-5! rounded-full font-semibold max-sm:text-xs text-[#1a1f2e] btn-glow shadow-md flex items-center gap-2"
     >
-      <Link href="/signup">
+      <Link href={isAuthenticated?"/dashboard":"/signin"}>
         Start Practicing Free
         <ArrowRight className="h-4 w-4" />
       </Link>
@@ -94,7 +97,7 @@ export default function Hero() {
       variant="outline"
       className="h-12 sm:px-6! px-5! rounded-full bg-white border-[#CAD5E2] max-sm:text-xs font-semibold text-[#1a1f2e] flex items-center gap-2"
     >
-      <Link href="/upload">
+    <Link href={isAuthenticated?"/dashboard":"/signin"}>
         <Upload className="h-4 w-4" />
         Upload Materials
       </Link>

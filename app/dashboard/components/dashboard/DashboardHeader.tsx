@@ -10,11 +10,14 @@ import { useRouter, usePathname } from "next/navigation";
 import { Crown, Menu, X, Sun, Moon, Settings } from "lucide-react";
 import PrepLogo from "@/utils/icons/logos/PrepLogo";
 import UpgradeModal from "../upgrade/UpgradeModal";
+import CreditBadge from "./CreditBadge";
+
+const IS_PROD = process.env.NODE_ENV === "production";
 
 const NAV_LINKS = [
-  { label: "Dashboard", disable: false, href: "/dashboard"          },
-  { label: "Practice",  disable: false, href: "/dashboard/practice" },
-  { label: "Progress",  disable: false, href: "/dashboard/progress" },
+  { label: "Dashboard", disable: false,   href: "/dashboard"          },
+  { label: "Practice",  disable: false,   href: "/dashboard/practice" },
+  { label: "Progress",  disable: IS_PROD, href: "/dashboard/progress" },
 ];
 
 const DashboardHeader = () => {
@@ -30,31 +33,33 @@ const DashboardHeader = () => {
     router.replace("/signin");
   };
 
-const initials = `${user?.user?.first_name?.charAt(0) ?? ""}${user?.user?.last_name?.charAt(0) ?? ""}`.toUpperCase();
+  const initials = `${user?.user?.first_name?.charAt(0) ?? ""}${user?.user?.last_name?.charAt(0) ?? ""}`.toUpperCase();
 
   return (
     <header className="sticky top-0 z-50 bg-white dark:bg-zinc-950 border-b border-slate-100 dark:border-zinc-800">
 
       {/* Main bar */}
-      <div className="px-6 py-3">
-        <div className="max-w-400 mx-auto flex items-center justify-between">
+      <div className="px-3 lg:px-6 py-3">
+        <div className="max-w-400 mx-auto flex items-center justify-between gap-2">
 
           {/* Logo */}
-          <Link href="/dashboard" className="flex items-center gap-2.5">
-            <div className="w-10 h-10 rounded-[.625rem] bg-linear-to-tr from-[#F7C948] to-[#F7C948] flex items-center justify-center">
+          <Link href="/dashboard" className="flex items-center gap-2 lg:gap-2.5 min-w-0 shrink">
+            <div className="w-9 h-9 lg:w-10 lg:h-10 rounded-[.625rem] bg-[#F7C948] flex items-center justify-center shrink-0">
               <PrepLogo />
             </div>
-            <div className="flex flex-col">
-              <span className="text-[#0F172B] dark:text-zinc-100 text-xl font-semibold font-inter">
+            <div className="flex flex-col min-w-0">
+              <span className="text-[#0F172B] dark:text-zinc-100 text-sm lg:text-xl font-semibold font-inter truncate">
                 Prep<span>Master</span>
               </span>
-              <span className="text-xs text-[#0F172B] dark:text-zinc-400 font-inter font-medium -mt-1">by Upstage</span>
+              <span className="hidden lg:block text-xs text-[#0F172B] dark:text-zinc-400 font-inter font-medium -mt-1">
+                by Upstage
+              </span>
             </div>
           </Link>
 
           {/* Desktop Navigation */}
           <nav className="hidden md:flex items-center gap-1">
-            {NAV_LINKS.map(({ label, href ,disable}) => {
+            {NAV_LINKS.map(({ label, href, disable }) => {
               const isActive = pathname === href;
               const baseClass = `px-4 py-2 rounded-lg font-inter text-sm lg:text-base transition-colors`;
               if (disable) {
@@ -87,23 +92,28 @@ const initials = `${user?.user?.first_name?.charAt(0) ?? ""}${user?.user?.last_n
           </nav>
 
           {/* Right side */}
-          <div className="flex items-center gap-2 sm:gap-3">
+          <div className="flex items-center gap-1.5 lg:gap-3 shrink-0">
 
-            {/* Theme toggle */}
-            <button
+            {/* Theme toggle — hidden on mobile (available in dropdown menu) */}
+            {/* <button
               onClick={toggle}
               aria-label={`Switch to ${resolved === "dark" ? "light" : "dark"} mode`}
               title={`Switch to ${resolved === "dark" ? "light" : "dark"} mode`}
-              className="w-9 h-9 rounded-lg border border-slate-200 dark:border-zinc-800 text-slate-600 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-900 flex items-center justify-center transition-colors"
+              className="hidden lg:flex w-9 h-9 rounded-lg border border-slate-200 dark:border-zinc-800 text-slate-600 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-900 items-center justify-center transition-colors"
             >
               {resolved === "dark" ? <Sun size={15} /> : <Moon size={15} />}
-            </button>
+            </button> */}
 
-            {/* Upgrade — hidden on mobile */}
+            {/* Credit balance — desktop only; mobile users see it in the drawer */}
+            <div className="block">
+              <CreditBadge />
+            </div>
+
+            {/* Upgrade — desktop only */}
             <button
               data-tour="header-upgrade"
               onClick={() => setUpgradeOpen(true)}
-              className="hidden sm:flex items-center gap-1.5 px-4 py-2 rounded-[.5275rem] bg-linear-to-r from-[#FE9A00] to-[#FF6900] text-white text-sm lg:text-base font-inter font-bold shadow-sm hover:shadow-md transition-shadow cursor-pointer"
+              className="hidden lg:flex items-center gap-1.5 px-4 py-2 rounded-[.5275rem] bg-linear-to-r from-[#FE9A00] to-[#FF6900] text-white text-sm lg:text-base font-inter font-bold shadow-sm hover:shadow-md transition-shadow cursor-pointer"
             >
               <Crown size={15} />
               Upgrade
@@ -112,15 +122,15 @@ const initials = `${user?.user?.first_name?.charAt(0) ?? ""}${user?.user?.last_n
             {/* User dropdown */}
             <DropdownMenu.Root>
               <DropdownMenu.Trigger asChild>
-                <button className="flex items-center gap-4 py-1 rounded-xl cursor-pointer transition-colors">
-                  <div className="text-right hidden sm:block">
+                <button className="flex items-center gap-3 py-1 rounded-xl cursor-pointer transition-colors">
+                  <div className="text-right hidden lg:block">
                     <p className="text-sm font-semibold text-slate-700 dark:text-zinc-200 leading-tight">
-                      {`${user?.user?.first_name ??""}  ${user?.user?.last_name ??""}`}
+                      {`${user?.user?.first_name ?? ""} ${user?.user?.last_name ?? ""}`}
                     </p>
                     <p className="text-xs text-slate-400 dark:text-zinc-500">Free Account</p>
                   </div>
-                  <Avatar.Root className="w-10 h-10 rounded-full overflow-hidden">
-                    <Avatar.Fallback className="w-full h-full bg-linear-to-tr font-inter font-semibold text-base from-[#2B7FFF] to-[#615FFF] flex items-center justify-center text-white">
+                  <Avatar.Root className="w-9 h-9 lg:w-10 lg:h-10 rounded-full overflow-hidden">
+                    <Avatar.Fallback className="w-full h-full bg-linear-to-tr font-inter font-semibold text-sm lg:text-base from-[#2B7FFF] to-[#615FFF] flex items-center justify-center text-white">
                       {initials}
                     </Avatar.Fallback>
                   </Avatar.Root>
@@ -160,11 +170,11 @@ const initials = `${user?.user?.first_name?.charAt(0) ?? ""}${user?.user?.last_n
 
             {/* Hamburger — mobile only */}
             <button
-              className="md:hidden p-2 rounded-lg text-slate-600 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-900 transition-colors"
+              className="md:hidden p-1.5 rounded-lg text-slate-600 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-900 transition-colors shrink-0"
               onClick={() => setMobileOpen((prev) => !prev)}
               aria-label="Toggle menu"
             >
-              {mobileOpen ? <X size={20} /> : <Menu size={20} />}
+              {mobileOpen ? <X size={18} /> : <Menu size={18} />}
             </button>
           </div>
         </div>
@@ -173,10 +183,14 @@ const initials = `${user?.user?.first_name?.charAt(0) ?? ""}${user?.user?.last_n
       {/* Mobile drawer */}
       <div
         className={`md:hidden overflow-hidden transition-all duration-300 ease-in-out ${
-          mobileOpen ? "max-h-72 opacity-100" : "max-h-0 opacity-0"
+          mobileOpen ? "max-h-[32rem] opacity-100" : "max-h-0 opacity-0"
         }`}
       >
-        <nav className="px-4 pb-4 pt-1 flex flex-col gap-1 border-t border-slate-100 dark:border-zinc-800">
+        <nav className="px-4 pb-4 pt-3 flex flex-col gap-1 border-t border-slate-100 dark:border-zinc-800">
+
+          {/* Credit balance — mobile only, lives at top of drawer */}
+         
+
           {NAV_LINKS.map(({ label, href, disable }, i) => {
             const isActive = pathname === href;
             const animClass = `px-4 py-3 rounded-xl font-inter text-sm font-medium transition-all duration-300 ${
@@ -210,6 +224,7 @@ const initials = `${user?.user?.first_name?.charAt(0) ?? ""}${user?.user?.last_n
               </Link>
             );
           })}
+
           <Link
             href="/dashboard/profile"
             onClick={() => setMobileOpen(false)}

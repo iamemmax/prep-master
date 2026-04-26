@@ -79,7 +79,7 @@ export default function SigninPage() {
 
   <div className="flex flex-col flex-1">
     <div className=" flex mt-10 md:mt-18.75 justify-center">
-      <section className="rounded-2xl border border-border p-4 sm:p-8 w-full">
+      <section className="rounded-2xl border border-[red] p-4 sm:p-8 w-full">
         
         <h1 className="text-[24px] font-semibold text-[#0F172B]">Welcome back.</h1>
         <p className="mt-1 text-sm text-[#64748B]">Your progress is waiting. Let&apos;s pick up where you left off.</p>
@@ -151,14 +151,14 @@ export default function SigninPage() {
 
         <p className="mt-4 text-center text-xs text-[#94A3B8]">
           Forgot password?{" "}
-          <Link href="/forgot-password" className="font-medium text-primary">
+          <Link href="/forgot-password" className="font-medium text-[#ECB22E]">
             Reset link
           </Link>
         </p>
 
         <p className="text-center mt-12 md:mt-24.5 text-sm text-[#94A3B8]">
           Don&apos;t have an account?{" "}
-          <Link href="/signup" className="font-medium text-primary">
+          <Link href="/signup" className="font-medium text-[#ECB22E]">
             Register
           </Link>
         </p>
@@ -167,7 +167,7 @@ export default function SigninPage() {
         </div>
      <p className="mt-auto text-center text-sm text-[#94A3B8] pb-4">
   Having an issue?{" "}
-  <Link href="/support" className="font-medium text-primary underline underline-offset-2">
+  <Link href="/support" className="font-medium text-[#ECB22E] underline underline-offset-2">
     speak with support
   </Link>
 </p>

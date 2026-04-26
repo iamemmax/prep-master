@@ -41,8 +41,8 @@ const LEFT_POINTS = [
 // auth layout
 export default function AuthShell({ children }: AuthShellProps) {
   return (
-    <div className="grid relative auth-bg h-screen md:grid-cols-[1fr_1fr] font-inter">
-      <aside className="hidden md:block sticky top-0 h-full px-10 xl:px-20 py-12 text-white">
+    <div className="grid relative h-screen md:grid-cols-[1fr_1fr] font-inter">
+      <aside className="hidden md:block sticky top-0 h-full auth-bg px-10 xl:px-20 py-12 text-white">
         <div className=" flex justify-between h-full flex-col max-w-2xl mx-auto">
           <div>
             <Link href="/" className="inline-flex items-center gap-2">

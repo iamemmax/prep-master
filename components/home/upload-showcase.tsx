@@ -155,7 +155,7 @@ export default function UploadShowcase() {
               />
             </div>
 
-            <div className="mt-10">
+            {/* <div className="mt-10">
               <Button
                 asChild
                 className="h-14 rounded-[14px] px-6 min-w-57.5 font-semibold text-foreground "
@@ -164,7 +164,7 @@ export default function UploadShowcase() {
                   Try AI Upload Now <ArrowRight className="h-4 w-4" />
                 </Link>
               </Button>
-            </div>
+            </div> */}
           </MotionReveal>
 
           {/* Right */}

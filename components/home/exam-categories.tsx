@@ -97,7 +97,7 @@ export default function ExamCategories() {
           })}
         </div>
 
-        <MotionReveal delay={0.2} className="mt-10 flex justify-center">
+        {/* <MotionReveal delay={0.2} className="mt-10 flex justify-center">
           <Button
             asChild
             variant="default"
@@ -107,7 +107,7 @@ export default function ExamCategories() {
               Browse All Exam Categories <ArrowRight className="h-4 w-4" />
             </Link>
           </Button>
-        </MotionReveal>
+        </MotionReveal> */}
       </div>
     </section>
   )

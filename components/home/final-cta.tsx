@@ -21,7 +21,7 @@ export default function FinalCta() {
           <div className="mt-8 flex items-center justify-center gap-3 sm:flex-row sm:gap-4">
             <Button
               asChild
-              className="h-11 min-w-[150px] rounded-full px-6 font-normal text-foreground btn-glow hover:bg-primary/90"
+              className="h-11 min-w-[150px] rounded-full px-6 font-normal text-[#314158] btn-glow hover:bg-primary/90"
             >
               <Link href="/signup">
                 Start for free <ArrowUpRight className="h-4 w-4" />
@@ -31,7 +31,7 @@ export default function FinalCta() {
             <Button
               asChild
               variant="outline"
-              className="h-11 min-w-[150px] rounded-full border-white/20 bg-white px-6 font-normal text-foreground hover:bg-white/80"
+              className="h-11 min-w-[150px] rounded-full border-white/20 bg-white px-6 font-normal text-[#314158] hover:bg-white/80"
             >
               <Link href="/#pricing">See pricing</Link>
             </Button>

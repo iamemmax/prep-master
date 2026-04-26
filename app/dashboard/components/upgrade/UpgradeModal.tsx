@@ -2,10 +2,24 @@
 
 import { useState } from "react";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { Check, Crown, Sparkles, X, Zap } from "lucide-react";
+import {
+  Check,
+  Crown,
+  Sparkles,
+  X,
+  Zap,
+  BookOpen,
+  Brain,
+  Plus,
+  Library,
+  Layers,
+  LineChart,
+  Wand2,
+  Target,
+} from "lucide-react";
 import toast from "react-hot-toast";
 
-type Cycle = "monthly" | "yearly" | "lifetime";
+type Cycle = "weekly" | "monthly" | "yearly";
 
 interface Plan {
   id: Cycle;
@@ -14,46 +28,81 @@ interface Plan {
   unit: string;
   tagline: string;
   badge?: string;
-  highlighted?: boolean;
+  // Credits for this billing period
+  questions: number;
+  aiCredits: number;
+  // Used in the allocation panel ("per week", "per month", "per year")
+  periodNoun: "week" | "month" | "year";
 }
 
 const PLANS: Plan[] = [
   {
+    id: "weekly",
+    label: "Weekly",
+    priceNaira: 800,
+    unit: "/week",
+    tagline: "Best for short prep",
+    questions: 500,
+    aiCredits: 50,
+    periodNoun: "week",
+  },
+  {
     id: "monthly",
     label: "Monthly",
-    priceNaira: 2000,
-    unit: "/mo",
-    tagline: "Try Premium flexibly",
+    priceNaira: 2500,
+    unit: "/month",
+    tagline: "Most flexible",
+    questions: 2000,
+    aiCredits: 200,
+    periodNoun: "month",
   },
   {
     id: "yearly",
     label: "Yearly",
-    priceNaira: 15000,
-    unit: "/yr",
-    tagline: "Save 37% vs monthly",
-    badge: "Most popular",
-    highlighted: true,
-  },
-  {
-    id: "lifetime",
-    label: "Lifetime",
-    priceNaira: 30000,
-    unit: "once",
-    tagline: "Pay once, keep forever",
+    priceNaira: 18900,
+    unit: "/year",
+    tagline: "≈ ₦1,575/month",
+    badge: "Save 37%",
+    questions: 30000,
+    aiCredits: 3000,
+    periodNoun: "year",
   },
 ];
 
 const FEATURES = [
-  "Unlimited practice attempts across all 17,000 questions",
-  "All 6 exam categories unlocked (WAEC, JAMB, SAT, GRE, IELTS, TOEFL)",
-  "Detailed per-topic performance analytics",
-  "AI-assisted weakness detection and custom study plans",
-  "Exam-day simulation with live proctoring",
-  "Priority support",
+  {
+    icon: Library,
+    label: "Full question bank",
+    sub: "Every question, no daily caps",
+  },
+  {
+    icon: Layers,
+    label: "All exam categories",
+    sub: "Every test we support",
+  },
+  {
+    icon: LineChart,
+    label: "Smart analytics",
+    sub: "Per-topic strengths & gaps",
+  },
+  {
+    icon: Wand2,
+    label: "AI study coach",
+    sub: "Adaptive practice plans",
+  },
+  {
+    icon: Target,
+    label: "Mock exam mode",
+    sub: "Real timing, real pressure",
+  },
 ];
 
 function formatNaira(amount: number): string {
   return `₦${amount.toLocaleString("en-NG")}`;
+}
+
+function formatNumber(n: number): string {
+  return n.toLocaleString("en-NG");
 }
 
 export default function UpgradeModal({
@@ -67,6 +116,8 @@ export default function UpgradeModal({
 }) {
   const [selected, setSelected] = useState<Cycle>("yearly");
   const [busy, setBusy] = useState(false);
+
+  const selectedPlan = PLANS.find(p => p.id === selected) ?? PLANS[1];
 
   const choose = async (planId: Cycle) => {
     if (onChoosePlan) {
@@ -99,10 +150,10 @@ export default function UpgradeModal({
                 <Crown size={20} fill="currentColor" />
               </span>
               <div className="min-w-0">
-                <DialogTitle className="text-lg font-bold text-slate-900 dark:text-zinc-100 tracking-tight">
+                <DialogTitle className="text-sm sm:text-lg font-bold text-slate-900 dark:text-zinc-100 tracking-tight">
                   Upgrade to PrepMaster Premium
                 </DialogTitle>
-                <DialogDescription className="text-xs text-slate-600 dark:text-zinc-400 mt-0.5">
+                <DialogDescription className="text-[11px] sm:text-xs text-slate-600 dark:text-zinc-400 mt-0.5 leading-snug">
                   Unlock every question, every exam, and every insight. Cancel anytime.
                 </DialogDescription>
               </div>
@@ -117,9 +168,9 @@ export default function UpgradeModal({
           </div>
         </div>
 
-        <div className="overflow-y-auto flex-1 px-6 py-5">
+        <div className="overflow-y-auto flex-1 px-6 py-5 space-y-5">
           {/* Plans */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-5">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             {PLANS.map(plan => {
               const isSelected = selected === plan.id;
               return (
@@ -137,16 +188,16 @@ export default function UpgradeModal({
                       {plan.badge}
                     </span>
                   )}
-                  <p className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400">
+                  <p className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400">
                     {plan.label}
                   </p>
                   <div className="flex items-baseline gap-1 mt-1">
-                    <p className="text-2xl font-black text-slate-900 dark:text-zinc-100 tabular-nums">
+                    <p className="text-lg sm:text-2xl font-black text-slate-900 dark:text-zinc-100 tabular-nums">
                       {formatNaira(plan.priceNaira)}
                     </p>
-                    <span className="text-[11px] text-slate-500 dark:text-zinc-400">{plan.unit}</span>
+                    <span className="text-[10px] sm:text-[11px] text-slate-500 dark:text-zinc-400">{plan.unit}</span>
                   </div>
-                  <p className="text-[11px] text-slate-500 dark:text-zinc-400 mt-2 leading-snug">
+                  <p className="text-[10px] sm:text-[11px] text-slate-500 dark:text-zinc-400 mt-1.5 sm:mt-2 leading-snug tabular-nums">
                     {plan.tagline}
                   </p>
                   {isSelected && (
@@ -159,43 +210,113 @@ export default function UpgradeModal({
             })}
           </div>
 
+          {/* Allocation panel — updates with selected plan */}
+          <div className="rounded-xl border border-amber-200/60 dark:border-amber-500/20 bg-linear-to-br from-amber-50 via-white to-orange-50 dark:from-amber-500/5 dark:via-zinc-900 dark:to-orange-500/5 p-4">
+            <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+              <p className="text-[11px] uppercase tracking-wider font-bold text-slate-700 dark:text-zinc-300 inline-flex items-center gap-1.5">
+                <Zap size={12} className="text-[#F7C948]" fill="currentColor" />
+                Your {selected} allocation
+              </p>
+              <p className="text-[10px] text-slate-500 dark:text-zinc-400">
+                Refreshes every {selectedPlan.periodNoun}
+              </p>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="rounded-lg bg-white dark:bg-zinc-900 border border-slate-200/70 dark:border-zinc-800 p-3">
+                <div className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-[#F7C948]/15 text-[#B45309] dark:text-[#F7C948]">
+                  <BookOpen size={15} strokeWidth={2.2} />
+                </div>
+                <p className="mt-2.5 text-base sm:text-xl font-black tabular-nums text-slate-900 dark:text-zinc-100 tracking-tight">
+                  {formatNumber(selectedPlan.questions)}
+                </p>
+                <p className="text-[11px] sm:text-xs font-semibold text-slate-700 dark:text-zinc-200 leading-tight">
+                  Practice questions
+                </p>
+                <p className="text-[10px] text-slate-500 dark:text-zinc-400 mt-0.5">
+                  per {selectedPlan.periodNoun}
+                </p>
+              </div>
+              <div className="rounded-lg bg-white dark:bg-zinc-900 border border-slate-200/70 dark:border-zinc-800 p-3">
+                <div className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-[#F7C948]/15 text-[#B45309] dark:text-[#F7C948]">
+                  <Brain size={15} strokeWidth={2.2} />
+                </div>
+                <p className="mt-2.5 text-base sm:text-xl font-black tabular-nums text-slate-900 dark:text-zinc-100 tracking-tight">
+                  {formatNumber(selectedPlan.aiCredits)}
+                </p>
+                <p className="text-[11px] sm:text-xs font-semibold text-slate-700 dark:text-zinc-200 leading-tight">
+                  AI credits
+                </p>
+                <p className="text-[10px] text-slate-500 dark:text-zinc-400 mt-0.5">
+                  per {selectedPlan.periodNoun}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Top-up callout */}
+          <div className="flex items-center gap-3 rounded-xl border border-dashed border-slate-300 dark:border-zinc-700 bg-slate-50/60 dark:bg-zinc-950/50 px-4 py-3">
+            <span className="grid place-items-center w-8 h-8 rounded-lg bg-slate-900 dark:bg-zinc-100 text-[#F7C948] dark:text-[#5A3300] shrink-0">
+              <Plus size={14} strokeWidth={3} />
+            </span>
+            <div className="min-w-0">
+              <p className="text-[11px] sm:text-xs font-semibold text-slate-900 dark:text-zinc-100">
+                Run out before your next refresh? Top up anytime.
+              </p>
+              <p className="text-[10px] sm:text-[11px] text-slate-500 dark:text-zinc-400 leading-relaxed mt-0.5">
+                Buy extra question or AI credits without changing your plan.
+              </p>
+            </div>
+          </div>
+
           {/* Features list */}
           <div className="rounded-xl border border-slate-200 dark:border-zinc-800 bg-slate-50/60 dark:bg-zinc-950/50 p-4">
             <p className="text-[11px] uppercase tracking-wider font-bold text-slate-600 dark:text-zinc-400 mb-3 inline-flex items-center gap-1.5">
               <Sparkles size={12} className="text-[#F7C948]" />
               What you unlock
             </p>
-            <ul className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2">
-              {FEATURES.map(f => (
-                <li key={f} className="flex items-start gap-2 text-xs text-slate-700 dark:text-zinc-300">
-                  <Check size={13} className="text-emerald-500 dark:text-emerald-400 shrink-0 mt-0.5" strokeWidth={3} />
-                  <span className="leading-relaxed">{f}</span>
-                </li>
-              ))}
-            </ul>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-3">
+              {FEATURES.map(f => {
+                const Icon = f.icon;
+                return (
+                  <div key={f.label} className="flex items-start gap-2.5">
+                    <span className="grid place-items-center w-7 h-7 rounded-lg bg-[#F7C948]/15 text-[#B45309] dark:text-[#F7C948] shrink-0">
+                      <Icon size={13} strokeWidth={2} />
+                    </span>
+                    <div className="min-w-0">
+                      <p className="text-[11px] sm:text-xs font-semibold text-slate-900 dark:text-zinc-100 leading-tight">
+                        {f.label}
+                      </p>
+                      <p className="text-[10px] sm:text-[11px] text-slate-500 dark:text-zinc-400 leading-snug mt-0.5">
+                        {f.sub}
+                      </p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         </div>
 
         {/* Footer */}
         <div className="flex items-center justify-between gap-3 px-6 py-3 border-t border-slate-100 dark:border-zinc-800 shrink-0 bg-white dark:bg-zinc-900">
-          <p className="text-[11px] text-slate-500 dark:text-zinc-400">
+          <p className="text-[10px] sm:text-[11px] text-slate-500 dark:text-zinc-400">
             Secure checkout. Cancel anytime.
           </p>
           <div className="flex items-center gap-2">
             <button
               onClick={onClose}
-              className="text-xs font-semibold px-4 h-10 rounded-lg text-slate-600 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors"
+              className="text-[11px] sm:text-xs font-semibold px-3 sm:px-4 h-9 sm:h-10 rounded-lg text-slate-600 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors"
             >
               Maybe later
             </button>
             <button
               onClick={() => choose(selected)}
               disabled={busy}
-              className="inline-flex items-center gap-1.5 text-xs font-bold px-5 h-10 rounded-lg text-white shadow-sm transition-all hover:shadow-md hover:-translate-y-0.5 disabled:opacity-60 disabled:hover:translate-y-0"
+              className="inline-flex items-center gap-1.5 text-[11px] sm:text-xs font-bold px-3 sm:px-5 h-9 sm:h-10 rounded-lg text-white shadow-sm transition-all hover:shadow-md hover:-translate-y-0.5 disabled:opacity-60 disabled:hover:translate-y-0"
               style={{ background: "linear-gradient(135deg, #FE9A00, #FF6900)" }}
             >
               <Zap size={13} fill="currentColor" />
-              Continue with {PLANS.find(p => p.id === selected)?.label}
+              Continue with {selectedPlan.label}
             </button>
           </div>
         </div>

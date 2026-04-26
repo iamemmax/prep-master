@@ -16,6 +16,7 @@ import { PAGE_SIZE, useGetPracticeExamList } from "../util/apis/practice/examsLi
 import { useGetAvailableExamsDetails } from "../util/apis/practice/availableExamsDetails";
 import { availableData } from "../util/types/dashboard/examlisttypes";
 import { TourAutoStart } from "../util/tour/TourContext";
+import { isProductionGated } from "@/components/shared/coming-soon-gate";
 
 export interface Exam {
   id: number;
@@ -505,14 +506,14 @@ export default function PracticeExamsPage() {
       </div>
 
       {/* FAB */}
-      <button
+     {!isProductionGated() && <button
         onClick={() => setIntakeOpen(true)}
         className="fixed bottom-6 right-6 flex items-center gap-2 text-white text-sm font-bold px-4 sm:px-5 py-3 rounded-2xl shadow-xl hover:shadow-2xl hover:-translate-y-1 transition-all duration-200 z-40 cursor-pointer"
         style={{ background: "linear-gradient(135deg, #FE9A00, #FF6900)" }}
       >
         ＋ <span className="hidden sm:inline">AI Practice Generator</span>
         <span className="sm:hidden">AI</span>
-      </button>
+      </button>}
 
       <PracticeIntakeModal open={intakeOpen} onClose={() => setIntakeOpen(false)} />
 

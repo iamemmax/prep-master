@@ -47,6 +47,7 @@ import {
   ChevronLeft, ChevronRight, Check, Flag, Trophy, Download, Eye,
   Calculator as CalcIcon,
 } from "lucide-react";
+import { isProductionGated } from "@/components/shared/coming-soon-gate";
 
 type Confidence = "guess" | "likely" | "certain";
 
@@ -995,6 +996,9 @@ export default function PracticeExamUI({ params }: { params: Promise<{ sessionId
             )}
 
             {/* AI coach — featured */}
+           {!isProductionGated()&& <>
+
+
             {coachRequest && (
               <button
                 onClick={() => setCoachOpen(true)}
@@ -1024,7 +1028,7 @@ export default function PracticeExamUI({ params }: { params: Promise<{ sessionId
                 Progress
               </button>
             </div>
-
+</>}
             {/* Primary CTA */}
             <button
               onClick={() => router.push("/dashboard/practice")}

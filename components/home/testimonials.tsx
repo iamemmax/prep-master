@@ -10,39 +10,54 @@ type Testimonial = {
   stars: number
   score: string
 }
-
 const TESTIMONIALS: Testimonial[] = [
   {
     name: "Adewale Johnson",
     subtitle: "JAMB Candidate, 2025",
     quote:
-      "PrepMaster transformed my preparation! The AI-generated questions were exactly like the real exam. I scored 315 and got into my dream university.",
+      "I failed JAMB twice before finding PrepMaster. The third time, I scored 315. The AI knew exactly which topics I kept getting wrong and drilled me until I got them right.",
     stars: 5,
     score: "315/400",
   },
   {
     name: "Sarah Mitchell",
-    subtitle: "SAT Student",
+    subtitle: "SAT Student, New York",
     quote:
-      "The analytics were mind-blowing. I could see exactly where I was weak and the system adapted to help me. My score jumped by 200 points in 6 weeks!",
+      "Six weeks, 200 points. I was stuck at 1280 for months. PrepMaster's weak-spot tracking showed me I was losing points on one specific question type — fixed that, score jumped immediately.",
     stars: 5,
     score: "1480/1600",
   },
   {
     name: "Dr. Emmanuel Okafor",
-    subtitle: "Medical Student",
+    subtitle: "USMLE Step 1 Candidate",
     quote:
-      "Being able to upload my lecture notes and get instant practice questions is revolutionary. This is the future of medical education.",
+      "I uploaded my lecture notes and got a 200-question practice set in minutes. No other platform does that. Passed Step 1 on my first attempt with a competitive score.",
     stars: 5,
     score: "Top 1%",
   },
   {
-    name: "Adewale Johnson",
-    subtitle: "JAMB Candidate, 2025",
+    name: "Fatima Al-Rashidi",
+    subtitle: "A-Level Student, Dubai",
     quote:
-      "PrepMaster transformed my preparation! The AI-generated questions were exactly like the real exam. I scored 315 and got into my dream university.",
+      "My school doesn't have great teachers for Further Maths. PrepMaster basically became my tutor. I went from a D to an A* in one term — my parents couldn't believe it.",
     stars: 5,
-    score: "315/400",
+    score: "A*",
+  },
+  {
+    name: "Chukwuemeka Nwosu",
+    subtitle: "WAEC Candidate, 2024",
+    quote:
+      "The exam simulations are scary accurate. When I sat the real WAEC, it felt like I had seen the questions before. Finished with distinctions in all 9 subjects.",
+    stars: 5,
+    score: "9 distinctions",
+  },
+  {
+    name: "Priya Sharma",
+    subtitle: "GMAT Applicant, MBA 2025",
+    quote:
+      "I had 3 weeks before my GMAT retake. PrepMaster's adaptive quizzes focused only on what I was weak at — no wasted time. Hit my target score and got into Wharton.",
+    stars: 5,
+    score: "740/800",
   },
 ]
 

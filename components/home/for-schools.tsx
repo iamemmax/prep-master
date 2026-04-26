@@ -37,7 +37,7 @@ export default function ForSchools() {
             <MotionReveal delay={0.1} className="shrink-0">
               <Button
                 asChild
-                className="h-11 rounded-[14px] px-5 font-semibold text-foreground btn-primary"
+                className="h-11 rounded-[14px] px-5 font-semibold text-[#314158] btn-primary"
               >
                 <Link href="/waitlist">Join our waitlist</Link>
               </Button>

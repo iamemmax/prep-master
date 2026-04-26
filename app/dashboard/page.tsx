@@ -14,6 +14,7 @@ import { useGetDashboardOverview } from "./util/apis/dashboard/fetchDashboardOve
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import CoachDashboardWidget from "./components/coach/CoachDashboardWidget";
 import { DashboardInsightRequest } from "./util/ai/types";
+import ComingSoonGate, { isProductionGated } from "@/components/shared/coming-soon-gate";
 
 // Deterministic accent color based on the exam name so each badge stays the
 // same color across renders — avoids Math.random reshuffling on every render.
@@ -156,20 +157,28 @@ export default function Dashboard() {
         </div>
 
         {/* Today's focus */}
-        <div className="mb-6">
+       {!isProductionGated() &&<div className="mb-6">
           <TodayFocus />
-        </div>
+        </div>}
 
         {/* AI coach at-a-glance */}
         <div data-tour="dashboard-coach" className="mb-6">
-          <CoachDashboardWidget request={coachRequest} />
+          <ComingSoonGate>
+            <CoachDashboardWidget request={coachRequest} />
+          </ComingSoonGate>
         </div>
 
         {/* Insight row */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-          <WeeklyActivity />
-          <MilestoneCard />
-          <PeerPercentile />
+          <ComingSoonGate>
+            <WeeklyActivity />
+          </ComingSoonGate>
+          <ComingSoonGate>
+            <MilestoneCard />
+          </ComingSoonGate>
+          <ComingSoonGate>
+            <PeerPercentile />
+          </ComingSoonGate>
         </div>
 
         {/* Main grid */}

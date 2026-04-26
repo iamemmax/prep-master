@@ -13,6 +13,7 @@ import {
   WeaknessPlan, WeaknessPlanRequest,
 } from "../../util/ai/types";
 import ErrorCard from "./ErrorCard";
+import ComingSoonGate from "@/components/shared/coming-soon-gate";
 
 type TabKey = "overview" | "mistakes" | "plan";
 
@@ -79,64 +80,66 @@ export default function CoachFeedbackModal({
           </div>
         </div>
 
-        {/* Tab bar */}
-        <div className="flex border-b border-slate-100 dark:border-zinc-800 shrink-0 px-4 bg-white dark:bg-zinc-900">
-          <TabButton active={tab === "overview"} onClick={() => setTab("overview")} icon={<Compass size={13} />}>
-            Overview
-          </TabButton>
-          <TabButton active={tab === "mistakes"} onClick={() => setTab("mistakes")} icon={<AlertTriangle size={13} />} count={mistakesCount}>
-            Mistakes
-          </TabButton>
-          <TabButton active={tab === "plan"} onClick={() => setTab("plan")} icon={<Target size={13} />} count={planTopicsCount}>
-            Study plan
-          </TabButton>
-        </div>
+        <ComingSoonGate className="flex-1 flex flex-col min-h-0">
+          {/* Tab bar */}
+          <div className="flex border-b border-slate-100 dark:border-zinc-800 shrink-0 px-4 bg-white dark:bg-zinc-900">
+            <TabButton active={tab === "overview"} onClick={() => setTab("overview")} icon={<Compass size={13} />}>
+              Overview
+            </TabButton>
+            <TabButton active={tab === "mistakes"} onClick={() => setTab("mistakes")} icon={<AlertTriangle size={13} />} count={mistakesCount}>
+              Mistakes
+            </TabButton>
+            <TabButton active={tab === "plan"} onClick={() => setTab("plan")} icon={<Target size={13} />} count={planTopicsCount}>
+              Study plan
+            </TabButton>
+          </div>
 
-        {/* Body */}
-        <div className="overflow-y-auto flex-1 px-6 py-5">
-          {tab === "overview" && (
-            overview.error
-              ? <ErrorCard onRetry={overview.refetch} retrying={overview.isLoading} />
-              : overview.isLoading || !overview.data
-                ? <LoadingState label="Analyzing your session…" />
-                : <OverviewPanel data={overview.data} />
-          )}
-          {tab === "mistakes" && (
-            mistakesCount === 0
-              ? <EmptyState
-                  icon={<Check size={28} className="text-emerald-500" />}
-                  title="No mistakes to review"
-                  body="Every answer was correct this session — enjoy the clean sheet."
-                />
-              : mistakes.error
-                ? <ErrorCard onRetry={mistakes.refetch} retrying={mistakes.isLoading} />
-                : mistakes.isLoading || !mistakes.data
-                  ? <LoadingState label="Looking at your mistakes…" />
-                  : <MistakesPanel
-                      data={mistakes.data}
-                      questionCount={mistakesCount}
-                      onPractice={onPracticeWrong
-                        ? () => {
-                            if (mistakesRequest) onPracticeWrong(mistakesRequest.questions);
-                            onClose();
-                          }
-                        : undefined}
-                    />
-          )}
-          {tab === "plan" && (
-            planTopicsCount === 0
-              ? <EmptyState
-                  icon={<Target size={28} className="text-[#F7C948]" />}
-                  title="No weak topics yet"
-                  body="Nothing stood out as a weakness this session. Keep running timed sessions to surface patterns."
-                />
-              : plan.error
-                ? <ErrorCard onRetry={plan.refetch} retrying={plan.isLoading} />
-                : plan.isLoading || !plan.data
-                  ? <LoadingState label="Building your study plan…" />
-                  : <PlanPanel data={plan.data} />
-          )}
-        </div>
+          {/* Body */}
+          <div className="overflow-y-auto flex-1 px-6 py-5">
+            {tab === "overview" && (
+              overview.error
+                ? <ErrorCard onRetry={overview.refetch} retrying={overview.isLoading} />
+                : overview.isLoading || !overview.data
+                  ? <LoadingState label="Analyzing your session…" />
+                  : <OverviewPanel data={overview.data} />
+            )}
+            {tab === "mistakes" && (
+              mistakesCount === 0
+                ? <EmptyState
+                    icon={<Check size={28} className="text-emerald-500" />}
+                    title="No mistakes to review"
+                    body="Every answer was correct this session — enjoy the clean sheet."
+                  />
+                : mistakes.error
+                  ? <ErrorCard onRetry={mistakes.refetch} retrying={mistakes.isLoading} />
+                  : mistakes.isLoading || !mistakes.data
+                    ? <LoadingState label="Looking at your mistakes…" />
+                    : <MistakesPanel
+                        data={mistakes.data}
+                        questionCount={mistakesCount}
+                        onPractice={onPracticeWrong
+                          ? () => {
+                              if (mistakesRequest) onPracticeWrong(mistakesRequest.questions);
+                              onClose();
+                            }
+                          : undefined}
+                      />
+            )}
+            {tab === "plan" && (
+              planTopicsCount === 0
+                ? <EmptyState
+                    icon={<Target size={28} className="text-[#F7C948]" />}
+                    title="No weak topics yet"
+                    body="Nothing stood out as a weakness this session. Keep running timed sessions to surface patterns."
+                  />
+                : plan.error
+                  ? <ErrorCard onRetry={plan.refetch} retrying={plan.isLoading} />
+                  : plan.isLoading || !plan.data
+                    ? <LoadingState label="Building your study plan…" />
+                    : <PlanPanel data={plan.data} />
+            )}
+          </div>
+        </ComingSoonGate>
 
         {/* Footer */}
      <div className="flex items-center justify-between gap-3 px-6 py-3 border-t border-slate-100 dark:border-zinc-800 shrink-0">

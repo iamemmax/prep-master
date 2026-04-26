@@ -109,7 +109,7 @@
   --card-foreground: oklch(0.985 0 0);
   --popover: oklch(0.205 0 0);
   --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
+  --primary: #6B748524;
   --primary-foreground: oklch(0.205 0 0);
   --secondary: oklch(0.269 0 0);
   --secondary-foreground: oklch(0.985 0 0);
@@ -138,11 +138,12 @@
 
 @layer base {
   * {
-    @apply border-border outline-ring/50;
+    @apply border-border border-[#6B748524];
   }
   body {
     @apply bg-background text-foreground;
     font-family: var(--font-inter);
+    color:#314158
   }
   .font-inter {
     font-family: var(--font-inter);
@@ -233,6 +234,9 @@ filter: blur(329.735px);
 }
 
 .auth-bg{
-  background: url('/assets/svg/auth-bg.svg') no-repeat ;
+  background-color: #0b1220;
+  background-image: url('/assets/svg/auth-bg.svg');
+  background-repeat: no-repeat;
   background-position: top left;
+  background-size: cover;
 }

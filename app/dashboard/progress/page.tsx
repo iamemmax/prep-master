@@ -1,5 +1,6 @@
 "use client";
 
+import { Sparkles } from "lucide-react";
 import DashboardHeader from "../components/dashboard/DashboardHeader";
 import PredictedScore from "../components/practices/PredictedScore";
 import MistakeRadar from "../components/practices/MistakeRadar";
@@ -13,6 +14,7 @@ import Achievements from "../components/progress/Achievements";
 import CoachProgressPanel from "../components/coach/CoachProgressPanel";
 import { ProgressInsightRequest } from "../util/ai/types";
 import { TourAutoStart } from "../util/tour/TourContext";
+import { isProductionGated } from "@/components/shared/coming-soon-gate";
 
 // Placeholder request — backend will compute the real trend values from the
 // user's session history. Typed here so the component gets realistic mock
@@ -26,6 +28,27 @@ const PROGRESS_REQUEST: ProgressInsightRequest = {
 };
 
 export default function ProgressPage() {
+  if (isProductionGated()) {
+    return (
+      <div className="bg-slate-50 dark:bg-zinc-950 font-inter min-h-screen text-slate-900 dark:text-zinc-100">
+        <DashboardHeader />
+        <main className="max-w-400 mx-auto px-4 sm:px-6 py-24 flex items-center justify-center">
+          <div className="text-center max-w-md">
+            <span className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-[#F7C948]/15 text-[#F7C948] mb-5">
+              <Sparkles size={26} fill="currentColor" />
+            </span>
+            <h1 className="text-2xl font-semibold text-slate-900 dark:text-zinc-100 tracking-tight">
+              Progress is coming soon
+            </h1>
+            <p className="text-sm text-slate-500 dark:text-zinc-400 mt-2 leading-relaxed">
+              We&apos;re putting the finishing touches on performance reports, retention insights, and exam projections. They&apos;ll light up here as soon as they&apos;re ready.
+            </p>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
   return (
     <div className="bg-slate-50 dark:bg-zinc-950 font-inter min-h-screen text-slate-900 dark:text-zinc-100">
       <DashboardHeader />

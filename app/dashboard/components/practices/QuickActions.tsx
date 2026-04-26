@@ -1,4 +1,5 @@
 "use client";
+import { isProductionGated } from "@/components/shared/coming-soon-gate";
 import { Shuffle, Timer, Sparkles, Radar } from "lucide-react";
 
 interface Action {
@@ -59,7 +60,8 @@ export default function QuickActions({ onRandom, onQuickQuiz, onWeakTopics, onAI
   ];
 
   return (
-    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+    <>
+  {!isProductionGated()&&  <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
       {actions.map(a => (
         <button
           key={a.id}
@@ -78,6 +80,8 @@ export default function QuickActions({ onRandom, onQuickQuiz, onWeakTopics, onAI
           <p className="text-[11px] text-[#45556C] dark:text-white/80 leading-snug">{a.sub}</p>
         </button>
       ))}
-    </div>
+    </div>}
+    
+    </>
   );
 }

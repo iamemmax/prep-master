@@ -15,7 +15,7 @@ const FOOTER_LINKS = [
 const LEGAL = [
   { label: "Terms", href: "/terms" },
   { label: "Privacy", href: "/privacy" },
-  { label: "Cookies", href: "/cookies" },
+  // { label: "Cookies", href: "/cookies" },
 ]
 
 export default function Footer() {

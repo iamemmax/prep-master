@@ -116,3 +116,4 @@ const ExamCard = ({ exam, isPremiumLocked,onStart }: ExamCardProps) => {
 };
 
 export default ExamCard;
+  
