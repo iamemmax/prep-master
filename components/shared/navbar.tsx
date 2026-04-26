@@ -52,6 +52,7 @@ export default function Navbar({
   const { isAuthenticated } = authState
   const router = useRouter()
   const [scrolled, setScrolled] = useState(false)
+  const [activeHash, setActiveHash] = useState<string>("")
 
   const handleLogout = () => {
     authDispatch({ type: "LOGOUT" })
@@ -63,6 +64,40 @@ export default function Navbar({
     onScroll()
     window.addEventListener("scroll", onScroll, { passive: true })
     return () => window.removeEventListener("scroll", onScroll)
+  }, [])
+
+  // Scroll-spy: mark a nav item active while its section sits in the viewport.
+  // The negative top rootMargin (~ header height) keeps the indicator from
+  // flipping early as a section first scrolls under the sticky header. The
+  // negative bottom margin (-55%) means a section only "activates" once its
+  // top crosses roughly the upper third of the viewport — the spot a reader
+  // actually focuses on. Without that, a tall section like Hero would lose
+  // its active state the moment the next section peeked in from below.
+  useEffect(() => {
+    const ids = NAV
+      .map(n => n.href)
+      .filter(h => h.startsWith("#"))
+      .map(h => h.slice(1))
+    const sections = ids
+      .map(id => document.getElementById(id))
+      .filter((el): el is HTMLElement => !!el)
+    if (sections.length === 0) return
+
+    const observer = new IntersectionObserver(
+      entries => {
+        const visible = entries
+          .filter(e => e.isIntersecting)
+          .sort((a, b) => b.intersectionRatio - a.intersectionRatio)
+        if (visible[0]) setActiveHash(`#${visible[0].target.id}`)
+      },
+      {
+        rootMargin: "-72px 0px -55% 0px",
+        threshold: [0, 0.25, 0.5, 0.75, 1],
+      }
+    )
+
+    sections.forEach(s => observer.observe(s))
+    return () => observer.disconnect()
   }, [])
 
   return (
@@ -89,21 +124,30 @@ export default function Navbar({
 
         {/* Desktop Nav */}
         <nav className="hidden items-center gap-8 lg:flex">
-          {NAV.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              onClick={(e) => {
-                if (item.href.startsWith("#")) {
-                  e.preventDefault()
-                  scrollToHash(item.href)
-                }
-              }}
-              className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
-            >
-              {item.label}
-            </Link>
-          ))}
+          {NAV.map((item) => {
+            const isActive = item.href === activeHash
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                onClick={(e) => {
+                  if (item.href.startsWith("#")) {
+                    e.preventDefault()
+                    scrollToHash(item.href)
+                  }
+                }}
+                aria-current={isActive ? "page" : undefined}
+                className={cn(
+                  "relative text-sm transition-colors",
+                  isActive
+                    ? "font-semibold text-primary after:absolute after:left-0 after:right-0 after:-bottom-1.5 after:h-0.5 after:rounded-full after:bg-primary"
+                    : "font-medium text-muted-foreground hover:text-foreground"
+                )}
+              >
+                {item.label}
+              </Link>
+            )
+          })}
         </nav>
 
         {/* Desktop Actions */}
@@ -157,22 +201,31 @@ export default function Navbar({
               <div className="mt-6 flex flex-col flex-1 gap-4">
                 {/* Nav Links */}
                 <div className="space-y-1">
-                  {NAV.map((item) => (
-                    <SheetClose asChild key={item.href}>
-                      <Link
-                        href={item.href}
-                        onClick={(e) => {
-                          if (item.href.startsWith("#")) {
-                            e.preventDefault()
-                            scrollToHash(item.href)
-                          }
-                        }}
-                        className="block rounded-lg px-3 py-2.5 text-sm font-medium text-foreground hover:bg-muted transition-colors"
-                      >
-                        {item.label}
-                      </Link>
-                    </SheetClose>
-                  ))}
+                  {NAV.map((item) => {
+                    const isActive = item.href === activeHash
+                    return (
+                      <SheetClose asChild key={item.href}>
+                        <Link
+                          href={item.href}
+                          onClick={(e) => {
+                            if (item.href.startsWith("#")) {
+                              e.preventDefault()
+                              scrollToHash(item.href)
+                            }
+                          }}
+                          aria-current={isActive ? "page" : undefined}
+                          className={cn(
+                            "block rounded-lg px-3 py-2.5 text-sm transition-colors",
+                            isActive
+                              ? "font-semibold text-primary bg-primary/10"
+                              : "font-medium text-foreground hover:bg-muted"
+                          )}
+                        >
+                          {item.label}
+                        </Link>
+                      </SheetClose>
+                    )
+                  })}
                 </div>
 
                 <Separator />
