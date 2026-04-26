@@ -1,8 +1,10 @@
+"use client"
 import Link from "next/link"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import MotionReveal from "@/components/shared/motion-reveal"
 import { Check, Sparkles, BookOpen, Brain, Plus, ArrowRight } from "lucide-react"
+import { useAuth } from "@/context/authentication"
 
 type Credit = {
   icon: React.ComponentType<{ className?: string; strokeWidth?: number }>
@@ -22,47 +24,48 @@ type Plan = {
   cta: { label: string; href: string }
 }
 
-const PLANS: Plan[] = [
-  {
-    name: "Free",
-    price: "₦0",
-    period: "forever",
-    description: "Try the essentials, free forever.",
-    credits: [
-      { icon: BookOpen, label: "Practice questions", value: "50 / week" },
-      { icon: Brain, label: "AI credits", value: "10 / week" },
-    ],
-    features: [
-      "Basic exam categories",
-      "Standard practice mode",
-      "Basic performance tracking",
-      "Progress tracking",
-    ],
-    cta: { label: "Get started free", href: "/signup" },
-  },
-  {
-    name: "Premium",
-    price: "₦2,500",
-    period: "per month",
-    tagline: "Most popular",
-    highlight: true,
-    description: "Everything you need to ace your exam.",
-    credits: [
-      { icon: BookOpen, label: "Practice questions", value: "2,000 / mo" },
-      { icon: Brain, label: "AI credits", value: "200 / mo" },
-    ],
-    features: [
-      "All exam categories",
-      "Deep analytics dashboard",
-      "Personalized practice plan",
-      "Priority support",
-      "Offline access",
-    ],
-    cta: { label: "Start Premium", href: "/pricing" },
-  },
-]
 
 export default function Pricing() {
+  const {authState:{isAuthenticated}} = useAuth()
+  const PLANS: Plan[] = [
+    {
+      name: "Free",
+      price: "₦0",
+      period: "forever",
+      description: "Try the essentials, free forever.",
+      credits: [
+        { icon: BookOpen, label: "Practice questions", value: "50 / week" },
+        { icon: Brain, label: "AI credits", value: "10 / week" },
+      ],
+      features: [
+        "Basic exam categories",
+        "Standard practice mode",
+        "Basic performance tracking",
+        "Progress tracking",
+      ],
+      cta: { label: "Get started free", href: isAuthenticated?"/dashboard":"/signup"},
+    },
+    {
+      name: "Premium",
+      price: "₦2,500",
+      period: "per month",
+      tagline: "Most popular",
+      highlight: true,
+      description: "Everything you need to ace your exam.",
+      credits: [
+        { icon: BookOpen, label: "Practice questions", value: "2,000 / mo" },
+        { icon: Brain, label: "AI credits", value: "200 / mo" },
+      ],
+      features: [
+        "All exam categories",
+        "Deep analytics dashboard",
+        "Personalized practice plan",
+        "Priority support",
+        "Offline access",
+      ],
+      cta: { label: "Start Premium", href: isAuthenticated?"/dashboard":"/signup" },
+    },
+  ]
   return (
     <section id="pricing" className="bg-white font-inter">
       <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8 lg:py-24">
@@ -147,8 +150,8 @@ export default function Pricing() {
                   className={[
                     "mt-7 grid grid-cols-2 gap-2 rounded-2xl p-2",
                     p.highlight
-                      ? "bg-white/[0.04] ring-1 ring-inset ring-white/[0.06]"
-                      : "bg-[#F8FAFC] ring-1 ring-inset ring-[#0F172A]/[0.04]",
+                      ? "bg-white/4 ring-1 ring-inset ring-white/6"
+                      : "bg-[#F8FAFC] ring-1 ring-inset ring-[#0F172A]/4",
                   ].join(" ")}
                 >
                   {p.credits.map((c) => {
@@ -215,7 +218,7 @@ export default function Pricing() {
                           ].join(" ")}
                         >
                           <Check
-                            className={p.highlight ? "h-3 w-3 text-[#ECB22E]" : "h-3 w-3 text-accent"}
+                            className={p.highlight ? `h-3 w-3 ${p?.name==="Premium"?"text-white":"text-[#ECB22E]"}` : "h-3 w-3 text-accent"}
                             strokeWidth={3}
                           />
                         </div>
@@ -266,13 +269,13 @@ export default function Pricing() {
                 </div>
               </div>
             </div>
-            <Button
+            {/* <Button
               variant="outline"
               asChild
               className="h-10 shrink-0 rounded-[12px] px-5 text-sm font-semibold"
             >
               <Link href="/topup">View top-ups</Link>
-            </Button>
+            </Button> */}
           </div>
         </MotionReveal>
       </div>

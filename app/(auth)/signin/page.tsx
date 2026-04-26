@@ -79,7 +79,7 @@ export default function SigninPage() {
 
   <div className="flex flex-col flex-1">
     <div className=" flex mt-10 md:mt-18.75 justify-center">
-      <section className="rounded-2xl border border-[red] p-4 sm:p-8 w-full">
+      <section className="rounded-2xl border border-border p-4 sm:p-8 w-full">
         
         <h1 className="text-[24px] font-semibold text-[#0F172B]">Welcome back.</h1>
         <p className="mt-1 text-sm text-[#64748B]">Your progress is waiting. Let&apos;s pick up where you left off.</p>

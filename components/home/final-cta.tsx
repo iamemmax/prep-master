@@ -1,9 +1,14 @@
+"use client"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import MotionReveal from "@/components/shared/motion-reveal"
 import { ArrowRight, ArrowUpRight } from "lucide-react"
+import { useAuth } from "@/context/authentication"
 
 export default function FinalCta() {
+  const { authState: { isAuthenticated } } = useAuth()
+  const ctaHref = isAuthenticated ? "/dashboard" : "/signin"
+
   return (
     <section className="relative isolate overflow-hidden font-inter h-[427px] final-cta-bg">
      
@@ -23,7 +28,7 @@ export default function FinalCta() {
               asChild
               className="h-11 min-w-[150px] rounded-full px-6 font-normal text-[#314158] btn-glow hover:bg-primary/90"
             >
-              <Link href="/signup">
+              <Link href={ctaHref}>
                 Start for free <ArrowUpRight className="h-4 w-4" />
               </Link>
             </Button>
