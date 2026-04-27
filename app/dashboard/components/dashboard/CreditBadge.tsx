@@ -1,13 +1,7 @@
 "use client";
 
 import { Coins } from "lucide-react";
-
-// TODO: replace with the real credit balance from the user/billing API once it
-// exists. Keeping the source isolated here so swapping it later only touches
-// this file.
-function useCreditBalance(): { remaining: number; total: number } {
-  return { remaining: 100, total: 250 };
-}
+import { useCreditBalance } from "../../util/hooks/useCreditBalance";
 
 export default function CreditBadge() {
   const { remaining, total } = useCreditBalance();

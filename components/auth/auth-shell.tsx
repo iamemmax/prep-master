@@ -7,6 +7,7 @@ import {
   Target,
   Users,
 } from "lucide-react"
+import PrepLogo from "@/utils/icons/logos/PrepLogo"
 
 type AuthShellProps = {
   children: React.ReactNode
@@ -43,20 +44,20 @@ export default function AuthShell({ children }: AuthShellProps) {
   return (
     <div className="grid relative h-screen md:grid-cols-[1fr_1fr] font-inter">
       <aside className="hidden md:block sticky top-0 h-full auth-bg px-10 xl:px-20 py-12 text-white">
-        <div className=" flex justify-between h-full flex-col max-w-2xl mx-auto">
+        <div className=" flex h-full flex-col max-w-2xl mx-auto">
           <div>
-            <Link href="/" className="inline-flex items-center gap-2">
-              <span className="grid h-8 w-8 place-items-center rounded-full bg-primary/20 text-primary ring-1 ring-primary/40">
-                <Target className="h-4 w-4" />
-              </span>
-              <span className="leading-tight">
+            <Link href="/" className="inline-flex items-start gap-2">
+             <div className="">
+               <PrepLogo width={30} height={30} color="#ECB22E"/>
+             </div>
+              <span className="">
                 <span className="block text-2xl font-semibold">PrepMaster</span>
                 <span className="-mt-1 block text-xs text-white/65">by Upstage</span>
               </span>
             </Link>
 
             {/* <h2 className="mt-10 text-[28px] font-semibold leading-tight">
-              Start your exam prepping for free
+              Start your exam prepping for freea
             </h2>
             <div className="mt-1 inline-flex items-center gap-2 text-sm text-[#8996A9]">
               <CheckCircle2 className="h-4 w-4" />
@@ -64,7 +65,8 @@ export default function AuthShell({ children }: AuthShellProps) {
             </div> */}
           </div>
 
-          <div className=" space-y-12">
+          <div className="flex-1 flex items-center">
+          <div className="w-full space-y-6 xl:space-y-8 2xl:space-y-12">
             {LEFT_POINTS?.map((point) => {
               const Icon = point.icon
               return (
@@ -74,17 +76,18 @@ export default function AuthShell({ children }: AuthShellProps) {
 
                   </div>
 
-                  <div className= "text-sm lg:text-xl max-w-sm">
+                  <div className= "text-sm lg:text-lg xl:text-lg 2xl:text-xl max-w-sm">
                     <h2 className="font-inter ">
                     {point.title}
                     </h2>
-                  <p className="mt-1.5 text-xs md:text-sm leading-normal font-inter text-[#8996A9]">
+                  <p className="mt-1.5 text-xs md:text-sm xl:text-sm 2xl:text-base leading-normal font-inter text-[#8996A9]">
                     {point.description}
                   </p>
                     </div>
                 </div>
               )
             })}
+          </div>
           </div>
 
           <div className="mt-8 flex items-center gap-3 text-xs text-white/60">
@@ -110,7 +113,7 @@ export default function AuthShell({ children }: AuthShellProps) {
         </div>
       </aside>
      
-      <main className="h-full w-full bg-white flex flex-col md:flex-row md:items-start pt-6 lg:pt-14.5 md:justify-center overflow-y-auto">
+      <main className="h-full w-full bg-white flex flex-col md:flex-row md:items-start pt-6 lg:pt-14.5 md:justify-center overflow-y-auto hide-scrollbar">
         <div className="md:hidden p-4">
         <Link href="/" className="inline-flex items-center flex-wrap gap-2">
           <span className="grid h-8 w-8 place-items-center rounded-full bg-primary/20 text-primary ring-1 ring-primary/40">

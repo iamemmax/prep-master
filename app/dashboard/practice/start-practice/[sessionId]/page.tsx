@@ -1,7 +1,12 @@
 "use client";
 import { use, useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { Option } from "@/app/dashboard/util/types/pratcie/StartPracticeTypes";
+import { parseOptions } from "@/app/dashboard/util/practice/parseOptions";
+import {
+  formatTimer,
+  getPaceTone,
+  summarizeTopicProgress,
+} from "@/app/dashboard/util/practice/sessionLogic";
 import { useSubmitQuestionAnswer } from "@/app/dashboard/util/apis/practice/submitQuestionAnswer";
 import { useEndSession } from "@/app/dashboard/util/apis/practice/endSession";
 import { useGetPracticeQuestions } from "@/app/dashboard/util/apis/practice/getPracticeQuestion";
@@ -50,15 +55,6 @@ import {
 import { isProductionGated } from "@/components/shared/coming-soon-gate";
 
 type Confidence = "guess" | "likely" | "certain";
-
-function parseOptions(raw: Option[] | Record<string, string> | string): Option[] {
-  if (Array.isArray(raw)) return raw;
-  if (typeof raw === "object") return Object.entries(raw).map(([key, val], i) => ({ id: i, reference: key, option_text: val }));
-  try {
-    const parsed = JSON.parse(raw);
-    return Object.entries(parsed).map(([key, val], i) => ({ id: i, reference: key, option_text: val as string }));
-  } catch { return []; }
-}
 
 export default function PracticeExamUI({ params }: { params: Promise<{ sessionId: string }> }) {
   const {
@@ -191,9 +187,7 @@ export default function PracticeExamUI({ params }: { params: Promise<{ sessionId
   }
 
   const answered     = new Set(Object.keys(answers).map(Number));
-  const mins         = Math.floor(seconds / 60);
-  const secs         = seconds % 60;
-  const timerDisplay = `${mins}:${secs.toString().padStart(2, "0")}`;
+  const timerDisplay = formatTimer(seconds);
   const totalSecs    = (session.time_limit_minutes ?? 0) * 60 || 34 * 60 + 22;
   const timerPct     = Math.round((seconds / totalSecs) * 100);
   const avgPaceSecs  = answered.size > 0 ? Math.round((totalSecs - seconds) / answered.size) : 0;
@@ -202,12 +196,7 @@ export default function PracticeExamUI({ params }: { params: Promise<{ sessionId
   const currentQ     = questions[current];
   const selectedAnswer = answers[current] ?? null;
 
-  const topicNames = [...new Set(questions.map(q => q.topic.name))];
-  const topicProgress = topicNames.map(name => ({
-    name,
-    total: questions.filter(q => q.topic.name === name).length,
-    done:  questions.filter((q, i) => q.topic.name === name && answered.has(i)).length,
-  }));
+  const topicProgress = summarizeTopicProgress(questions, answered);
 
   function getDotClass(i: number) {
     if (i === current)   return "bg-[#F7C948] text-white border-[#F7C948]";
@@ -386,16 +375,13 @@ export default function PracticeExamUI({ params }: { params: Promise<{ sessionId
   const targetPerQ = session.session_mode === "timed" && TOTAL > 0
     ? Math.max(30, Math.round(totalSecs / TOTAL))
     : 90;
-  const paceRatio   = qElapsed / targetPerQ;
-  const paceTone    = paceRatio <= 1.2 ? "ok" : paceRatio <= 2 ? "warn" : "alert";
+  const paceTone    = getPaceTone(qElapsed, targetPerQ);
   const paceFg      =
     paceTone === "ok"   ? "#059669" :
     paceTone === "warn" ? "#D97706" :
                           "#DC2626";
   const paceLabel   = paceTone === "ok" ? "on pace" : paceTone === "warn" ? "slowing" : "lingering";
-  const qMins = Math.floor(qElapsed / 60);
-  const qSecs = qElapsed % 60;
-  const qTimeLabel = `${qMins}:${qSecs.toString().padStart(2, "0")}`;
+  const qTimeLabel  = formatTimer(qElapsed);
 
   const eliminatedSet = eliminated[current] ?? new Set<number>();
   const curConfidence = confidence[current];

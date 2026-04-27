@@ -52,9 +52,94 @@ const playfair = Playfair_Display({
   subsets: ["latin"],
 });
 
+const SITE_NAME = "PrepMaster";
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://prepmaster.app";
+const SITE_DESCRIPTION =
+  "PrepMaster helps students prepare for WAEC, JAMB, NECO, SAT, IELTS, TOEFL and more with AI-powered practice questions, mock exams, smart analytics, and an adaptive study coach.";
+
 export const metadata: Metadata = {
-  title: "Prepmaster",
-  description: "A comprehensive platform for students to prepare for their exams with confidence.",
+  metadataBase: new URL(SITE_URL),
+  title: {
+    default: `${SITE_NAME} — AI-powered exam prep`,
+    template: `%s · ${SITE_NAME}`,
+  },
+  description: SITE_DESCRIPTION,
+  applicationName: SITE_NAME,
+  keywords: [
+    "exam preparation",
+    "AI study coach",
+    "WAEC",
+    "JAMB",
+    "NECO",
+    "SAT",
+    "IELTS",
+    "TOEFL",
+    "CPA",
+    "PMP",
+    "practice questions",
+    "mock exams",
+    "study planner",
+    "PrepMaster",
+  ],
+  authors: [{ name: SITE_NAME }],
+  creator: SITE_NAME,
+  publisher: SITE_NAME,
+  category: "education",
+  alternates: {
+    canonical: "/",
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+      "max-video-preview": -1,
+    },
+  },
+  openGraph: {
+    type: "website",
+    siteName: SITE_NAME,
+    title: `${SITE_NAME} — AI-powered exam prep`,
+    description: SITE_DESCRIPTION,
+    url: SITE_URL,
+    locale: "en_US",
+    images: [
+      {
+        url: "/og-image.png",
+        width: 1200,
+        height: 630,
+        alt: `${SITE_NAME} — AI-powered exam prep`,
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: `${SITE_NAME} — AI-powered exam prep`,
+    description: SITE_DESCRIPTION,
+    images: ["/og-image.png"],
+  },
+  icons: {
+    icon: "/favicon.ico",
+    shortcut: "/favicon.ico",
+    apple: "/apple-touch-icon.png",
+  },
+  formatDetection: {
+    email: false,
+    address: false,
+    telephone: false,
+  },
+};
+
+export const viewport = {
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
+    { media: "(prefers-color-scheme: dark)", color: "#0b1220" },
+  ],
+  width: "device-width",
+  initialScale: 1,
 };
 
 export default function RootLayout({

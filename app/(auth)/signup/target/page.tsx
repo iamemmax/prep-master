@@ -106,7 +106,11 @@ export default function SignupTargetPage() {
                 <div className="mt-2 rounded-md bg-[#F8FAFC] px-4 py-3">
                   <div className="flex items-center justify-between">
                     <div className="text-[24px] font-semibold text-[#0F172A]">{field.value}</div>
-                    <span className="text-xs text-[#94A3B8]">SAT</span>
+                    <span className="text-xs text-[#94A3B8]">
+                      {examData?.preparing_for_exam === "Other"
+                        ? examData?.other_exam
+                        : examData?.preparing_for_exam}
+                    </span>
                   </div>
                   <Slider
                     min={400}

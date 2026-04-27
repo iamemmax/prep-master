@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
-import { Controller, useForm } from "react-hook-form"
+import { Controller, useForm, useWatch } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 // import z from "zod"
 
@@ -28,7 +28,6 @@ const email=search.get("email")
     register,
     handleSubmit,
     control,
-    watch,
     formState: { errors },
   } = useForm<Step1Data>({
     resolver: zodResolver(step1Schema),
@@ -40,7 +39,7 @@ const email=search.get("email")
     },
   })
 
-  const selectedExam = watch("preparing_for_exam")
+  const selectedExam = useWatch({ control, name: "preparing_for_exam" })
 
   function onSubmit(data: Step1Data) {
     setExamData({...data, email:String(email)}) // persist to store

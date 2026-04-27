@@ -18,6 +18,7 @@ import { AxiosError } from "axios"
 import { formatAxiosErrorMessage } from "@/utils"
 import { Spinner } from "@/components/ui/Spinner"
 import { ErrorModal } from "@/components/ui/ErrorModal"
+import { useOnboardingStore } from "@/app/store/onboardingStore"
 
 
 
@@ -31,6 +32,7 @@ export default function SignupPage() {
     } = useErrorModalState();
   const router = useRouter()
   const [showPassword, setShowPassword] = useState(false)
+  const { userInfo, setUserInfo } = useOnboardingStore()
 
   const {
     register,
@@ -40,10 +42,10 @@ export default function SignupPage() {
   } = useForm<userOnboardingInfoTypes>({
     resolver: zodResolver(userOnboardingInfoSchema),
     defaultValues: {
-      email: "",
-      first_name: "",
-      last_name: "",
-      password: ""
+      email: userInfo?.email ?? "",
+      first_name: userInfo?.first_name ?? "",
+      last_name: userInfo?.last_name ?? "",
+      password: userInfo?.password ?? "",
     },
     mode: "onChange"
   })
@@ -51,6 +53,7 @@ export default function SignupPage() {
   const {mutate:handleOnboardUser,isPending} = useOnboardUser()
 
   function onSubmit(data: userOnboardingInfoTypes) {
+    setUserInfo(data)
     handleOnboardUser(data,{
       onSuccess:()=>{
 
@@ -71,7 +74,7 @@ export default function SignupPage() {
     
   }
   return (
-    <div className="bg-white max-lg:p-5">
+    <div className="bg-white px-5">
       <AuthStepHeader backHref="/" backLabel="Back to home" stepLabel="Step 1 of 3 · Personal details" progress={1} />
 
       <section className="rounded-2xl border border-border bg-white p-6 sm:p-8 2xl:p-10 mt-10">

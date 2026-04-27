@@ -74,7 +74,7 @@ export default function SigninPage() {
   }
 
   return (
- <div className="bg-white h-[90vh] max-md:p-5 flex flex-col">
+ <div className="bg-white h-[90vh] px-5 flex flex-col">
   <AuthStepHeader backHref="/" backLabel="Back to home" showProgress={false} />
 
   <div className="flex flex-col flex-1">
@@ -156,7 +156,7 @@ export default function SigninPage() {
           </Link>
         </p>
 
-        <p className="text-center mt-12 md:mt-24.5 text-sm text-[#94A3B8]">
+        <p className="text-center mt-12 md:mt-20.5 text-sm text-[#94A3B8]">
           Don&apos;t have an account?{" "}
           <Link href="/signup" className="font-medium text-[#ECB22E]">
             Register

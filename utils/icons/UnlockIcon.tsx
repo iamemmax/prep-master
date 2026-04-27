@@ -3,7 +3,7 @@ import { SVGProps } from "react";
 export interface Iconprop extends SVGProps<SVGSVGElement> {
   color?: string;
 }
-const Unlockicon = ({color="", ...props}:Iconprop) => (
+const Unlockicon = ({ ...props}:Iconprop) => (
    <svg
     width={450}
     height={256}
