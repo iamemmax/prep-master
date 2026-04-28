@@ -5,7 +5,10 @@ export const QUERYKEY = {
    DASHBOARD_OVERVIEW:["dashboard-overview"],
    //practices section
    PRACTICE_EXAMS_LIST:["dashboard-list-exams"],
+   SIGNUP_EXAMS_BY_COUNTRY:["signup-exams-by-country"],
    PRACTICE_AVAILABLE_EXAMS_DETAILS:["PRACTICE_AVAILABLE_EXAMS_DETAILS"],
    PRACTICE_QUESTION_DETAILS:["PRACTICE_QUESTION_DETAILS"],
+   PRACTICE_EXAM_CONFIG:["PRACTICE_EXAM_CONFIG"],
+   // PRACTICE_:["practice-exams-list"],
   
 }

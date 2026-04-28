@@ -20,8 +20,8 @@ export const userOnboardingInfoSchema = z.object({
 const baseExamOnboardingSchema = z.object({
   email: z.string().email("Invalid email address"),
   country: z.string().min(1, "Country is required"),
-  preparing_for_exam: z.string().min(1, "Please select an exam"),
-  other_exam: z.string().optional(),
+  exam_type: z.number({ message: "Please select an exam" }).int().positive(),
+  exam_name: z.string().optional(), // UI display only — not sent to API
   exam_date: z
     .string()
     .min(1, "Exam date is required")
@@ -30,28 +30,18 @@ const baseExamOnboardingSchema = z.object({
   target_score: z.string().min(1, "Target score is required"),
   daily_study_hours: z
     .number({ message: "Must be a number" })
-    .min(1, "Minimum 1 hour")
+    .min(0.5, "Minimum 0.5 hour")
     .max(24, "Maximum 24 hours"),
   current_level: z.string().min(1, "Current level is required"),
   send_progress_report: z.boolean().default(false),
 })
 
-// ✅ Full schema with cross-field validation
-export const examOnboardingSchema = baseExamOnboardingSchema.superRefine((data, ctx) => {
-  if (data.preparing_for_exam === "other" && !data.other_exam?.trim()) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      message: "Please specify your exam",
-      path: ["other_exam"],
-    })
-  }
-})
+export const examOnboardingSchema = baseExamOnboardingSchema
 
-// ✅ Now .pick() works on the base schema
 export const step1Schema = baseExamOnboardingSchema.pick({
   country: true,
-  preparing_for_exam: true,
-  other_exam: true,
+  exam_type: true,
+  exam_name: true,
   exam_date: true,
 })
 

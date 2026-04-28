@@ -5,24 +5,40 @@ export interface startPracticeType {
 }
 
 export interface SessionWithQuestions extends Session {
-  session: Session;
+  /** Optional nested session object — kept for back-compat with older payloads. */
+  session?: Session;
   questions: Question[];
+  /** Previously-submitted answers for this session (resume support). */
+  responses: PracticeResponse[];
+  /** Question id of the most recent submission, used to resume at the next question. */
+  last_answered_question_id: number | null;
+  /** Server-side count of how many questions already have a submitted response. */
+  answered_count: number;
+  enable_proctoring: boolean;
+  question_ids: number[];
 }
 
 export interface Question {
   id: number;
+  reference: string;
   subject: Subject;
   topic: Subject;
-  reference: string;
-  is_active: boolean;
-  created_at: string;
-  updated_at: string;
   text: string;
-  difficulty_level: string;
   options: Option[] | Record<string, string>;
-  exam_type: number;
   explanation?: string;
+  difficulty_level: string;
 }
+
+export interface PracticeResponse {
+  id?: number;
+  question_id: number;
+  /** Option reference (matches the `selected_answer` we POST when submitting). */
+  selected_answer: string;
+  is_correct?: boolean;
+}
+
+
+
 
 export interface Option {
   id: number;
@@ -57,5 +73,7 @@ export interface Session {
   user: number;
   exam_type: number | string;
 }
+
+
 
 

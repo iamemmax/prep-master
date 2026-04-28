@@ -1,12 +1,14 @@
+import { useMemo, useState } from "react";
+import { ChevronDown } from "lucide-react";
 import { Filters } from "../../practice/page";
 import SidebarBtn from "./SidebarBtn";
-import { useGetPracticeExamList } from "../../util/apis/practice/examsList";
+import { useGetDashboardOverview } from "../../util/apis/dashboard/fetchDashboardOverview";
 
-interface ProgressBarEntry {
-  label: string;
-  pct: number;
-  color: string;
-}
+// interface ProgressBarEntry {
+//   label: string;
+//   pct: number;
+//   color: string;
+// }
 
 interface FilterSidebarProps {
   filters: Filters;
@@ -18,11 +20,11 @@ interface FilterSidebarProps {
 const ACCESS_OPTIONS: string[] = ["All", "Free", "Premium"];
 const DIFFICULTY_OPTIONS: string[] = ["Any Level", "Easy", "Medium", "Hard"];
 
-const MY_PROGRESS: ProgressBarEntry[] = [
-  { label: "SAT", pct: 72, color: "#6366F1" },
-  { label: "GRE", pct: 45, color: "#3B82F6" },
-  { label: "LSAT", pct: 12, color: "#8B5CF6" },
-];
+// const MY_PROGRESS: ProgressBarEntry[] = [
+//   { label: "SAT", pct: 72, color: "#6366F1" },
+//   { label: "GRE", pct: 45, color: "#3B82F6" },
+//   { label: "LSAT", pct: 12, color: "#8B5CF6" },
+// ];
 
 function SidebarGroupLabel({ children }: { children: React.ReactNode }) {
   return (
@@ -32,14 +34,49 @@ function SidebarGroupLabel({ children }: { children: React.ReactNode }) {
   );
 }
 
+interface SidebarExam {
+  reference: string;
+  name: string;
+  subjects: { reference: string; name: string }[];
+}
+
 const FilterSidebar = ({ filters, setFilters, onExamSelect }: FilterSidebarProps) => {
   const { category, access, difficulty } = filters;
-  const { data: response, isLoading } = useGetPracticeExamList();
+  const { data: response, isLoading } = useGetDashboardOverview();
 
-  const rawList = Array.isArray(response?.data) ? response.data : [];
+  const rawList = useMemo<SidebarExam[]>(() => {
+    const userExams = response?.data?.user_exams ?? [];
+    const seen = new Set<string>();
+    return userExams.reduce<SidebarExam[]>((acc, ue) => {
+      const ref = ue.exam_type?.reference;
+      if (!ref || seen.has(ref)) return acc;
+      seen.add(ref);
+      acc.push({
+        reference: ref,
+        name: ue.exam_type.name,
+        subjects: ue.exam_type.subjects ?? [],
+      });
+      return acc;
+    }, []);
+  }, [response]);
+
+  const initialOpen =
+    rawList.find(
+      (exam) =>
+        exam.name === category ||
+        exam.subjects.some((s) => s.name === category)
+    )?.reference ?? null;
+
+  const [openExam, setOpenExam] = useState<string | null>(initialOpen);
 
   const set = (key: keyof Filters) => (v: string) =>
     setFilters(f => ({ ...f, [key]: v }));
+
+  const handleExamClick = (exam: { reference: string; name: string }) => {
+    set("category")(exam.name);
+    onExamSelect?.(exam.reference);
+    setOpenExam((prev) => (prev === exam.reference ? null : exam.reference));
+  };
 
   return (
     <aside className="w-56 shrink-0 pt-1">
@@ -61,30 +98,48 @@ const FilterSidebar = ({ filters, setFilters, onExamSelect }: FilterSidebarProps
             <div key={i} className="h-8 mx-2 rounded-lg bg-slate-100 dark:bg-zinc-800 animate-pulse" />
           ))
         ) : (
-          rawList.map((exam) => (
-            <div key={exam.reference}>
-              {/* Exam name button */}
-              <SidebarBtn
-                label={exam.name}
-                active={category === exam.name}
-                onClick={() => { set("category")(exam.name); onExamSelect?.(exam.reference); }}
-              />
+          rawList.map((exam) => {
+            const isOpen = openExam === exam.reference;
+            const isActive = category === exam.name;
+            const hasSubjects = (exam.subjects?.length ?? 0) > 0;
 
-              {/* Subjects indented below */}
-              {exam.subjects?.length > 0 && (
-                <div className="mt-0.5 space-y-0.5">
-                  {exam.subjects.map((subject) => (
-                    <SidebarBtn
-                      key={subject.reference}
-                      label={subject.name}
-                      active={category === subject.name}
-                      onClick={() => { set("category")(subject.name); onExamSelect?.(subject.reference); }}
+            return (
+              <div key={exam.reference}>
+                {/* Exam name header — toggles accordion + selects exam */}
+                <button
+                  onClick={() => handleExamClick(exam)}
+                  className={`w-full flex items-center justify-between px-3 font-inter cursor-pointer py-2 rounded-lg text-xs transition-all duration-150 ${
+                    isActive
+                      ? "bg-[#F7C948] text-black font-semibold border-[0.3px] border-[#F7C948]"
+                      : "text-[#616980] dark:text-zinc-400 hover:bg-slate-100 dark:hover:bg-zinc-800 hover:text-slate-900 dark:hover:text-zinc-100 font-normal"
+                  }`}
+                >
+                  <span className="text-left">{exam.name}</span>
+                  {hasSubjects && (
+                    <ChevronDown
+                      className={`h-3.5 w-3.5 shrink-0 transition-transform duration-150 ${
+                        isOpen ? "rotate-180" : ""
+                      }`}
                     />
-                  ))}
-                </div>
-              )}
-            </div>
-          ))
+                  )}
+                </button>
+
+                {/* Subjects — only when accordion open */}
+                {hasSubjects && isOpen && (
+                  <div className="mt-0.5 ml-3 space-y-0.5 border-l border-slate-200 dark:border-zinc-800 pl-2">
+                    {exam.subjects.map((subject) => (
+                      <SidebarBtn
+                        key={subject.reference}
+                        label={subject.name}
+                        active={category === subject.name}
+                        onClick={() => { set("category")(subject.name); onExamSelect?.(subject.reference); }}
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })
         )}
       </div>
 
@@ -102,7 +157,7 @@ const FilterSidebar = ({ filters, setFilters, onExamSelect }: FilterSidebarProps
         ))}
       </div>
 
-      <div className="mt-6 pt-4 border-t border-slate-200 dark:border-zinc-800">
+      {/* <div className="mt-6 pt-4 border-t border-slate-200 dark:border-zinc-800">
         <p className="text-[11px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-widest mb-3 px-2">
           My Progress
         </p>
@@ -117,7 +172,7 @@ const FilterSidebar = ({ filters, setFilters, onExamSelect }: FilterSidebarProps
             </div>
           </div>
         ))}
-      </div>
+      </div> */}
     </aside>
   );
 };

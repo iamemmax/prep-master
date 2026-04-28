@@ -10,8 +10,8 @@ const ALICE = {
 
 const EXAM_STEP = {
   country: "Nigeria",
-  preparing_for_exam: "JAMB",
-  other_exam: "",
+  exam_type: 1,
+  exam_name: "JAMB",
   exam_date: "2026-01-01",
   email: "ada@example.com",
 };

@@ -17,7 +17,7 @@ interface prop{
 const setNewPassword = async (payload: prop) => {
 
     
-  const response = await adminAxios.post('/api/v1/prep-master/password-reset/confirm', payload);
+  const response = await adminAxios.post('/api/v1/prep-master/password-reset/confirm/', payload);
   return response?.data;
 }
 

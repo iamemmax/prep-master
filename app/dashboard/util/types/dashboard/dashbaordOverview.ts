@@ -69,6 +69,8 @@ interface Data {
   recent_sessions: Recentsessions;
   active_sessions: Recentsessions;
   recommended_exams: Recommendedexams;
+    subscription: Subscription;
+      user_exams: Userexam[];
 }
 
 interface Recommendedexams {
@@ -92,6 +94,11 @@ interface Datum {
   subjects: Subject[];
 }
 
+interface Subscription {
+  is_subscribed: boolean;
+  free_question_limit: number;
+  active_subscription: null;
+}
 interface Subject {
   id: number;
   reference: string;
@@ -114,4 +121,30 @@ export interface dashboardOverviewData {
   days_remaining: number;
   overall_readiness: number;
   target_score: string;
+}
+
+
+export interface Userexam {
+  id: number;
+  reference: string;
+  exam_type: Examtype;
+  exam_date: string | null;
+  target_score: string | null;
+  daily_study_hours: number | null;
+  current_level: string | null;
+  send_progress_report: boolean | null;
+}
+
+export interface Examtype {
+  id: number;
+  reference: string;
+  name: string;
+  description: string;
+  is_premium: boolean;
+  difficulty_level: string;
+  total_questions: number;
+  total_topics: number;
+  previous_score_percentage: number | null;
+  active_session_id: number | null;
+  subjects: Subject[];
 }

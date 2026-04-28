@@ -7,7 +7,7 @@ import { examOnboardingSchema, userOnboardingInfoSchema } from "../(auth)/schema
 type ExamOnboardingData = z.infer<typeof examOnboardingSchema>
 type UserInfoData = z.infer<typeof userOnboardingInfoSchema>
 
-type Step1Data = Pick<ExamOnboardingData, "country" | "preparing_for_exam" | "other_exam" | "exam_date" | "email">
+type Step1Data = Pick<ExamOnboardingData, "country" | "exam_type" | "exam_name" | "exam_date" | "email">
 type Step2Data = Pick<ExamOnboardingData, "target_score" | "daily_study_hours" | "current_level" | "send_progress_report">
 
 interface OnboardingStore {

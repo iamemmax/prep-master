@@ -1,53 +1,101 @@
 "use client"
 
 import Link from "next/link"
-import { useRouter, useSearchParams } from "next/navigation"
+import { useRouter } from "next/navigation"
 import { Controller, useForm, useWatch } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
-// import z from "zod"
+
+import { getNames } from "country-list"
+import { AxiosError } from "axios"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import AuthStepHeader from "@/components/auth/auth-step-header"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import {  Step1Data, step1Schema } from "../../schema/signup/userInfoSchema"
+import { Step1Data, step1Schema } from "../../schema/signup/userInfoSchema"
 import { useOnboardingStore } from "@/app/store/onboardingStore"
+import { useGetExamsByCountry } from "../../apis/signup/getExamsByCountry"
+import { useCompleteOnboarding } from "../../apis/signup/completeOnbaording"
+import { useErrorModalState } from "@/hooks"
+import { ErrorModal } from "@/components/ui/ErrorModal"
+import { formatAxiosErrorMessage } from "@/utils"
+import { Spinner } from "@/components/ui/Spinner"
 
-const COUNTRIES = ["Nigeria", "Ghana", "Kenya", "South Africa", "United Kingdom", "United States"]
-const EXAMS = ["WAEC", "JAMB", "NECO", "SAT", "IELTS", "TOEFL", "CPA", "PMP", "Other"]
-
-
-
+const COUNTRIES = getNames().sort((a, b) => a.localeCompare(b))
 
 export default function SignupExamsPage() {
   const router = useRouter()
-  const { setExamData,examData } = useOnboardingStore() // save to shared store
-const search = useSearchParams()
-const email=search.get("email")
+  const { setExamData, examData, userInfo, reset } = useOnboardingStore()
+  const email = userInfo?.email ?? examData?.email ?? ""
+
+  const {
+    isErrorModalOpen,
+    setErrorModalState,
+    openErrorModalWithMessage,
+    errorModalMessage,
+  } = useErrorModalState()
+
   const {
     register,
     handleSubmit,
     control,
+    setValue,
     formState: { errors },
   } = useForm<Step1Data>({
     resolver: zodResolver(step1Schema),
     defaultValues: {
-     country: examData?.country ?? "",
-    preparing_for_exam: examData?.preparing_for_exam ?? "",
-    other_exam: examData?.other_exam ?? "",
-    exam_date: examData?.exam_date ?? "",
+      country: examData?.country ?? "",
+      exam_type: examData?.exam_type,
+      exam_name: examData?.exam_name ?? "",
+      exam_date: examData?.exam_date ?? "",
     },
   })
 
-  const selectedExam = useWatch({ control, name: "preparing_for_exam" })
+  const selectedCountry = useWatch({ control, name: "country" })
+  const selectedExamType = useWatch({ control, name: "exam_type" })
+
+  const { data: examsResponse, isLoading: isLoadingExams } = useGetExamsByCountry(selectedCountry)
+  const exams = examsResponse?.data ?? []
+
+  const { mutate: submitOnboarding, isPending: isSkipping } = useCompleteOnboarding()
 
   function onSubmit(data: Step1Data) {
-    setExamData({...data, email:String(email)}) // persist to store
+    setExamData({ ...data, email })
     router.push("/signup/target")
   }
 
+  function onSkip() {
+    submitOnboarding(
+      {
+        email,
+        country: null,
+        exam_type: null,
+        exam_date: null,
+        target_score: null,
+        daily_study_hours: null,
+        current_level: null,
+        send_progress_report: null,
+      },
+      {
+        onSuccess: () => {
+          reset()
+          router.push("/signup/success")
+        },
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        onError: (error: any) => {
+          const errorMessage =
+            error?.response?.data?.errors?.message ||
+            error?.response?.data?.message ||
+            formatAxiosErrorMessage(error as AxiosError) ||
+            "An error occurred. Please try again."
+          openErrorModalWithMessage(String(errorMessage))
+        },
+      }
+    )
+  }
+
   return (
-    <>
+    <div className="px-5">
       <AuthStepHeader
         backHref="/signup"
         backLabel="Back to home"
@@ -72,7 +120,15 @@ const email=search.get("email")
               name="country"
               control={control}
               render={({ field }) => (
-                <Select value={field.value} onValueChange={field.onChange}>
+                <Select
+                  value={field.value}
+                  onValueChange={(v) => {
+                    field.onChange(v)
+                    // Reset exam selection when country changes — exam list will refetch
+                    setValue("exam_type", undefined as unknown as number, { shouldValidate: false })
+                    setValue("exam_name", "")
+                  }}
+                >
                   <SelectTrigger
                     className={`h-11 w-full bg-[#F8FAFC] text-sm ${
                       errors.country ? "border-red-500" : "border-input"
@@ -93,52 +149,59 @@ const email=search.get("email")
             )}
           </div>
 
-          {/* Exam */}
+          {/* Exam — driven by country */}
           <div>
             <label className="mb-2 block text-xs font-medium text-[#0F172A]">
               What exams are you preparing for?
             </label>
             <Controller
-              name="preparing_for_exam"
+              name="exam_type"
               control={control}
               render={({ field }) => (
-                <Select value={field.value} onValueChange={field.onChange}>
+                <Select
+                  value={field.value ? String(field.value) : ""}
+                  onValueChange={(v) => {
+                    const id = Number(v)
+                    field.onChange(id)
+                    const picked = exams.find((e) => e.id === id)
+                    setValue("exam_name", picked?.name ?? "")
+                  }}
+                  disabled={!selectedCountry || isLoadingExams}
+                >
                   <SelectTrigger
                     className={`h-11 w-full bg-[#F8FAFC] text-sm ${
-                      errors.preparing_for_exam ? "border-red-500" : "border-input"
+                      errors.exam_type ? "border-red-500" : "border-input"
                     } ${!field.value ? "text-muted-foreground" : "text-[#0F172A]"}`}
                   >
-                    <SelectValue placeholder="Select exam" />
+                    <SelectValue
+                      placeholder={
+                        !selectedCountry
+                          ? "Select a country first"
+                          : isLoadingExams
+                          ? "Loading exams..."
+                          : exams.length === 0
+                          ? "No exams available"
+                          : "Select exam"
+                      }
+                    />
                   </SelectTrigger>
                   <SelectContent>
-                    {EXAMS.map((e) => (
-                      <SelectItem key={e} value={e}>{e}</SelectItem>
+                    {exams.map((e) => (
+                      <SelectItem key={e.id} value={String(e.id)}>{e.name}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               )}
             />
-            {errors.preparing_for_exam && (
-              <p className="mt-1 text-xs text-red-400">{errors.preparing_for_exam.message}</p>
+            {errors.exam_type && (
+              <p className="mt-1 text-xs text-red-400">{errors.exam_type.message}</p>
             )}
+            {selectedExamType ? (
+              <p className="mt-1 text-xs text-[#94A3B8]">
+                {exams.find((e) => e.id === selectedExamType)?.description}
+              </p>
+            ) : null}
           </div>
-
-          {/* Other exam — only shown when "Other" is selected */}
-          {selectedExam === "Other" && (
-            <div>
-              <label className="mb-2 block text-xs font-medium text-[#0F172A]">
-                Please specify your exam
-              </label>
-              <Input
-                {...register("other_exam")}
-                className="h-11 bg-[#F8FAFC] placeholder:text-xs"
-                placeholder="e.g. CPA, PMP, IELTS..."
-              />
-              {errors.other_exam && (
-                <p className="mt-1 text-xs text-red-400">{errors.other_exam.message}</p>
-              )}
-            </div>
-          )}
 
           {/* Exam date */}
           <div>
@@ -161,6 +224,15 @@ const email=search.get("email")
           >
             Continue
           </Button>
+
+          <button
+            type="button"
+            onClick={onSkip}
+            disabled={isSkipping}
+            className="mt-2 h-12 w-full flex items-center justify-center gap-2 rounded-lg text-sm font-medium text-[#64748B] hover:text-[#0F172A] disabled:opacity-60"
+          >
+            {isSkipping ? <>Skipping <Spinner /></> : "Skip for now"}
+          </button>
         </form>
 
         <p className="mt-8 text-center text-xs text-[#94A3B8]">
@@ -168,6 +240,12 @@ const email=search.get("email")
           <Link href="/signin" className="font-medium text-primary">Login</Link>
         </p>
       </section>
-    </>
+
+      <ErrorModal
+        isErrorModalOpen={isErrorModalOpen}
+        setErrorModalState={() => setErrorModalState(false)}
+        subheading={errorModalMessage || "Please check your inputs and try again."}
+      />
+    </div>
   )
 }

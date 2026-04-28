@@ -49,7 +49,7 @@ import { AxiosError } from "axios";
 import {
   Keyboard, X as XIcon, Zap, Clock3,
   Play, Pause, BarChart3, ArrowLeft, Sun, Moon, Sparkles, ListChecks,
-  ChevronLeft, ChevronRight, Check, Flag, Trophy, Download, Eye,
+  ChevronLeft, ChevronRight, Check, Flag, Download, Eye,
   Calculator as CalcIcon,
 } from "lucide-react";
 import { isProductionGated } from "@/components/shared/coming-soon-gate";
@@ -73,6 +73,9 @@ export default function PracticeExamUI({ params }: { params: Promise<{ sessionId
   const session   = data?.data ?? null;
   const questions = (data?.data?.questions ?? []).map(q => ({ ...q, options: parseOptions(q.options) }));
   const TOTAL     = questions.length;
+  const sessionStatus = session?.status ?? null;
+  const isCompleted   = sessionStatus === "completed" || sessionStatus === "ended";
+  const hydratedRef = useRef(false);
 
   const [current, setCurrent]     = useState(0);
   const [answers, setAnswers]     = useState<Record<number, number>>({});
@@ -103,6 +106,47 @@ export default function PracticeExamUI({ params }: { params: Promise<{ sessionId
     if (typeof window === "undefined") return;
     setProctoring(sessionStorage.getItem("prep:proctoring") === "on");
   }, []);
+
+  // Hydrate from server: pre-fill the answers map from `responses`, then jump
+  // the cursor to the question after `last_answered_question_id`. Runs once
+  // when both the session and questions are first available so it doesn't
+  // overwrite anything the user does in this tab.
+  useEffect(() => {
+    if (hydratedRef.current) return;
+    if (!session || questions.length === 0) return;
+    hydratedRef.current = true;
+
+    const responses = session.responses ?? [];
+    if (responses.length > 0) {
+      const map: Record<number, number> = {};
+      for (const r of responses) {
+        const qIdx = questions.findIndex(q => q.id === r.question_id);
+        if (qIdx === -1) continue;
+        const optIdx = questions[qIdx].options.findIndex(o => o.reference === r.selected_answer);
+        if (optIdx >= 0) map[qIdx] = optIdx;
+      }
+      if (Object.keys(map).length > 0) setAnswers(map);
+    }
+
+    // Resume cursor: prefer the question after the last answered one. Fall
+    // back to the first unanswered question if the id can't be located.
+    let resumeIdx = -1;
+    if (session.last_answered_question_id != null) {
+      const idx = questions.findIndex(q => q.id === session.last_answered_question_id);
+      if (idx >= 0 && idx + 1 < questions.length) resumeIdx = idx + 1;
+    }
+    if (resumeIdx === -1 && responses.length > 0) {
+      const answeredIds = new Set(responses.map(r => r.question_id));
+      const firstUnanswered = questions.findIndex(q => !answeredIds.has(q.id));
+      if (firstUnanswered > 0) resumeIdx = firstUnanswered;
+    }
+    if (resumeIdx > 0) {
+      setCurrent(resumeIdx);
+      const count = session.answered_count ?? responses.length;
+      toast.success(`Resumed at question ${resumeIdx + 1} · ${count} answered previously`, { duration: 3500 });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session?.id, questions.length]);
 
   useEffect(() => {
     if (typeof document === "undefined") return;
@@ -182,6 +226,42 @@ export default function PracticeExamUI({ params }: { params: Promise<{ sessionId
     return (
       <div className="flex h-screen h-dvh items-center justify-center bg-slate-50 dark:bg-zinc-950">
         <div className="w-8 h-8 rounded-full border-2 border-slate-400 dark:border-zinc-500 border-t-transparent animate-spin" />
+      </div>
+    );
+  }
+
+  // Session already completed on the server — show a friendly card instead of
+  // dropping the user back into a non-editable practice UI.
+  if (isCompleted && !sessionResult) {
+    const correct = session.responses?.filter(r => r.is_correct).length ?? 0;
+    const total = session.answered_count ?? session.responses?.length ?? TOTAL;
+    const pct = total > 0 ? Math.round((correct / total) * 100) : (session.score ?? 0);
+    return (
+      <div className="flex h-screen h-dvh items-center justify-center bg-slate-50 dark:bg-zinc-950 p-4">
+        <div className="w-full max-w-md rounded-2xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm p-6 text-center">
+          <div className="w-12 h-12 mx-auto rounded-full bg-emerald-50 dark:bg-emerald-500/10 flex items-center justify-center mb-3">
+            <Check size={20} className="text-emerald-600 dark:text-emerald-400" strokeWidth={2.5} />
+          </div>
+          <h1 className="text-lg font-semibold text-slate-900 dark:text-zinc-100">This session is already completed</h1>
+          <p className="text-xs text-slate-500 dark:text-zinc-400 mt-1.5">
+            <span className="tabular-nums font-semibold text-slate-700 dark:text-zinc-300">{correct}</span> of <span className="tabular-nums font-semibold text-slate-700 dark:text-zinc-300">{total}</span> correct ({pct}%)
+          </p>
+          <div className="mt-5 flex flex-col gap-2">
+            <button
+              onClick={() => router.push(`/dashboard/practice/review/${session.id}`)}
+              className="h-10 rounded-lg text-sm font-semibold bg-slate-900 dark:bg-zinc-100 text-white dark:text-zinc-900 hover:bg-slate-800 dark:hover:bg-zinc-200 inline-flex items-center justify-center gap-1.5"
+            >
+              <ListChecks size={14} />
+              Review answers
+            </button>
+            <button
+              onClick={() => router.push("/dashboard/practice")}
+              className="h-10 rounded-lg text-sm font-semibold border border-slate-200 dark:border-zinc-700 text-slate-700 dark:text-zinc-200 hover:bg-slate-50 dark:hover:bg-zinc-800"
+            >
+              Back to practice
+            </button>
+          </div>
+        </div>
       </div>
     );
   }

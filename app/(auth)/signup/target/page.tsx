@@ -33,7 +33,7 @@ export default function SignupTargetPage() {
         errorModalMessage,
       } = useErrorModalState();
   const router = useRouter()
-  const { examData,targetData,setExamData,setTargetData } = useOnboardingStore() // retrieve step 1 data
+  const { examData, targetData, userInfo, reset } = useOnboardingStore() // retrieve step 1 data
   const { mutate: submitOnboarding, isPending } = useCompleteOnboarding()
 
   const {
@@ -51,22 +51,28 @@ export default function SignupTargetPage() {
   })
 
  function onSubmit(data: Step2Data) {
-  const fullPayload = {
-    ...examData,
-    ...data,
-    email: String(examData?.email),
-  }
+  const email = userInfo?.email ?? examData?.email ?? ""
 
-  // ✅ Guard ensures required fields exist before submitting
-  if (!fullPayload.country || !fullPayload.preparing_for_exam || !fullPayload.exam_date) {
-    router.push("/signup/exams") // send back if step 1 data is missing
+  // ✅ Guard ensures required step-1 fields exist before submitting
+  if (!email || !examData?.country || !examData?.exam_type || !examData?.exam_date) {
+    router.push(email ? "/signup/exams" : "/signup")
     return
   }
 
-  submitOnboarding(fullPayload as Required<typeof fullPayload>, {
+  const fullPayload = {
+    email,
+    country: examData.country,
+    exam_type: examData.exam_type,
+    exam_date: examData.exam_date,
+    target_score: data.target_score,
+    daily_study_hours: data.daily_study_hours,
+    current_level: data.current_level,
+    send_progress_report: data.send_progress_report,
+  }
+
+  submitOnboarding(fullPayload, {
     onSuccess: () =>{
-      setExamData({country:"",email:"",exam_date:"",preparing_for_exam:"",other_exam:""})
-      setTargetData({current_level:"",daily_study_hours:1,send_progress_report:false,target_score:""})
+      reset()
       router.push("/signup/success")
     },
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -82,7 +88,7 @@ export default function SignupTargetPage() {
 }
 
   return (
-    <>
+    <div className="px-5">
       <AuthStepHeader
         backHref="/signup/exams"
         backLabel="Back"
@@ -107,9 +113,7 @@ export default function SignupTargetPage() {
                   <div className="flex items-center justify-between">
                     <div className="text-[24px] font-semibold text-[#0F172A]">{field.value}</div>
                     <span className="text-xs text-[#94A3B8]">
-                      {examData?.preparing_for_exam === "Other"
-                        ? examData?.other_exam
-                        : examData?.preparing_for_exam}
+                      {examData?.exam_name}
                     </span>
                   </div>
                   <Slider
@@ -223,6 +227,6 @@ export default function SignupTargetPage() {
                   setErrorModalState={() => setErrorModalState(false)}
                   subheading={errorModalMessage || "Please check your inputs and try again."}
                 />
-    </>
+    </div>
   )
 }

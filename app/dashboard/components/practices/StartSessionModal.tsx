@@ -11,21 +11,22 @@ import { AxiosError } from "axios";
 import { useRouter } from "next/navigation";
 import { ErrorModal } from "@/components/ui/ErrorModal";
 import { SmallSpinner } from "@/components/ui/Spinner";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useEffect, useState } from "react";
-import { ShieldCheck, Check, BookOpen } from "lucide-react";
+import { ShieldCheck, BookOpen, X } from "lucide-react";
 import { clearProctorReports } from "../../util/proctor/report";
 
 // ─── Schema ──────────────────────────────────────────────────────────────────
 const sessionSchema = z.object({
-  exam_type_id:                   z.number({ message: "Exam type is required" }),
+  exam_config_id:                   z.number({ message: "Exam type is required" }),
   number_of_questions:            z.number({ message: "Number of questions is required" }).min(1, "At least 1 question").max(2700, "Max 2,700 questions"),
   session_mode:                   z.enum(["timed", "untimed", "topic-focus"], { message: "Session mode is required" }),
   difficulty_level:               z.enum(["mixed", "easy", "medium", "hard"], { message: "Difficulty is required" }),
   time_limit_minutes:             z.number().min(1, "At least 1 minute").nullable().optional(),
-  subjects_selected:              z.array(z.number()).default([]),   // ← removed .optional()
-  custom_subject_names:           z.array(z.string()).default([]),   // user-typed subjects not in the official list
+  subjects_selected:              z.array(z.number()).default([]),   // subject ids picked from the exam
   topics_selected:                z.array(z.number()).default([]),   // ← removed .optional()
   show_explanation_after_answer:  z.boolean().default(false),
+  enable_proctoring:              z.boolean().default(false),
 }).refine(data => {
   if (data.session_mode === "timed") {
     return data.time_limit_minutes != null && data.time_limit_minutes > 0;
@@ -61,11 +62,13 @@ const SESSION_MODES = [
 ] as const;
 
 // ─── Component ───────────────────────────────────────────────────────────────
-export default function SessionSetupModal({ onClose, examName = "SAT", examDesc = "Standardized Test for College Admissions", open,  }: {
+export default function SessionSetupModal({ onClose, examName = "SAT", examDesc = "Standardized Test for College Admissions", open, preselectedSubject = null, }: {
   onClose?: () => void;
   examName?: string;
   examDesc?: string;
   open: Exam | null;
+  /** When set, the modal pre-selects this subject and hides the subject-picker section. */
+  preselectedSubject?: { id: number; name: string } | null;
   onSubmit?: (data: SessionFormData) => void;
 }) {
 
@@ -83,38 +86,25 @@ const {
 } = useForm<z.input<typeof sessionSchema>, unknown, z.output<typeof sessionSchema>>({
   resolver: zodResolver(sessionSchema),
   defaultValues: {
-    exam_type_id:                  open?.id ?? 1,
+    exam_config_id:                  open?.examConfigId ?? open?.id ?? 1,
     number_of_questions:           30,
     session_mode:                  "timed",
     difficulty_level:              "easy",
     time_limit_minutes:            45,
-    subjects_selected:             [],
-    custom_subject_names:          [],
+    subjects_selected:             preselectedSubject ? [preselectedSubject.id] : [],
     topics_selected:               [],
     show_explanation_after_answer: false,
+    enable_proctoring:             false,
   },
 });
 const router = useRouter()
-// Subjects toggle — when OFF we send subjects_selected: [] (backend treats
-// as "all subjects"); when ON, user must pick one or more from this exam.
-const [useSubjects, setUseSubjects] = useState(false);
-// Controlled draft input for the "type to add" field.
-const [subjectDraft, setSubjectDraft] = useState("");
+// Subjects toggle — OFF means "all subjects". When a preselected subject is
+// passed in we force the toggle ON and hide the picker entirely.
+const [useSubjects, setUseSubjects] = useState(!!preselectedSubject);
 const { data: examDetails, isLoading: loadingSubjects } =
   useGetAvailableExamsDetails(open?.id ? String(open.id) : "");
 const availableSubjects = examDetails?.data?.subjects ?? [];
 
-const [proctoring, setProctoring] = useState<boolean>(() => {
-  if (typeof window === "undefined") return false;
-  try {
-    const raw = localStorage.getItem("prep:proctor_prefs");
-    if (raw) {
-      const p = JSON.parse(raw);
-      if (typeof p.byDefault === "boolean") return p.byDefault;
-    }
-  } catch { /* ignore */ }
-  return false;
-});
 const {mutate:handleStart,isPending} = useStartPracticeExam()
 const onSubmit = (data: z.output<typeof sessionSchema>) => {
   // Enter browser fullscreen synchronously on the user's click so the gesture
@@ -130,11 +120,12 @@ const onSubmit = (data: z.output<typeof sessionSchema>) => {
   handleStart(data,{
     onSuccess:(res)=>{
        if (typeof window !== "undefined") {
-         sessionStorage.setItem("prep:proctoring", proctoring ? "on" : "off");
+         // Runtime marker read by Calculator + start-practice page
+         sessionStorage.setItem("prep:proctoring", data.enable_proctoring ? "on" : "off");
          // New practice → wipe any prior proctoring reports from this device.
          clearProctorReports();
        }
-       router.push(`/dashboard/practice/start-practice/${res?.data?.session.id}`)
+       router.push(`/dashboard/practice/start-practice/${res?.data?.session?.id ?? res?.data?.id}`)
     },
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 onError: (error: any) => {
@@ -150,35 +141,41 @@ onError: (error: any) => {
 
 
 
-
 const sessionMode   = useWatch({ control, name: "session_mode" });
 const numQuestions  = useWatch({ control, name: "number_of_questions" });
 const timeLimitMins = useWatch({ control, name: "time_limit_minutes" });
 const diffLevel     = useWatch({ control, name: "difficulty_level" });
-const subjectsVal   = useWatch({ control, name: "subjects_selected" }) ?? [];
-const customVal     = useWatch({ control, name: "custom_subject_names" }) ?? [];
+const subjectsVal   = (useWatch({ control, name: "subjects_selected" }) ?? []) as number[];
 
 // Flipping the toggle off should wipe any previously-picked subjects so the
-// backend receives [] (interpreted as "all subjects").
+// backend receives [] (interpreted as "all subjects"). When a subject is
+// preselected we leave it alone — toggle is forced on and the picker is hidden.
 useEffect(() => {
+  if (preselectedSubject) return;
   if (!useSubjects) {
     setValue("subjects_selected", []);
-    setValue("custom_subject_names", []);
-    setSubjectDraft("");
   }
   // eslint-disable-next-line react-hooks/exhaustive-deps
 }, [useSubjects]);
 
-const subjectsBlocked =
-  useSubjects && subjectsVal.length === 0 && customVal.length === 0;
-// const showExplain   = useWatch({ control, name: "show_explanation_after_answer" });
+// Turning the toggle ON auto-selects every subject in the exam, so the user
+// starts with "all subjects of this exam" instead of an empty list.
+useEffect(() => {
+  if (preselectedSubject) return;
+  if (!useSubjects) return;
+  if (availableSubjects.length === 0) return;
+  if (subjectsVal.length > 0) return;
+  setValue("subjects_selected", availableSubjects.map((s) => s.id));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, [useSubjects, availableSubjects]);
 
+const subjectsBlocked = useSubjects && subjectsVal.length === 0;
 
 
   return (
 
     <>
-    <Dialog open={open !== null} onOpenChange={() => onClose?.()}>
+    <Dialog open={open !== null} >
       <DialogContent
         className="bg-white dark:bg-zinc-900 border-none p-0 z-30 text-slate-900 dark:text-zinc-100"
         style={{ maxWidth: 520, zIndex: 9999 }}
@@ -230,7 +227,26 @@ const subjectsBlocked =
               {errors.difficulty_level && <p className="text-[10px] text-red-500 mt-1">{errors.difficulty_level.message}</p>}
             </div>
 
-            {/* Specific subjects toggle + multi-select */}
+            {/* Locked-in subject indicator — shown when a single subject was
+                picked from the user's exams in the sidebar */}
+            {preselectedSubject && (
+              <div className="flex items-center gap-2 rounded-xl border border-indigo-300 bg-indigo-50/50 dark:border-indigo-500/40 dark:bg-indigo-500/5 p-3">
+                <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 bg-indigo-100 dark:bg-indigo-500/20">
+                  <BookOpen size={14} className="text-indigo-600 dark:text-indigo-300" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-xs font-semibold text-slate-700 dark:text-zinc-300 leading-tight">
+                    Practicing: <span className="text-indigo-700 dark:text-indigo-300">{preselectedSubject.name}</span>
+                  </p>
+                  <p className="text-[10px] text-slate-400 leading-snug mt-0.5">
+                    This subject was picked from your exams
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* Specific subjects toggle + multi-select — hidden when a single subject is preselected */}
+            {!preselectedSubject && (
             <div className={`rounded-xl border p-3 transition-all ${useSubjects ? "border-indigo-300 bg-indigo-50/50 dark:border-indigo-500/40 dark:bg-indigo-500/5" : "border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900"}`}>
               <div className="flex items-center justify-between">
                 <div className="flex items-start gap-2 min-w-0">
@@ -270,135 +286,80 @@ const subjectsBlocked =
                       name="subjects_selected"
                       control={control}
                       render={({ field }) => {
-                        const selected = new Set((field.value ?? []) as number[]);
-                        const allSelected = selected.size === availableSubjects.length;
+                        const selectedIds = (field.value ?? []) as number[];
+                        const selectedSet = new Set(selectedIds);
+                        const remaining = availableSubjects.filter(s => !selectedSet.has(s.id));
+                        const allOn = remaining.length === 0;
+
                         return (
                           <>
                             <div className="flex items-center justify-between mb-2">
                               <p className="text-[10px] font-semibold text-slate-500 dark:text-zinc-400 tabular-nums">
-                                {selected.size} of {availableSubjects.length} selected
+                                {selectedIds.length} of {availableSubjects.length} selected
                               </p>
-                              <div className="flex items-center gap-2">
-                                <button
-                                  type="button"
-                                  onClick={() => field.onChange(allSelected ? [] : availableSubjects.map(s => s.id))}
-                                  className="text-[10px] font-semibold text-indigo-600 dark:text-indigo-300 hover:underline"
-                                >
-                                  {allSelected ? "Clear all" : "Select all"}
-                                </button>
+                              <button
+                                type="button"
+                                onClick={() => field.onChange(allOn ? [] : availableSubjects.map(s => s.id))}
+                                className="text-[10px] font-semibold text-indigo-600 dark:text-indigo-300 hover:underline"
+                              >
+                                {allOn ? "Clear all" : "Select all"}
+                              </button>
+                            </div>
+
+                            {/* Dropdown — pick a subject from the exam to add it */}
+                            <Select
+                              value=""
+                              onValueChange={(v) => {
+                                const id = Number(v);
+                                if (!id || selectedSet.has(id)) return;
+                                field.onChange([...selectedIds, id]);
+                              }}
+                              disabled={allOn}
+                            >
+                              <SelectTrigger className="h-9 w-full bg-white dark:bg-zinc-900 dark:text-white text-xs">
+                                <SelectValue placeholder={allOn ? "All subjects added" : "Add a subject"} />
+                              </SelectTrigger>
+                              <SelectContent
+                                className="z-10000"
+                                position="popper"
+                                sideOffset={4}
+                              >
+                                {remaining.map(s => (
+                                  <SelectItem key={s.id} className="text-xs" value={String(s.id)}>{s.name}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+
+                            {/* Selected subject chips with delete */}
+                            {selectedIds.length > 0 && (
+                              <div className="mt-2 flex flex-wrap gap-1.5">
+                                {selectedIds.map(id => {
+                                  const subj = availableSubjects.find(s => s.id === id);
+                                  const label = subj?.name ?? `Subject #${id}`;
+                                  return (
+                                    <span
+                                      key={id}
+                                      className="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 rounded-full bg-indigo-600 text-white border border-indigo-600"
+                                    >
+                                      {label}
+                                      <button
+                                        type="button"
+                                        onClick={() => field.onChange(selectedIds.filter(x => x !== id))}
+                                        className="ml-0.5 text-white/80 hover:text-white"
+                                        aria-label={`Remove ${label}`}
+                                      >
+                                        <X size={11} strokeWidth={3} />
+                                      </button>
+                                    </span>
+                                  );
+                                })}
                               </div>
-                            </div>
-                            <div className="flex flex-wrap gap-1.5">
-                              {availableSubjects.map(s => {
-                                const isOn = selected.has(s.id);
-                                return (
-                                  <button
-                                    type="button"
-                                    key={s.id}
-                                    onClick={() => {
-                                      const next = new Set(selected);
-                                      if (isOn) next.delete(s.id); else next.add(s.id);
-                                      field.onChange(Array.from(next));
-                                    }}
-                                    className={`inline-flex items-center gap-1 text-xs font-semibold px-3 py-1.5 rounded-full border transition-all ${
-                                      isOn
-                                        ? "bg-indigo-600 text-white border-indigo-600"
-                                        : "bg-white dark:bg-zinc-900 text-slate-600 dark:text-zinc-300 border-slate-200 dark:border-zinc-700 hover:border-indigo-300 hover:text-indigo-600"
-                                    }`}
-                                  >
-                                    {isOn && <Check size={11} strokeWidth={3} />}
-                                    {s.name}
-                                  </button>
-                                );
-                              })}
-                            </div>
+                            )}
                           </>
                         );
                       }}
                     />
                   )}
-
-                  {/* Type-to-add: covers subjects the official list is missing. */}
-                  <Controller
-                    name="custom_subject_names"
-                    control={control}
-                    render={({ field }) => {
-                      const custom = (field.value ?? []) as string[];
-                      const addCustom = () => {
-                        const value = subjectDraft.trim();
-                        if (!value) return;
-
-                        // If the typed name matches an available subject (case-
-                        // insensitive), toggle that one instead of adding a dup.
-                        const match = availableSubjects.find(
-                          s => s.name.toLowerCase() === value.toLowerCase(),
-                        );
-                        if (match) {
-                          const ids = new Set((subjectsVal ?? []) as number[]);
-                          ids.add(match.id);
-                          setValue("subjects_selected", Array.from(ids));
-                          setSubjectDraft("");
-                          return;
-                        }
-
-                        // Dedupe custom names (case-insensitive).
-                        if (custom.some(n => n.toLowerCase() === value.toLowerCase())) {
-                          setSubjectDraft("");
-                          return;
-                        }
-                        field.onChange([...custom, value]);
-                        setSubjectDraft("");
-                      };
-
-                      return (
-                        <div className="mt-3">
-                          <p className="text-[10px] font-semibold text-slate-500 dark:text-zinc-400 mb-1.5">
-                            Add a subject not listed
-                          </p>
-                          <div className="flex gap-1.5">
-                            <input
-                              value={subjectDraft}
-                              onChange={e => setSubjectDraft(e.target.value)}
-                              onKeyDown={e => {
-                                if (e.key === "Enter") { e.preventDefault(); addCustom(); }
-                              }}
-                              placeholder="e.g. Further Mathematics"
-                              className="flex-1 h-9 border border-slate-200 dark:border-zinc-700 rounded-lg px-3 text-xs text-slate-700 dark:text-zinc-200 bg-white dark:bg-zinc-900 placeholder:text-slate-300 dark:placeholder:text-zinc-500 focus:outline-none focus:border-indigo-400 transition-colors"
-                            />
-                            <button
-                              type="button"
-                              onClick={addCustom}
-                              disabled={!subjectDraft.trim()}
-                              className="h-9 px-4 rounded-lg text-xs font-semibold bg-slate-900 dark:bg-zinc-100 text-white dark:text-zinc-900 hover:bg-slate-800 dark:hover:bg-zinc-200 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                            >
-                              Add
-                            </button>
-                          </div>
-
-                          {custom.length > 0 && (
-                            <div className="mt-2 flex flex-wrap gap-1.5">
-                              {custom.map(name => (
-                                <span
-                                  key={name}
-                                  className="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 rounded-full bg-[#F7C948]/30 dark:bg-amber-500/15 text-[#5A3300] dark:text-amber-200 border border-[#F7C948] dark:border-amber-500/40"
-                                >
-                                  {name}
-                                  <button
-                                    type="button"
-                                    onClick={() => field.onChange(custom.filter(n => n !== name))}
-                                    className="ml-0.5 text-[#5A3300]/70 dark:text-amber-200/70 hover:text-[#5A3300] dark:hover:text-amber-100"
-                                    aria-label={`Remove ${name}`}
-                                  >
-                                    <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M1 1L9 9M9 1L1 9" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/></svg>
-                                  </button>
-                                </span>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      );
-                    }}
-                  />
 
                   {subjectsBlocked && (
                     <p className="text-[10px] text-amber-600 dark:text-amber-400 mt-2">
@@ -408,6 +369,7 @@ const subjectsBlocked =
                 </div>
               )}
             </div>
+            )}
 
             {/* Number of Questions */}
             <div>
@@ -568,35 +530,44 @@ const subjectsBlocked =
             </div>
 
             {/* Proctoring */}
-            <div className={`rounded-xl border p-3 transition-all ${proctoring ? "border-emerald-300 bg-emerald-50/50 dark:border-emerald-500/40 dark:bg-emerald-500/10" : "border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900"}`}>
-              <div className="flex items-center justify-between">
-                <div className="flex items-start gap-2 min-w-0">
-                  <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${proctoring ? "bg-emerald-100 dark:bg-emerald-500/20" : "bg-slate-100 dark:bg-zinc-800"}`}>
-                    <ShieldCheck size={14} className={proctoring ? "text-emerald-600 dark:text-emerald-400" : "text-slate-400 dark:text-zinc-500"} />
+            <Controller
+              name="enable_proctoring"
+              control={control}
+              render={({ field }) => {
+                const on = !!field.value;
+                return (
+                  <div className={`rounded-xl border p-3 transition-all ${on ? "border-emerald-300 bg-emerald-50/50 dark:border-emerald-500/40 dark:bg-emerald-500/10" : "border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900"}`}>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-start gap-2 min-w-0">
+                        <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${on ? "bg-emerald-100 dark:bg-emerald-500/20" : "bg-slate-100 dark:bg-zinc-800"}`}>
+                          <ShieldCheck size={14} className={on ? "text-emerald-600 dark:text-emerald-400" : "text-slate-400 dark:text-zinc-500"} />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-xs font-semibold text-slate-700 dark:text-zinc-200 leading-tight">Enable proctoring</p>
+                          <p className="text-[10px] text-slate-400 dark:text-white/70 leading-snug mt-0.5">
+                            Webcam monitors for phones, second person, and looking away
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => field.onChange(!on)}
+                        className={`relative rounded-full transition-colors duration-200 shrink-0 ml-2 ${on ? "bg-emerald-500 dark:bg-emerald-500" : "bg-slate-200 dark:bg-zinc-700"}`}
+                        style={{ width: 40, height: 22 }}
+                        aria-pressed={on}
+                      >
+                        <div className={`absolute top-0.75 w-4 h-4 bg-white rounded-full shadow transition-all duration-200 ${on ? "left-5.5" : "left-0.75"}`} />
+                      </button>
+                    </div>
+                    {on && (
+                      <p className="text-[10px] text-emerald-700 dark:text-emerald-300 mt-2 pl-9">
+                        You&apos;ll be prompted for camera access when the session starts.
+                      </p>
+                    )}
                   </div>
-                  <div className="min-w-0">
-                    <p className="text-xs font-semibold text-slate-700 dark:text-zinc-200 leading-tight">Enable proctoring</p>
-                    <p className="text-[10px] text-slate-400 dark:text-white/70 leading-snug mt-0.5">
-                      Webcam monitors for phones, second person, and looking away
-                    </p>
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setProctoring(p => !p)}
-                  className={`relative rounded-full transition-colors duration-200 shrink-0 ml-2 ${proctoring ? "bg-emerald-500 dark:bg-emerald-500" : "bg-slate-200 dark:bg-zinc-700"}`}
-                  style={{ width: 40, height: 22 }}
-                  aria-pressed={proctoring}
-                >
-                  <div className={`absolute top-0.75 w-4 h-4 bg-white rounded-full shadow transition-all duration-200 ${proctoring ? "left-5.5" : "left-0.75"}`} />
-                </button>
-              </div>
-              {proctoring && (
-                <p className="text-[10px] text-emerald-700 dark:text-emerald-300 mt-2 pl-9">
-                  You&apos;ll be prompted for camera access when the session starts.
-                </p>
-              )}
-            </div>
+                );
+              }}
+            />
 
             {/* Summary chips */}
             <div className="flex flex-wrap gap-2 py-3 border-t border-slate-100">

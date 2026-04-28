@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { availableExamDetails } from "../../types/dashboard/examlisttypes";
 
 export const getAvailableExamsDetails = async (id:string) => {
-  const response = await adminAxios.get(`api/v1/prepmaster/student/exam-types/${id}/`);
+  const response = await adminAxios.get(`api/v1/prep-master/exams/${id}/`);
   return response?.data as availableExamDetails;
 };
 

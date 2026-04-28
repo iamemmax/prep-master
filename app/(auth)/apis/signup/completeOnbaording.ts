@@ -8,42 +8,19 @@ import { useMutation } from "@tanstack/react-query";
  */
 
 
-interface prop {
+export interface CompleteOnboardingPayload {
   email: string;
-  country: string;
-  preparing_for_exam: string;
-  other_exam: string;
-  exam_date: string;
-  target_score: string;
-  daily_study_hours: number;
-  current_level: string;
-  send_progress_report: boolean;
+  country: string | null;
+  exam_type: number | null;
+  exam_date: string | null;
+  target_score: string | null;
+  daily_study_hours: number | null;
+  current_level: string | null;
+  send_progress_report: boolean | null;
 }
 
 
-// interface RootObject {
-//   status: string;
-//   data: Data;
-//   message: string;
-// }
-
-// interface Data {
-//   user: User;
-//   profile: Profile;
-//   access_token: string;
-//   refresh_token: string;
-// }
-
-// interface Profile {
-//   country: string;
-// }
-
-// interface User {
-//   id: number;
-//   email: string;
-//   user_type: string;
-// }
-const completeOnboarding = async (payload: prop) => {
+const completeOnboarding = async (payload: CompleteOnboardingPayload) => {
   const response = await tokenlessAxios.post('/api/v1/prep-master/onboarding/complete/', payload);
   return response?.data;
 }

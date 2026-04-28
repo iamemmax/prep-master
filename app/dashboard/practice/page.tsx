@@ -10,16 +10,19 @@ import SessionSetupModal from "../components/practices/StartSessionModal";
 import PracticeIntakeModal from "../components/practices/PracticeIntakeModal";
 import ActiveSessionsStrip from "../components/practices/ActiveSessionsStrip";
 import QuickActions from "../components/practices/QuickActions";
-import CategoryTabs from "../components/practices/CategoryTabs";
-import { X, SlidersHorizontal, ChevronLeft, ChevronRight, ArrowUpDown, Sparkles } from "lucide-react";
-import { PAGE_SIZE, useGetPracticeExamList } from "../util/apis/practice/examsList";
+import UpdateExamsModal from "../components/practices/UpdateExamsModal";
+import { useAuth } from "@/context/authentication";
+import { X, SlidersHorizontal, ChevronRight, ArrowUpDown, Sparkles, BookOpenCheck } from "lucide-react";
 import { useGetAvailableExamsDetails } from "../util/apis/practice/availableExamsDetails";
 import { availableData } from "../util/types/dashboard/examlisttypes";
+import { useGetDashboardOverview } from "../util/apis/dashboard/fetchDashboardOverview";
+import { Userexam } from "../util/types/dashboard/dashbaordOverview";
 import { TourAutoStart } from "../util/tour/TourContext";
 import { isProductionGated } from "@/components/shared/coming-soon-gate";
 
 export interface Exam {
-  id: number;
+  id: number;                 // exam_type id — used to fetch exam subjects/details
+  examConfigId?: number;      // Userexam.id — sent as exam_config_id when starting a session
   name: string;
   description: string;
   questions: number;
@@ -69,7 +72,7 @@ function mapToExam(d: availableData): Exam {
     name: d.name,
     description: d.description,
     questions: d.total_questions,
-    topics: d.total_topics,
+    topics: d.total_topics || d?.subject_count,
     difficulty: diff.charAt(0).toUpperCase() + diff.slice(1),
     freeAccess: 50,
     lastScore: d.previous_score_percentage ?? null,
@@ -83,104 +86,35 @@ function mapToExam(d: availableData): Exam {
   };
 }
 
+function mapUserExamToExam(ue: Userexam): Exam {
+  const et = ue.exam_type;
+  const diff = (et.difficulty_level ?? "medium").toLowerCase() as Exam["difficulty_level"];
+  return {
+    id: et.id,
+    examConfigId: ue.id,
+    name: et.name,
+    description: et.description,
+    questions: et.total_questions,
+    topics: et.total_topics || et.subjects?.length || 0,
+    difficulty: diff.charAt(0).toUpperCase() + diff.slice(1),
+    freeAccess: 50,
+    lastScore: et.previous_score_percentage ?? null,
+    progress: et.previous_score_percentage ?? 0,
+    badge: et.is_premium ? "Premium" : null,
+    category: et.name,
+    access: et.is_premium ? "premium" : "free",
+    difficulty_level: diff,
+    started: et.active_session_id != null,
+    sessionId: et.active_session_id ?? undefined,
+  };
+}
+
 function Chip({ label, onRemove }: ChipProps) {
   return (
     <span className="inline-flex items-center gap-1.5 bg-indigo-50 dark:bg-indigo-500/15 text-indigo-700 dark:text-indigo-300 text-xs font-semibold px-3 py-1 rounded-full border border-indigo-200 dark:border-indigo-500/30">
       {label}
       <button onClick={onRemove} className="text-indigo-400 dark:text-indigo-300/70 hover:text-indigo-700 dark:hover:text-indigo-200 font-bold">×</button>
     </span>
-  );
-}
-
-// ─── Pagination ───────────────────────────────────────────────────────────────
-interface PaginationProps {
-  page:       number;
-  totalCount: number;
-  pageSize:   number;
-  hasNext:    boolean;
-  hasPrev:    boolean;
-  onChange:   (page: number) => void;
-  isLoading:  boolean;
-}
-
-function Pagination({ page, totalCount, pageSize, hasNext, hasPrev, onChange, isLoading }: PaginationProps) {
-  const totalPages = Math.ceil(totalCount / pageSize);
-  if (totalPages <= 1 && !hasNext && !hasPrev) return null;
-
-  // Build visible page numbers: always show first, last, current ±1
-  function getPageNumbers(): (number | "…")[] {
-    const pages: (number | "…")[] = [];
-    const delta = 1;
-    const range: number[] = [];
-
-    for (let i = Math.max(2, page - delta); i <= Math.min(totalPages - 1, page + delta); i++) {
-      range.push(i);
-    }
-
-    if (range[0] > 2) pages.push(1, "…");
-    else pages.push(1);
-
-    pages.push(...range);
-
-    if (range[range.length - 1] < totalPages - 1) pages.push("…", totalPages);
-    else pages.push(totalPages);
-
-    return pages;
-  }
-
-  const btnBase = "flex items-center justify-center text-sm font-medium rounded-lg transition-all h-9 min-w-[36px] px-2";
-  const activeBtn = `${btnBase} bg-indigo-600 text-white`;
-  const idleBtn   = `${btnBase} border border-slate-200 text-slate-600 hover:bg-slate-50 hover:border-slate-300`;
-  const disabledBtn = `${btnBase} border border-slate-100 text-slate-300 cursor-not-allowed`;
-
-  const start = (page - 1) * pageSize + 1;
-  const end   = Math.min(page * pageSize, totalCount);
-
-  return (
-    <div className="flex flex-col sm:flex-row items-center justify-between gap-3 mt-8 pt-5 border-t border-slate-100">
-      {/* Count */}
-      <p className="text-xs text-slate-400 shrink-0">
-        Showing <span className="font-medium text-slate-600">{start}–{end}</span> of{" "}
-        <span className="font-medium text-slate-600">{totalCount}</span> exams
-      </p>
-
-      {/* Controls */}
-      <div className="flex items-center gap-1.5">
-        {/* Prev */}
-        <button
-          onClick={() => onChange(page - 1)}
-          disabled={!hasPrev || isLoading}
-          className={`flex items-center gap-1 ${hasPrev && !isLoading ? idleBtn : disabledBtn}`}
-        >
-          <ChevronLeft className="w-4 h-4" /> Prev
-        </button>
-
-        {/* Page numbers */}
-        {getPageNumbers().map((p, i) =>
-          p === "…" ? (
-            <span key={`ellipsis-${i}`} className="w-9 text-center text-slate-400 text-sm select-none">…</span>
-          ) : (
-            <button
-              key={p}
-              onClick={() => onChange(p as number)}
-              disabled={isLoading}
-              className={p === page ? activeBtn : idleBtn}
-            >
-              {p}
-            </button>
-          )
-        )}
-
-        {/* Next */}
-        <button
-          onClick={() => onChange(page + 1)}
-          disabled={!hasNext || isLoading}
-          className={`flex items-center gap-1 ${hasNext && !isLoading ? idleBtn : disabledBtn}`}
-        >
-          Next <ChevronRight className="w-4 h-4" />
-        </button>
-      </div>
-    </div>
   );
 }
 
@@ -231,22 +165,44 @@ export default function PracticeExamsPage() {
   const [search, setSearch]             = useState<string>("");
   const [sidebarOpen, setSidebarOpen]   = useState(false);
   const [selectedExamRef, setSelectedExamRef] = useState<string | null>(null);
-  const [page, setPage]                 = useState(1);
   const [intakeOpen, setIntakeOpen]     = useState(false);
+  const [examsModalOpen, setExamsModalOpen] = useState(false);
   const [sortBy, setSortBy]             = useState<SortKey>("recommended");
   const [category, setCategory]         = useState<string>("All");
 
-  const { data: listResponse, isLoading: listLoading, isFetching } = useGetPracticeExamList(page);
-  const { data: detailResponse, isLoading: detailLoading }         = useGetAvailableExamsDetails(selectedExamRef ?? "");
+  const { authState: { user } } = useAuth();
+  const { data: overviewResponse, isLoading: overviewLoading, isFetching } = useGetDashboardOverview();
+  const { data: detailResponse, isLoading: detailLoading }                 = useGetAvailableExamsDetails(selectedExamRef ?? "");
 
-  const isLoading = selectedExamRef ? detailLoading : listLoading;
+  const isLoading = selectedExamRef ? detailLoading : overviewLoading;
 
   const apiExams = useMemo<Exam[]>(() => {
     if (selectedExamRef) {
-      return detailResponse?.data ? [mapToExam(detailResponse.data)] : [];
+      if (!detailResponse?.data) return [];
+      const mapped = mapToExam(detailResponse.data);
+      // Resolve the user-exam id (exam_config_id) by matching against user_exams.
+      // The selected ref may be the exam_type itself or one of its subjects.
+      const userExams = overviewResponse?.data?.user_exams ?? [];
+      const userExam =
+        userExams.find(ue => ue.exam_type.id === mapped.id) ??
+        userExams.find(ue => ue.exam_type.subjects?.some(s => s.reference === selectedExamRef));
+      return [{ ...mapped, examConfigId: userExam?.id }];
     }
-    return Array.isArray(listResponse?.data) ? listResponse.data.map(mapToExam) : [];
-  }, [selectedExamRef, listResponse, detailResponse]);
+    const userExams = overviewResponse?.data?.user_exams ?? [];
+    return userExams.map(mapUserExamToExam);
+  }, [selectedExamRef, overviewResponse, detailResponse]);
+
+  // If the user picked a specific subject in the sidebar (rather than a whole
+  // exam), find it inside user_exams so we can pre-select + lock it in the
+  // session-setup modal.
+  const preselectedSubject: { id: number; name: string } | null = (() => {
+    if (!selectedExamRef) return null;
+    for (const ue of overviewResponse?.data?.user_exams ?? []) {
+      const subj = ue.exam_type.subjects?.find(s => s.reference === selectedExamRef);
+      if (subj) return { id: subj.id, name: subj.name };
+    }
+    return null;
+  })();
 
   const activeExams = useMemo<Exam[]>(
     () => apiExams.filter(e => e.started),
@@ -282,27 +238,16 @@ export default function PracticeExamsPage() {
     return sorted;
   }, [apiExams, filters, search, category, sortBy]);
 
-  function handlePageChange(newPage: number) {
-    setPage(newPage);
-    // Scroll back to top of the exam grid smoothly
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  }
-
   const clearAll = () => {
     setFilters({ category: "All Exams", access: "All", difficulty: "Any Level" });
     setSearch("");
-    setPage(1);
   };
 
   const hasActiveFilters =
     filters.category !== "All Exams" || filters.access !== "All" ||
     filters.difficulty !== "Any Level" || !!search;
 
-  const totalCount    = listResponse?.count    ?? 0;
-  const hasNext       = !!listResponse?.next;
-  const hasPrev       = !!listResponse?.previous;
-  // Use actual items returned per page — server may ignore the requested page_size
-  const actualPageSize = listResponse?.data?.length || PAGE_SIZE;
+  const totalCount = apiExams.length;
 
   return (
     <div className="bg-white dark:bg-zinc-950 font-inter min-h-screen text-slate-900 dark:text-zinc-100">
@@ -397,7 +342,7 @@ export default function PracticeExamsPage() {
                 </button>
                 <div className="flex-1 sm:flex-none">
                   <DebounceInput
-                    onChange={(e) => { setSearch(e); setPage(1); }}
+                    onChange={(e) => { setSearch(e); }}
                     value={search}
                     placeHolder="Search for exams..."
                     className="bg-transparent w-full"
@@ -405,6 +350,14 @@ export default function PracticeExamsPage() {
                     iconPosition="left"
                   />
                 </div>
+                <button
+                  type="button"
+                  onClick={() => setExamsModalOpen(true)}
+                  className="inline-flex items-center gap-1.5 text-sm font-semibold h-10 px-3 rounded-[10px] border border-slate-200 dark:border-zinc-700 text-slate-600 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-800 transition-colors shrink-0"
+                >
+                  <BookOpenCheck size={15} />
+                  <span className="hidden sm:inline">Update my exams</span>
+                </button>
               </div>
             </div>
 
@@ -420,12 +373,6 @@ export default function PracticeExamsPage() {
 
             <FreeAccountBanner />
 
-            <CategoryTabs
-              categories={categoryOptions}
-              selected={category}
-              counts={categoryCounts}
-              onSelect={setCategory}
-            />
 
             {/* Active filter chips */}
             {hasActiveFilters && (
@@ -483,18 +430,6 @@ export default function PracticeExamsPage() {
                   ))}
                 </div>
 
-                {/* Pagination — only for full list, not when a single exam is selected */}
-                {!selectedExamRef && (
-                 <Pagination
-  page={page}
-  totalCount={totalCount}
-  pageSize={PAGE_SIZE}          // ← no more actualPageSize guess
-  hasNext={hasNext}
-  hasPrev={hasPrev}
-  onChange={handlePageChange}
-  isLoading={isFetching}
-/>
-                )}
               </>
             )}
 
@@ -517,12 +452,19 @@ export default function PracticeExamsPage() {
 
       <PracticeIntakeModal open={intakeOpen} onClose={() => setIntakeOpen(false)} />
 
+      <UpdateExamsModal
+        open={examsModalOpen}
+        onClose={() => setExamsModalOpen(false)}
+        country={user?.profile?.country ?? ""}
+      />
+
       {sessionExam && (
         <SessionSetupModal
           examName={sessionExam.name}
           examDesc={sessionExam.description}
           open={sessionExam}
           onClose={() => setSessionExam(null)}
+          preselectedSubject={preselectedSubject}
         />
       )}
     </div>
