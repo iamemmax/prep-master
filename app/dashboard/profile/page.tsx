@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import * as Avatar from "@radix-ui/react-avatar";
 import { useEffect } from "react";
-import { Sun, Moon, Monitor, User, BookOpen, Bell, Palette, Shield, LogOut, Check, ShieldCheck, Download, Trash2, FileText, Eye, Sparkles } from "lucide-react";
+import { Sun, Moon, Monitor, User, BookOpen, Bell, Palette, Shield, LogOut, Check, ShieldCheck, Download, Trash2, FileText, Eye, Sparkles, Mail, BadgeCheck, Crown, CalendarClock, Coins, Brain } from "lucide-react";
 import DashboardHeader from "../components/dashboard/DashboardHeader";
 import { useAuth } from "@/context/authentication";
 import { useTheme, Theme } from "@/context/theme";
@@ -23,7 +23,16 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useTour, TourAutoStart } from "../util/tour/TourContext";
-import { TOUR_META, TourId } from "../util/tour/tourSteps";
+import { TOUR_META, TourId, isTourAvailable } from "../util/tour/tourSteps";
+import { useUpdateProfile } from "../util/apis/profile/updateProfile";
+import { useGetSettings, useUpdateSettings, UpdateSettingsPayload } from "../util/apis/profile/settings";
+import { useGetPracticeExamConfig, ExamConfigEntry } from "../util/apis/practice/fetchExamConfig";
+import { useUserSubscription } from "../util/apis/subscription/subscription";
+import { useSubscription } from "../components/subscription/SubscriptionProvider";
+import { SmallSpinner } from "@/components/ui/Spinner";
+import toast from "react-hot-toast";
+import { formatAxiosErrorMessage } from "@/utils";
+import { AxiosError } from "axios";
 
 export default function ProfilePage() {
   const router = useRouter();
@@ -34,9 +43,45 @@ export default function ProfilePage() {
   const [firstName, setFirstName] = useState(user?.user?.first_name ?? "");
   const [lastName, setLastName]   = useState(user?.user?.last_name  ?? "");
   const [email]                   = useState(user?.user?.email      ?? "");
-  const [targetExam, setTargetExam] = useState(user?.exam_config?.preparing_for_exam ?? "SAT");
-  const [examDate, setExamDate]     = useState("2026-05-05");
-  const [targetScore, setTargetScore] = useState(85);
+
+  // Personal info update
+  const { mutate: updateProfile, isPending: isUpdatingProfile } = useUpdateProfile();
+  const handleSaveProfile = () => {
+    updateProfile(
+      { first_name: firstName, last_name: lastName },
+      {
+        onSuccess: () => toast.success("Profile updated."),
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        onError: (error: any) => {
+          const message =
+            error?.response?.data?.errors?.message ||
+            error?.response?.data?.message ||
+            formatAxiosErrorMessage(error as AxiosError) ||
+            "Couldn't update your profile.";
+          toast.error(String(message));
+        },
+      }
+    );
+  };
+
+  // Settings (notifications + proctor monitor toggles)
+  const { data: settingsResp } = useGetSettings();
+  const { mutate: saveSettings, isPending: isSavingSettings } = useUpdateSettings();
+  type PendingSection = "notifications" | "proctor" | null;
+  const [pendingSection, setPendingSection] = useState<PendingSection>(null);
+  // Exam preferences are sourced from /exam-config/ — the same endpoint used by
+  // the practice flow — so this section lists every config the user has on file.
+  const { data: examConfigResp, isLoading: loadingExamConfigs } = useGetPracticeExamConfig();
+  const examConfigs = examConfigResp?.data ?? [];
+
+  // Subscription panel (current plan, credits, renewal). Pulled from the
+  // same endpoint that powers the credit badge and upgrade gating.
+  const { data: subResp, isLoading: loadingSub } = useUserSubscription();
+  const { openUpgradeModal } = useSubscription();
+  const activeSub =
+    subResp?.data?.is_subscribed && subResp?.data?.subscription?.is_valid
+      ? subResp.data.subscription
+      : null;
   const [defaultMode, setDefaultMode] = useState<"timed" | "untimed" | "topic-focus">("timed");
   const [defaultDiff, setDefaultDiff] = useState<"easy" | "medium" | "hard" | "mixed">("medium");
   const [defaultCount, setDefaultCount] = useState(30);
@@ -70,6 +115,56 @@ export default function ProfilePage() {
   const [proctorMultiPerson, setProctorMultiPerson] = useState(() => boolOr(prefsInitial?.multiPerson, true));
   const [proctorGaze, setProctorGaze]               = useState(() => boolOr(prefsInitial?.gaze, true));
   const [proctorSensitivity, setProctorSensitivity] = useState<"low" | "medium" | "high">(() => sensOr(prefsInitial?.sensitivity));
+
+  // Hydrate notification + proctor-monitor toggles when the server payload
+  // arrives or changes. We use the "store info from previous renders"
+  // pattern instead of useEffect — calling setState during render with a
+  // ref-equality guard is React 19-safe and avoids the cascading-render
+  // warning that fires for setState-in-effect for query-derived state.
+  const settingsSnapshot = settingsResp?.data ?? null;
+  const [seenSettings, setSeenSettings] = useState<typeof settingsSnapshot>(null);
+  if (settingsSnapshot && settingsSnapshot !== seenSettings) {
+    setSeenSettings(settingsSnapshot);
+    setDailyReminder(settingsSnapshot.daily_study_reminder);
+    setWeeklyReport(settingsSnapshot.weekly_report);
+    setMarketingEmails(settingsSnapshot.product_updates);
+    setProctorCamera(settingsSnapshot.camera_feed);
+    setProctorAudio(settingsSnapshot.audio_cues);
+    setProctorPhone(settingsSnapshot.phone_detection);
+    setProctorGaze(settingsSnapshot.gaze_tracking);
+  }
+
+  // Section-scoped settings save — disables only the section currently saving
+  // so the others stay responsive.
+  const submitSection = (section: "notifications" | "proctor", payload: UpdateSettingsPayload) => {
+    setPendingSection(section);
+    saveSettings(payload, {
+      onSettled: () => setPendingSection(null),
+      onSuccess: () => toast.success("Settings updated."),
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      onError: (error: any) => {
+        const message =
+          error?.response?.data?.errors?.message ||
+          error?.response?.data?.message ||
+          formatAxiosErrorMessage(error as AxiosError) ||
+          "Couldn't update your settings.";
+        toast.error(String(message));
+      },
+    });
+  };
+
+  const handleSaveNotifications = () => submitSection("notifications", {
+    daily_study_reminder: dailyReminder,
+    weekly_report: weeklyReport,
+    product_updates: marketingEmails,
+  });
+
+  const handleSaveProctor = () => submitSection("proctor", {
+    camera_feed: proctorCamera,
+    audio_cues: proctorAudio,
+    phone_detection: proctorPhone,
+    gaze_tracking: proctorGaze,
+  });
 
   const handleDownloadReport = (report: StoredProctorReport) => {
     try { downloadProctorPDF(report); } catch { /* noop */ }
@@ -115,116 +210,150 @@ export default function ProfilePage() {
 
         {/* Personal info */}
         <Section title="Personal information" icon={<User size={14} />}>
-          <div className="flex items-center gap-4 mb-5">
-            <Avatar.Root className="w-16 h-16 rounded-full overflow-hidden shrink-0">
-              <Avatar.Fallback className="w-full h-full bg-linear-to-tr font-inter font-semibold text-xl from-[#2B7FFF] to-[#615FFF] flex items-center justify-center text-white">
-                {initials || "U"}
-              </Avatar.Fallback>
-            </Avatar.Root>
-            <div>
-              <button className="text-xs font-semibold text-slate-700 dark:text-zinc-200 border border-slate-200 dark:border-zinc-700 rounded-md px-3 py-1.5 hover:bg-slate-50 dark:hover:bg-zinc-800 transition-colors">
-                Change photo
-              </button>
-              <p className="text-[11px] text-slate-400 dark:text-zinc-500 mt-1.5">JPG or PNG · max 2MB</p>
+          {/* Identity hero — avatar + display name + verified email row */}
+          <div className="relative overflow-hidden rounded-2xl border border-slate-200 dark:border-zinc-800 bg-linear-to-br from-amber-50/80 via-white to-slate-50 dark:from-amber-500/10 dark:via-zinc-900 dark:to-zinc-950 px-5 py-5 mb-5">
+            <div
+              aria-hidden
+              className="absolute -right-12 -top-12 w-44 h-44 rounded-full bg-[#F7C948]/20 dark:bg-amber-500/15 blur-3xl pointer-events-none"
+            />
+            <div className="relative flex items-center gap-4">
+              <Avatar.Root className="w-16 h-16 rounded-full overflow-hidden shrink-0 ring-2 ring-[#F7C948] ring-offset-2 ring-offset-white dark:ring-offset-zinc-900 shadow-sm">
+                <Avatar.Fallback className="w-full h-full bg-linear-to-tr font-inter font-semibold text-xl from-[#2B7FFF] to-[#615FFF] flex items-center justify-center text-white">
+                  {initials || "U"}
+                </Avatar.Fallback>
+              </Avatar.Root>
+              <div className="min-w-0 flex-1">
+                <p className="text-base sm:text-lg font-bold text-slate-900 dark:text-zinc-100 leading-tight truncate">
+                  {firstName || lastName ? `${firstName} ${lastName}`.trim() : "Add your name"}
+                </p>
+                <div className="flex items-center gap-1.5 mt-1 min-w-0">
+                  <Mail size={12} className="text-slate-400 dark:text-zinc-500 shrink-0" />
+                  <span className="text-xs text-slate-500 dark:text-zinc-400 truncate">{email || "—"}</span>
+                  {email && (
+                    <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-500/10 px-1.5 py-0.5 rounded shrink-0">
+                      <BadgeCheck size={10} />
+                      Verified
+                    </span>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
 
+          {/* Editable fields */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Field label="First name">
               <input
                 value={firstName}
-                onChange={e => setFirstName(e.target.value)}
+                onChange={(e) => setFirstName(e.target.value)}
+                placeholder="Your first name"
                 className="ip"
               />
             </Field>
             <Field label="Last name">
               <input
                 value={lastName}
-                onChange={e => setLastName(e.target.value)}
+                onChange={(e) => setLastName(e.target.value)}
+                placeholder="Your last name"
                 className="ip"
               />
             </Field>
-            <Field label="Email" hint="Changing your email requires verification">
-              <input value={email} disabled className="ip disabled:opacity-60 disabled:cursor-not-allowed" />
+            <Field
+              label="Email"
+              hint="Changing your email requires verification — contact support."
+            >
+              <div className="relative">
+                <Mail
+                  size={13}
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-zinc-500 pointer-events-none"
+                />
+                <input
+                  value={email}
+                  disabled
+                  className="ip pl-9 disabled:opacity-70 disabled:cursor-not-allowed"
+                />
+              </div>
             </Field>
           </div>
+
+          <div className="mt-5 pt-4 border-t border-slate-100 dark:border-zinc-800 flex items-center justify-between gap-3 flex-wrap">
+            <p className="text-[11px] text-slate-400 dark:text-zinc-500">
+              Updates apply across the app instantly.
+            </p>
+            <button
+              type="button"
+              onClick={handleSaveProfile}
+              disabled={isUpdatingProfile}
+              className="inline-flex items-center gap-2 h-9 px-4 rounded-md bg-slate-900 dark:bg-zinc-100 text-white dark:text-zinc-900 text-xs font-semibold hover:bg-slate-800 dark:hover:bg-zinc-200 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+              {isUpdatingProfile ? <>Updating <SmallSpinner /></> : "Update profile"}
+            </button>
+          </div>
+        </Section>
+
+        {/* Subscription */}
+        <Section title="Subscription" icon={<Crown size={14} />}>
+          {loadingSub ? (
+            <div className="h-32 rounded-2xl bg-slate-100 dark:bg-zinc-800 animate-pulse" />
+          ) : activeSub ? (
+            <SubscriptionCard
+              planName={activeSub.plan.name}
+              tier={activeSub.plan.tier}
+              price={activeSub.plan.price}
+              currency={activeSub.plan.currency}
+              durationDays={activeSub.plan.duration_days}
+              status={activeSub.status}
+              startDate={activeSub.start_date}
+              endDate={activeSub.end_date}
+              daysRemaining={activeSub.days_remaining}
+              creditsRemaining={activeSub.ai_credits_remaining}
+              creditsTotal={activeSub.plan.ai_credits}
+              questionLimit={activeSub.plan.question_limit}
+              onUpgrade={openUpgradeModal}
+            />
+          ) : (
+            <FreePlanCta onUpgrade={openUpgradeModal} />
+          )}
         </Section>
 
         {/* Exam preferences */}
         <Section title="Exam preferences" icon={<BookOpen size={14} />}>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <Field label="Target exam">
-              <Select value={targetExam} onValueChange={setTargetExam}>
-                <SelectTrigger className="ip justify-between">
-                  <SelectValue placeholder="Select exam" />
-                </SelectTrigger>
-                <SelectContent>
-                  {["SAT", "ACT", "GRE", "GMAT", "IELTS", "TOEFL"].map(x => (
-                    <SelectItem key={x} value={x}>{x}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </Field>
-            <Field label="Exam date">
-              <input
-                type="date"
-                value={examDate}
-                onChange={e => setExamDate(e.target.value)}
-                className="ip"
-              />
-            </Field>
-            <Field label="Target score" hint="0–100">
-              <input
-                type="number"
-                min={0}
-                max={100}
-                value={targetScore}
-                onChange={e => setTargetScore(Number(e.target.value))}
-                className="ip tabular-nums"
-              />
-            </Field>
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-xs text-slate-500 dark:text-zinc-400">
+              {loadingExamConfigs
+                ? "Loading your exams…"
+                : examConfigs.length === 0
+                ? "You haven't added any exams yet."
+                : `${examConfigs.length} exam${examConfigs.length === 1 ? "" : "s"} on your study plan`}
+            </p>
           </div>
 
-          <hr className="my-5 border-slate-100 dark:border-zinc-800" />
+          {loadingExamConfigs ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {[0, 1].map(i => (
+                <div key={i} className="h-28 rounded-xl bg-slate-100 dark:bg-zinc-800 animate-pulse" />
+              ))}
+            </div>
+          ) : examConfigs.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-slate-200 dark:border-zinc-700 bg-slate-50/60 dark:bg-zinc-900/40 px-5 py-8 text-center">
+              <span className="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-[#F7C948]/15 text-[#F7C948] mb-3">
+                <BookOpen size={18} />
+              </span>
+              <p className="text-sm font-semibold text-slate-800 dark:text-zinc-100">No exams on file</p>
+              <p className="text-xs text-slate-500 dark:text-zinc-400 mt-1">
+                Add an exam from the Practice page and it will show up here.
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {examConfigs.map(c => (
+                <ExamConfigCard key={c.id} config={c} />
+              ))}
+            </div>
+          )}
 
-          <p className="text-xs font-semibold text-slate-700 dark:text-zinc-200 mb-3">Session defaults</p>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <Field label="Mode">
-              <Select value={defaultMode} onValueChange={v => setDefaultMode(v as typeof defaultMode)}>
-                <SelectTrigger className="ip justify-between">
-                  <SelectValue placeholder="Select mode" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="timed">Timed</SelectItem>
-                  <SelectItem value="untimed">Untimed</SelectItem>
-                  <SelectItem value="topic-focus">Topic focus</SelectItem>
-                </SelectContent>
-              </Select>
-            </Field>
-            <Field label="Difficulty">
-              <Select value={defaultDiff} onValueChange={v => setDefaultDiff(v as typeof defaultDiff)}>
-                <SelectTrigger className="ip justify-between">
-                  <SelectValue placeholder="Select difficulty" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="easy">Easy</SelectItem>
-                  <SelectItem value="medium">Medium</SelectItem>
-                  <SelectItem value="hard">Hard</SelectItem>
-                  <SelectItem value="mixed">Mixed</SelectItem>
-                </SelectContent>
-              </Select>
-            </Field>
-            <Field label="Questions per session">
-              <input
-                type="number"
-                min={1}
-                max={200}
-                value={defaultCount}
-                onChange={e => setDefaultCount(Number(e.target.value))}
-                className="ip tabular-nums"
-              />
-            </Field>
-          </div>
+
+   
         </Section>
 
         {/* Appearance */}
@@ -268,7 +397,9 @@ export default function ProfilePage() {
               Replay any guided tour. Each one takes under a minute.
             </p>
             <ul className="divide-y divide-slate-100 dark:divide-zinc-800">
-              {(Object.keys(TOUR_META) as TourId[]).map(tourId => {
+              {(Object.keys(TOUR_META) as TourId[])
+                .filter(tourId => isTourAvailable(tourId))
+                .map(tourId => {
                 const meta = TOUR_META[tourId];
                 return (
                   <li key={tourId} className="flex items-center gap-4 py-3">
@@ -361,6 +492,19 @@ export default function ProfilePage() {
             <p className="text-[11px] text-[#894B00] dark:text-amber-300 leading-relaxed">
               <span className="font-semibold">Heads up.</span> Once a proctored session starts, the monitor can be minimized but not closed until the session ends.
             </p>
+          </div>
+
+          <div className="mt-4 pt-4 border-t border-slate-100 dark:border-zinc-800 flex justify-end">
+            <button
+              type="button"
+              onClick={handleSaveProctor}
+              disabled={isSavingSettings && pendingSection === "proctor"}
+              className="inline-flex items-center gap-2 h-9 px-4 rounded-md bg-slate-900 dark:bg-zinc-100 text-white dark:text-zinc-900 text-xs font-semibold hover:bg-slate-800 dark:hover:bg-zinc-200 transition-colors disabled:opacity-60"
+            >
+              {isSavingSettings && pendingSection === "proctor"
+                ? <>Updating <SmallSpinner /></>
+                : "Update proctoring"}
+            </button>
           </div>
         </Section>
 
@@ -457,6 +601,19 @@ export default function ProfilePage() {
             onChange={setMarketingEmails}
             last
           />
+
+          <div className="mt-4 pt-4 border-t border-slate-100 dark:border-zinc-800 flex justify-end">
+            <button
+              type="button"
+              onClick={handleSaveNotifications}
+              disabled={isSavingSettings && pendingSection === "notifications"}
+              className="inline-flex items-center gap-2 h-9 px-4 rounded-md bg-slate-900 dark:bg-zinc-100 text-white dark:text-zinc-900 text-xs font-semibold hover:bg-slate-800 dark:hover:bg-zinc-200 transition-colors disabled:opacity-60"
+            >
+              {isSavingSettings && pendingSection === "notifications"
+                ? <>Updating <SmallSpinner /></>
+                : "Update notifications"}
+            </button>
+          </div>
         </Section>
 
         {/* Privacy */}
@@ -563,6 +720,248 @@ function Field({
       {children}
       {hint && <span className="block text-[10px] text-slate-400 dark:text-zinc-500 mt-1">{hint}</span>}
     </label>
+  );
+}
+
+function ExamConfigCard({ config }: { config: ExamConfigEntry }) {
+  const examDate = config.exam_date
+    ? new Date(config.exam_date).toLocaleDateString("en-GB", {
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+      })
+    : "Not set";
+  const target = config.target_score?.trim() ? config.target_score : "—";
+  const level = config.current_level?.trim() || null;
+  const hours = config.daily_study_hours;
+
+  return (
+    <div className="rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-4 hover:border-slate-300 dark:hover:border-zinc-700 transition-colors">
+      <div className="flex items-center gap-2 mb-3 flex-wrap">
+        <span className="inline-flex items-center h-6 px-2 rounded bg-[#F7C948] text-[#5A3300] font-black text-[10px] tracking-tight shrink-0">
+          {config.exam_type.name.toUpperCase()}
+        </span>
+        <span className="text-[10px] text-slate-400 dark:text-zinc-500 capitalize">
+           {config.exam_type.total_questions} questions
+        </span>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3 mb-3">
+        <div>
+          <p className="text-[10px] uppercase tracking-wider font-semibold text-slate-400 dark:text-zinc-500">Exam date</p>
+          <p className="text-sm font-semibold text-slate-800 dark:text-zinc-100 mt-0.5 tabular-nums">{examDate}</p>
+        </div>
+        <div>
+          <p className="text-[10px] uppercase tracking-wider font-semibold text-slate-400 dark:text-zinc-500">Target score</p>
+          <p className="text-sm font-semibold text-slate-800 dark:text-zinc-100 mt-0.5 tabular-nums">{target}</p>
+        </div>
+      </div>
+
+      {(level || hours != null || config.send_progress_report) && (
+        <div className="flex items-center gap-2 flex-wrap pt-3 border-t border-slate-100 dark:border-zinc-800">
+          {hours != null && (
+            <span className="inline-flex items-center text-[10px] font-semibold text-slate-600 dark:text-zinc-300 bg-slate-100 dark:bg-zinc-800 px-2 py-0.5 rounded">
+              {hours} hr{hours === 1 ? "" : "s"}/day
+            </span>
+          )}
+          {level && (
+            <span className="inline-flex items-center text-[10px] font-semibold text-slate-600 dark:text-zinc-300 bg-slate-100 dark:bg-zinc-800 px-2 py-0.5 rounded capitalize">
+              {level}
+            </span>
+          )}
+          {config.send_progress_report && (
+            <span className="inline-flex items-center text-[10px] font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-500/10 px-2 py-0.5 rounded">
+              Weekly report on
+            </span>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function formatPlanPrice(amount: string, currency: string): string {
+  const value = Number(amount);
+  if (Number.isNaN(value)) return `${amount} ${currency}`;
+  if (currency === "NGN") return `₦${value.toLocaleString("en-NG")}`;
+  return `${currency} ${value.toLocaleString()}`;
+}
+
+function planPeriodLabel(days: number): string {
+  if (days >= 360) return "year";
+  if (days >= 28) return "month";
+  if (days >= 7) return "week";
+  return `${days}d`;
+}
+
+function formatDateShort(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  return d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+}
+
+function SubscriptionCard({
+  planName, tier, price, currency, durationDays,
+  status, startDate, endDate, daysRemaining,
+  creditsRemaining, creditsTotal, questionLimit,
+  onUpgrade,
+}: {
+  planName: string;
+  tier: string;
+  price: string;
+  currency: string;
+  durationDays: number;
+  status: string;
+  startDate: string;
+  endDate: string;
+  daysRemaining: number;
+  creditsRemaining: number;
+  creditsTotal: number;
+  questionLimit: number;
+  onUpgrade: () => void;
+}) {
+  const creditPct = creditsTotal > 0
+    ? Math.min(100, Math.round((creditsRemaining / creditsTotal) * 100))
+    : 0;
+  const creditTone =
+    creditPct > 50 ? "bg-emerald-500"
+    : creditPct > 20 ? "bg-[#F7C948]"
+    : "bg-rose-500";
+  const isActive = status === "active";
+
+  return (
+    <div className="relative overflow-hidden rounded-2xl border border-[#F7C948]/40 dark:border-amber-500/30 bg-linear-to-br from-[#FFFBEB] via-white to-[#FFF7ED] dark:from-amber-500/10 dark:via-zinc-900 dark:to-orange-500/10">
+      <div
+        aria-hidden
+        className="absolute -right-12 -top-12 w-40 h-40 rounded-full bg-[#F7C948]/20 dark:bg-amber-500/15 blur-3xl pointer-events-none"
+      />
+
+      <div className="relative px-5 py-5">
+        {/* Header — plan + status pill */}
+        <div className="flex items-start justify-between gap-3 mb-4 flex-wrap">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <span className="inline-flex items-center justify-center w-9 h-9 rounded-xl bg-[#F7C948] text-[#5A3300] shrink-0 shadow-sm">
+              <Crown size={16} fill="currentColor" />
+            </span>
+            <div className="min-w-0">
+              <p className="text-sm font-bold text-slate-900 dark:text-zinc-100 leading-tight">
+                {planName}
+                <span className="ml-1.5 text-[10px] font-medium uppercase tracking-wider text-slate-400 dark:text-zinc-500">
+                  {tier}
+                </span>
+              </p>
+              <p className="text-[11px] text-slate-500 dark:text-zinc-400 mt-0.5 tabular-nums">
+                {formatPlanPrice(price, currency)}
+                <span className="text-slate-400 dark:text-zinc-500"> / {planPeriodLabel(durationDays)}</span>
+              </p>
+            </div>
+          </div>
+          <span
+            className={`inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${
+              isActive
+                ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300"
+                : "bg-slate-100 text-slate-600 dark:bg-zinc-800 dark:text-zinc-300"
+            }`}
+          >
+            <span className={`w-1.5 h-1.5 rounded-full ${isActive ? "bg-emerald-500" : "bg-slate-400 dark:bg-zinc-500"}`} />
+            {status}
+          </span>
+        </div>
+
+        {/* Allocation grid — credits + days remaining + question quota */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 mb-4">
+          <div className="rounded-lg bg-white/70 dark:bg-zinc-900/70 border border-slate-200/70 dark:border-zinc-800 p-3">
+            <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400">
+              <Brain size={11} className="text-[#F7C948]" />
+              AI credits
+            </div>
+            <p className="mt-1.5 text-base font-black tabular-nums text-slate-900 dark:text-zinc-100 leading-none">
+              {creditsRemaining.toLocaleString()}
+              <span className="text-xs text-slate-400 dark:text-zinc-500 font-medium ml-0.5">
+                /{creditsTotal.toLocaleString()}
+              </span>
+            </p>
+            <div className="h-1.5 rounded-full bg-slate-200 dark:bg-zinc-800 overflow-hidden mt-2">
+              <div className={`h-full rounded-full transition-all ${creditTone}`} style={{ width: `${creditPct}%` }} />
+            </div>
+          </div>
+          <div className="rounded-lg bg-white/70 dark:bg-zinc-900/70 border border-slate-200/70 dark:border-zinc-800 p-3">
+            <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400">
+              <CalendarClock size={11} className="text-[#F7C948]" />
+              Days left
+            </div>
+            <p className="mt-1.5 text-base font-black tabular-nums text-slate-900 dark:text-zinc-100 leading-none">
+              {daysRemaining}
+              <span className="text-xs text-slate-400 dark:text-zinc-500 font-medium ml-0.5">
+                /{durationDays}
+              </span>
+            </p>
+            <p className="text-[10px] text-slate-500 dark:text-zinc-400 mt-2 tabular-nums">
+              Renews {formatDateShort(endDate)}
+            </p>
+          </div>
+          <div className="rounded-lg bg-white/70 dark:bg-zinc-900/70 border border-slate-200/70 dark:border-zinc-800 p-3 col-span-2 sm:col-span-1">
+            <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400">
+              <Coins size={11} className="text-[#F7C948]" />
+              Questions
+            </div>
+            <p className="mt-1.5 text-base font-black tabular-nums text-slate-900 dark:text-zinc-100 leading-none">
+              {questionLimit.toLocaleString()}
+              <span className="text-xs text-slate-400 dark:text-zinc-500 font-medium ml-1">
+                / session
+              </span>
+            </p>
+            <p className="text-[10px] text-slate-500 dark:text-zinc-400 mt-2">
+              Cap per practice run
+            </p>
+          </div>
+        </div>
+
+        {/* Footer — period dates + manage */}
+        <div className="flex items-center justify-between gap-3 pt-3 border-t border-[#F7C948]/30 dark:border-amber-500/20 flex-wrap">
+          <p className="text-[11px] text-slate-500 dark:text-zinc-400 tabular-nums">
+            Active since <span className="font-semibold text-slate-700 dark:text-zinc-200">{formatDateShort(startDate)}</span>
+          </p>
+          <button
+            type="button"
+            onClick={onUpgrade}
+            data-no-paywall
+            className="inline-flex items-center gap-1.5 text-[11px] font-bold text-[#5A3300] bg-[#F7C948] hover:bg-[#F0BE36] px-3 h-8 rounded-md transition-colors"
+          >
+            Change plan
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function FreePlanCta({ onUpgrade }: { onUpgrade: () => void }) {
+  return (
+    <div className="relative overflow-hidden rounded-2xl border border-slate-200 dark:border-zinc-800 bg-linear-to-br from-slate-50 via-white to-amber-50/40 dark:from-zinc-900 dark:via-zinc-900 dark:to-amber-500/5 px-5 py-5">
+      <div className="flex items-start gap-4 flex-wrap">
+        <span className="inline-flex items-center justify-center w-10 h-10 rounded-xl bg-slate-100 dark:bg-zinc-800 text-slate-500 dark:text-zinc-400 shrink-0">
+          <Crown size={18} />
+        </span>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-bold text-slate-900 dark:text-zinc-100">You&apos;re on the Free plan</p>
+          <p className="text-xs text-slate-500 dark:text-zinc-400 mt-1 leading-relaxed">
+            Upgrade to unlock the full question bank, AI explanations, and longer practice
+            sessions. Cancel anytime.
+          </p>
+          <button
+            type="button"
+            onClick={onUpgrade}
+            data-no-paywall
+            className="mt-4 inline-flex items-center gap-1.5 text-xs font-bold px-4 h-9 rounded-md text-white shadow-sm transition-all hover:shadow-md hover:-translate-y-0.5"
+            style={{ background: "linear-gradient(135deg, #FE9A00, #FF6900)" }}
+          >
+            <Crown size={13} fill="currentColor" />
+            See upgrade options
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }
 

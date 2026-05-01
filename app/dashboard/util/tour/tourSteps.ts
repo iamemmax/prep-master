@@ -1,5 +1,7 @@
 // Copy and target selectors for every contextual tour in the app.
 // Each page that wants to guide a first-time visitor gets its own tour.
+import { isProductionGated } from "@/components/shared/coming-soon-gate";
+
 export interface TourStep {
   id: string;
   target: string;            // `[data-tour="..."]` selector
@@ -7,6 +9,13 @@ export interface TourStep {
   body: string;
   placement?: "bottom" | "top" | "left" | "right" | "auto";
   route?: string;            // navigate before showing this step
+  /**
+   * Step describes a feature that is hidden behind the production
+   * coming-soon gate. Excluded from TOURS at module load when
+   * isProductionGated() is true so the spotlight never lands on an
+   * invisible target in prod.
+   */
+  mvpGated?: boolean;
 }
 
 export type TourId =
@@ -17,16 +26,23 @@ export type TourId =
   | "progress"
   | "profile";
 
-export const TOUR_META: Record<TourId, { title: string; subtitle: string }> = {
+interface TourMeta {
+  title: string;
+  subtitle: string;
+  /** Entire tour describes gated functionality. Hidden in prod. */
+  mvpGated?: boolean;
+}
+
+const RAW_TOUR_META: Record<TourId, TourMeta> = {
   dashboard: { title: "Dashboard tour",  subtitle: "30s — where everything lives" },
   practice:  { title: "Practice tour",   subtitle: "How to start a session" },
   session:   { title: "Exam-room tour",  subtitle: "Navigating an active session" },
   review:    { title: "Review tour",     subtitle: "Learning from your answers" },
-  progress:  { title: "Progress tour",   subtitle: "Reading your long-term trends" },
+  progress:  { title: "Progress tour",   subtitle: "Reading your long-term trends", mvpGated: true },
   profile:   { title: "Profile tour",    subtitle: "Settings, reports, and preferences" },
 };
 
-export const TOURS: Record<TourId, TourStep[]> = {
+const RAW_TOURS: Record<TourId, TourStep[]> = {
   dashboard: [
     {
       id: "stats",
@@ -41,6 +57,7 @@ export const TOURS: Record<TourId, TourStep[]> = {
       title: "Your AI coach",
       body: "A personal nudge based on your recent performance. Shows what to focus on today and the one action that'll move the needle.",
       route: "/dashboard",
+      mvpGated: true,
     },
     {
       id: "countdown",
@@ -69,6 +86,7 @@ export const TOURS: Record<TourId, TourStep[]> = {
       title: "Long-term progress",
       body: "Accuracy trends, topic mastery, and an AI analysis of your patterns over time. Check in weekly.",
       route: "/dashboard",
+      mvpGated: true,
     },
     {
       id: "upgrade",
@@ -100,6 +118,7 @@ export const TOURS: Record<TourId, TourStep[]> = {
       title: "Custom practice from a prompt",
       body: "Paste a syllabus, describe what you want, or upload a doc — we'll spin up a tailored session. (Premium.)",
       route: "/dashboard/practice",
+      mvpGated: true,
     },
     {
       id: "practice-card",
@@ -148,7 +167,7 @@ export const TOURS: Record<TourId, TourStep[]> = {
       id: "review-filters",
       target: '[data-tour="review-filters"]',
       title: "Filter what matters",
-      body: "Lands on Wrong by default — that's where learning happens. Flip to Skipped or All any time.",
+      body: "Starts on All. Switch to Wrong to drill into mistakes, Correct to revisit what worked, or Skipped to clean up gaps.",
     },
     {
       id: "review-card",
@@ -212,3 +231,25 @@ export const TOURS: Record<TourId, TourStep[]> = {
     },
   ],
 };
+
+// Filter the tour catalogue at module load. In dev we keep every step so we
+// can validate copy as features land; in prod we drop steps and entire tours
+// whose targets are hidden behind the coming-soon gate, so the spotlight
+// never lands on an invisible element.
+const GATED = isProductionGated();
+
+export const TOURS: Record<TourId, TourStep[]> = GATED
+  ? (Object.fromEntries(
+      (Object.entries(RAW_TOURS) as [TourId, TourStep[]][]).map(([id, steps]) => {
+        if (RAW_TOUR_META[id].mvpGated) return [id, []];
+        return [id, steps.filter((s) => !s.mvpGated)];
+      }),
+    ) as Record<TourId, TourStep[]>)
+  : RAW_TOURS;
+
+export const TOUR_META: Record<TourId, TourMeta> = RAW_TOUR_META;
+
+/** True when the tour has at least one playable step in the current build. */
+export function isTourAvailable(id: TourId): boolean {
+  return TOURS[id].length > 0;
+}

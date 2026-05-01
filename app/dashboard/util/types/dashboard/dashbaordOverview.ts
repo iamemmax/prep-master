@@ -65,12 +65,12 @@ export interface dashbaordOverviewTypes {
 
 interface Data {
   overview: dashboardOverviewData;
-  daily_tip: null;
+  daily_tip: string | null;
   recent_sessions: Recentsessions;
   active_sessions: Recentsessions;
-  recommended_exams: Recommendedexams;
-    subscription: Subscription;
-      user_exams: Userexam[];
+  recommended_exams?: Recommendedexams;
+  subscription: Subscription;
+  user_exams: Userexam[];
 }
 
 interface Recommendedexams {
@@ -99,11 +99,16 @@ interface Subscription {
   free_question_limit: number;
   active_subscription: null;
 }
+
 interface Subject {
   id: number;
   reference: string;
   name: string;
+  difficulty_level:"easy"|"medium"|"hard"
+  total_topics: number;
+  total_questions: number;
 }
+
 
 interface Recentsessions {
   count: number;
@@ -125,16 +130,31 @@ export interface dashboardOverviewData {
 
 
 export interface Userexam {
-  id: number;
-  reference: string;
-  exam_type: Examtype;
+  config_id: number;
   exam_date: string | null;
   target_score: string | null;
   daily_study_hours: number | null;
   current_level: string | null;
-  send_progress_report: boolean | null;
+  send_progress_report?: boolean | null;
+  exam: UserExamExam;
 }
 
+/** Exam shape nested under each user_exams[].exam — distinct from the
+ *  recent_sessions[].exam_type shape, which still includes description/is_premium. */
+export interface UserExamExam {
+  id: number;
+  reference: string;
+  name: string;
+  country: string | null;
+  difficulty_level: string;
+  total_questions: number;
+  total_topics: number;
+  last_score: number | null;
+  active_session_id: number | null;
+  subjects: Subject[];
+}
+
+/** Legacy shape used elsewhere (e.g. recent_sessions[].exam_type). */
 export interface Examtype {
   id: number;
   reference: string;
@@ -148,3 +168,7 @@ export interface Examtype {
   active_session_id: number | null;
   subjects: Subject[];
 }
+
+
+
+

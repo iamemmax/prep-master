@@ -15,6 +15,7 @@ import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/compone
 import CoachDashboardWidget from "./components/coach/CoachDashboardWidget";
 import { DashboardInsightRequest } from "./util/ai/types";
 import ComingSoonGate, { isProductionGated } from "@/components/shared/coming-soon-gate";
+import UpdateExamsModal from "./components/practices/UpdateExamsModal";
 
 // Deterministic accent color based on the exam name so each badge stays the
 // same color across renders — avoids Math.random reshuffling on every render.
@@ -50,11 +51,16 @@ function StatCard({ icon, label, value, accent }: {
   icon: React.ReactNode; label: string; value: string; accent: string;
 }) {
   return (
-    <div className="bg-white dark:bg-zinc-900 rounded-[14px] px-4 py-4 flex items-center gap-3 border-[1.2px] border-[#E2E8F0] dark:border-zinc-800 hover:shadow-md transition-shadow">
-      <span style={{ color: accent }} className="shrink-0">{icon}</span>
-      <div>
-        <p className="text-xl font-bold text-slate-800 dark:text-zinc-100 leading-none">{value}</p>
-        <p className="text-xs text-slate-500 dark:text-zinc-400 mt-1">{label}</p>
+    <div className="bg-white dark:bg-zinc-900 rounded-[14px] px-3 py-3 sm:px-4 sm:py-4 flex items-center gap-2.5 sm:gap-3 border-[1.2px] border-[#E2E8F0] dark:border-zinc-800 hover:shadow-md transition-shadow">
+      <span
+        className="shrink-0 inline-flex items-center justify-center w-9 h-9 sm:w-10 sm:h-10 rounded-lg"
+        style={{ color: accent, backgroundColor: `${accent}1A` }} // 1A = ~10% alpha
+      >
+        {icon}
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className="text-base sm:text-xl font-bold text-slate-800 dark:text-zinc-100 leading-tight tabular-nums truncate">{value}</p>
+        <p className="text-[11px] sm:text-xs text-slate-500 dark:text-zinc-400 mt-0.5 sm:mt-1 leading-tight">{label}</p>
       </div>
     </div>
   );
@@ -81,6 +87,7 @@ export default function Dashboard() {
   const recommendedCount = response?.data?.recommended_exams?.count ?? recommendedExams.length;
   const dailyTip = response?.data?.daily_tip ?? DAILY_TIP;
   const [showAllExams, setShowAllExams] = useState(false);
+  const [examsModalOpen, setExamsModalOpen] = useState(false);
 
   // Build the dashboard-glance coach request from the overview snapshot.
   // Fields the backend doesn't yet surface (improvement delta, recentMistakes
@@ -96,25 +103,25 @@ export default function Dashboard() {
 
   const STATS = [
     {
-      icon: <Trophy size={28} />,
-      value: overview?.average_score != null ? `${overview.average_score}%` : "—",
+      icon: <Trophy size={20} />,
+      value: overview?.average_score != null ? `${Math.round(overview.average_score)}%` : "—",
       label: "Your Average Score",
       accent: "#F59E0B",
     },
     {
-      icon: <PrepLogo color="#2B7FFF" />,
+      icon: <PrepLogo color="#2B7FFF" width={20} height={20} />,
       value: overview?.questions_answered?.toString() ?? "—",
       label: "Questions Answered",
       accent: "#0EA5E9",
     },
     {
-      icon: <RibbonIcon />,
+      icon: <RibbonIcon width={20} height={20} />,
       value: overview?.total_attempts?.toString() ?? "—",
       label: "Total Attempts",
       accent: "#A855F7",
     },
     {
-      icon: <Flame size={28} />,
+      icon: <Flame size={20} />,
       value: overview?.day_streak?.toString() ?? "—",
       label: "Day Streak",
       accent: "#FF6900",
@@ -149,7 +156,7 @@ export default function Dashboard() {
         </div>
 
         {/* Stats row */}
-        <div data-tour="dashboard-stats" className="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
+        <div data-tour="dashboard-stats" className="grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4 mb-6">
           {STATS.map(s => (
             <StatCard key={s.label} {...s} />
           ))}
@@ -210,9 +217,20 @@ export default function Dashboard() {
 
             <div className="space-y-2 flex-1">
               {recommendedExams.length === 0 ? (
-                <div className="text-center py-10 rounded-xl border border-dashed border-slate-200 dark:border-zinc-800">
-                  <BookOpen size={20} className="text-slate-300 dark:text-zinc-600 mx-auto mb-2" />
-                  <p className="text-xs text-slate-400 dark:text-zinc-500 italic">No recommendations yet</p>
+                <div className="text-center py-8 rounded-xl border border-dashed border-slate-200 dark:border-zinc-800 px-4">
+                  <BookOpen size={22} className="text-slate-300 dark:text-zinc-600 mx-auto mb-2" />
+                  <p className="text-sm font-semibold text-slate-700 dark:text-zinc-200">No recommendations yet</p>
+                  <p className="text-[11px] text-slate-400 dark:text-zinc-500 mt-1 max-w-[16rem] mx-auto">
+                    Add the exams you&apos;re preparing for to get tailored recommendations.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setExamsModalOpen(true)}
+                    className="mt-3 inline-flex items-center gap-1.5 h-8 px-3 rounded-md text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white transition-colors"
+                  >
+                    <BookOpen size={12} />
+                    Add exams
+                  </button>
                 </div>
               ) : (
                 recommendedExams.slice(0, 5).map(exam => (
@@ -261,6 +279,11 @@ export default function Dashboard() {
           </div>
         </DialogContent>
       </Dialog>
+
+      <UpdateExamsModal
+        open={examsModalOpen}
+        onClose={() => setExamsModalOpen(false)}
+      />
     </div>
   );
 }

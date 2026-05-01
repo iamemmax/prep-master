@@ -18,18 +18,17 @@ interface CountryExamsResponse {
   message: string;
 }
 
-const getExamsByCountry = async (country: string) => {
+const getExams = async () => {
   const response = await tokenlessAxios.get<CountryExamsResponse>(
-    `/api/v1/prep-master/exams/?country=${encodeURIComponent(country?.toLowerCase())}`
+    `/api/v1/prep-master/exams/`
   );
   return response?.data;
 };
 
-export const useGetExamsByCountry = (country: string | undefined) => {
+export const useGetExamsByCountry = () => {
   return useQuery({
-    queryKey: [QUERYKEY.SIGNUP_EXAMS_BY_COUNTRY, country],
-    queryFn: () => getExamsByCountry(country as string),
-    enabled: Boolean(country),
+    queryKey: [QUERYKEY.SIGNUP_EXAMS_BY_COUNTRY],
+    queryFn: getExams,
     retry: 1,
     refetchOnWindowFocus: false,
   });

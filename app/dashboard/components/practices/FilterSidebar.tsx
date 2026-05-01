@@ -1,8 +1,19 @@
 import { useMemo, useState } from "react";
-import { ChevronDown } from "lucide-react";
+import {
+  ChevronDown,
+  Coins,
+  Crown,
+  Flame,
+  Target,
+  CalendarClock,
+  ArrowUpRight,
+} from "lucide-react";
 import { Filters } from "../../practice/page";
 import SidebarBtn from "./SidebarBtn";
 import { useGetDashboardOverview } from "../../util/apis/dashboard/fetchDashboardOverview";
+import { useUserSubscription } from "../../util/apis/subscription/subscription";
+import { useCreditBalance } from "../../util/hooks/useCreditBalance";
+import { useSubscription } from "../subscription/SubscriptionProvider";
 
 // interface ProgressBarEntry {
 //   label: string;
@@ -17,8 +28,8 @@ interface FilterSidebarProps {
   selectedExamRef?: string | null;
 }
 
-const ACCESS_OPTIONS: string[] = ["All", "Free", "Premium"];
-const DIFFICULTY_OPTIONS: string[] = ["Any Level", "Easy", "Medium", "Hard"];
+// const ACCESS_OPTIONS: string[] = ["All", "Free", "Premium"];
+// const DIFFICULTY_OPTIONS: string[] = ["Any Level", "Beginner", "Intermediate ", "Advanced"];
 
 // const MY_PROGRESS: ProgressBarEntry[] = [
 //   { label: "SAT", pct: 72, color: "#6366F1" },
@@ -40,21 +51,50 @@ interface SidebarExam {
   subjects: { reference: string; name: string }[];
 }
 
-const FilterSidebar = ({ filters, setFilters, onExamSelect }: FilterSidebarProps) => {
+const FilterSidebar = ({ filters, setFilters, onExamSelect, selectedExamRef = null }: FilterSidebarProps) => {
   const { category, access, difficulty } = filters;
   const { data: response, isLoading } = useGetDashboardOverview();
+  const { data: subResp } = useUserSubscription();
+  const { remaining, total } = useCreditBalance();
+  const { openUpgradeModal } = useSubscription();
+  const overview = response?.data?.overview;
+  const userExams = useMemo(
+    () => response?.data?.user_exams ?? [],
+    [response],
+  );
+
+  // Earliest scheduled exam by date string. Pure: no Date.now() inside the
+  // memo — the actual "days left" comes from `overview.days_remaining`,
+  // which the backend computes server-side.
+  const nextExam = useMemo(() => {
+    const withDates = userExams
+      .filter((e) => e.exam_date)
+      .map((e) => ({ name: e.exam.name, date: e.exam_date as string }));
+    withDates.sort((a, b) => a.date.localeCompare(b.date));
+    return withDates[0] ?? null;
+  }, [userExams]);
+
+  const activeSub =
+    subResp?.data?.is_subscribed && subResp?.data?.subscription?.is_valid
+      ? subResp.data.subscription
+      : null;
+  const creditPct = total > 0 ? Math.min(100, Math.round((remaining / total) * 100)) : 0;
+  const creditTone =
+    creditPct > 50 ? "bg-emerald-500"
+    : creditPct > 20 ? "bg-[#F7C948]"
+    : "bg-rose-500";
 
   const rawList = useMemo<SidebarExam[]>(() => {
     const userExams = response?.data?.user_exams ?? [];
     const seen = new Set<string>();
     return userExams.reduce<SidebarExam[]>((acc, ue) => {
-      const ref = ue.exam_type?.reference;
+      const ref = ue.exam?.reference;
       if (!ref || seen.has(ref)) return acc;
       seen.add(ref);
       acc.push({
         reference: ref,
-        name: ue.exam_type.name,
-        subjects: ue.exam_type.subjects ?? [],
+        name: ue.exam.name,
+        subjects: ue.exam.subjects ?? [],
       });
       return acc;
     }, []);
@@ -89,7 +129,7 @@ const FilterSidebar = ({ filters, setFilters, onExamSelect }: FilterSidebarProps
         {/* All Exams */}
         <SidebarBtn
           label="All Exams"
-          active={category === "All Exams"}
+          active={!selectedExamRef && category === "All Exams"}
           onClick={() => { set("category")("All Exams"); onExamSelect?.(null); }}
         />
 
@@ -100,7 +140,7 @@ const FilterSidebar = ({ filters, setFilters, onExamSelect }: FilterSidebarProps
         ) : (
           rawList.map((exam) => {
             const isOpen = openExam === exam.reference;
-            const isActive = category === exam.name;
+            const isActive = selectedExamRef === exam.reference;
             const hasSubjects = (exam.subjects?.length ?? 0) > 0;
 
             return (
@@ -131,7 +171,7 @@ const FilterSidebar = ({ filters, setFilters, onExamSelect }: FilterSidebarProps
                       <SidebarBtn
                         key={subject.reference}
                         label={subject.name}
-                        active={category === subject.name}
+                        active={selectedExamRef === subject.reference}
                         onClick={() => { set("category")(subject.name); onExamSelect?.(subject.reference); }}
                       />
                     ))}
@@ -143,19 +183,133 @@ const FilterSidebar = ({ filters, setFilters, onExamSelect }: FilterSidebarProps
         )}
       </div>
 
-      <SidebarGroupLabel>Access</SidebarGroupLabel>
-      <div className="space-y-1">
+      {/* Plan / credits — quick read on quota and an upgrade nudge if free */}
+      <div className="mt-6 pt-4 border-t border-slate-200 dark:border-zinc-800">
+        <SidebarGroupLabel>Plan</SidebarGroupLabel>
+        <div className="px-2">
+          <div className="flex items-center justify-between text-[11px] mb-1.5">
+            <span className="inline-flex items-center gap-1 text-slate-600 dark:text-zinc-300 font-semibold">
+              <Coins size={11} className="text-[#F7C948]" />
+              AI credits
+            </span>
+            <span className="tabular-nums text-slate-500 dark:text-zinc-400">
+              {remaining.toLocaleString()}
+              {total > 0 && total !== remaining && (
+                <span className="text-slate-400 dark:text-zinc-500">/{total.toLocaleString()}</span>
+              )}
+            </span>
+          </div>
+          <div className="h-1.5 rounded-full bg-slate-200 dark:bg-zinc-800 overflow-hidden">
+            <div className={`h-full rounded-full transition-all ${creditTone}`} style={{ width: `${creditPct}%` }} />
+          </div>
+
+          {activeSub ? (
+            <div className="flex items-center justify-between mt-3 text-[11px]">
+              <span className="inline-flex items-center gap-1 font-semibold text-slate-700 dark:text-zinc-200">
+                <Crown size={11} className="text-[#F7C948]" fill="currentColor" />
+                {activeSub.plan.name}
+              </span>
+              <span className="text-slate-400 dark:text-zinc-500 tabular-nums">
+                {activeSub.days_remaining}d left
+              </span>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={openUpgradeModal}
+              data-no-paywall
+              className="mt-3 inline-flex items-center justify-center gap-1 w-full text-[11px] font-bold text-[#5A3300] bg-[#F7C948] hover:bg-[#F0BE36] py-1.5 rounded-md transition-colors"
+            >
+              <Crown size={11} fill="currentColor" />
+              Upgrade
+              <ArrowUpRight size={11} />
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Quick stats — pulled from the dashboard overview so the sidebar
+          doubles as a tiny "your prep at a glance" panel. */}
+      {overview && (
+        <div className="mt-5 pt-4 border-t border-slate-200 dark:border-zinc-800">
+          <SidebarGroupLabel>Your stats</SidebarGroupLabel>
+          <ul className="px-2 space-y-1.5">
+            <li className="flex items-center justify-between text-[11px]">
+              <span className="inline-flex items-center gap-1.5 text-slate-600 dark:text-zinc-300">
+                <Flame size={11} className="text-[#FE9A00]" />
+                Streak
+              </span>
+              <span className="font-semibold tabular-nums text-slate-700 dark:text-zinc-200">
+                {overview.day_streak}d
+              </span>
+            </li>
+            <li className="flex items-center justify-between text-[11px]">
+              <span className="inline-flex items-center gap-1.5 text-slate-600 dark:text-zinc-300">
+                <Target size={11} className="text-emerald-500" />
+                Avg score
+              </span>
+              <span className="font-semibold tabular-nums text-slate-700 dark:text-zinc-200">
+                {Math.round(overview.average_score)}%
+              </span>
+            </li>
+            <li className="flex items-center justify-between text-[11px]">
+              <span className="text-slate-600 dark:text-zinc-300">Questions</span>
+              <span className="font-semibold tabular-nums text-slate-700 dark:text-zinc-200">
+                {overview.questions_answered.toLocaleString()}
+              </span>
+            </li>
+            <li className="flex items-center justify-between text-[11px]">
+              <span className="text-slate-600 dark:text-zinc-300">Attempts</span>
+              <span className="font-semibold tabular-nums text-slate-700 dark:text-zinc-200">
+                {overview.total_attempts.toLocaleString()}
+              </span>
+            </li>
+          </ul>
+        </div>
+      )}
+
+      {/* Next exam countdown — only when the user has a scheduled date.
+          `days_remaining` is server-computed so we don't need Date.now() here. */}
+      {nextExam && overview && (
+        <div className="mt-5 pt-4 border-t border-slate-200 dark:border-zinc-800">
+          <SidebarGroupLabel>Next exam</SidebarGroupLabel>
+          <div className="px-2">
+            <div className="flex items-center justify-between mb-1.5">
+              <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-slate-700 dark:text-zinc-200">
+                <CalendarClock size={11} className="text-[#F7C948]" />
+                {nextExam.name}
+              </span>
+              <span className="text-[10px] tabular-nums text-slate-500 dark:text-zinc-400">
+                {overview.days_remaining}d
+              </span>
+            </div>
+            <div className="h-1.5 rounded-full bg-slate-200 dark:bg-zinc-800 overflow-hidden">
+              <div
+                className="h-full rounded-full bg-linear-to-r from-[#F7C948] to-[#FE9A00] transition-all"
+                style={{ width: `${Math.min(100, Math.max(0, overview.overall_readiness ?? 0))}%` }}
+              />
+            </div>
+            <p className="text-[10px] text-slate-400 dark:text-zinc-500 mt-1.5 tabular-nums">
+              {Math.round(overview.overall_readiness ?? 0)}% ready
+              {overview.target_score ? ` · target ${overview.target_score}` : ""}
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* <SidebarGroupLabel>Access</SidebarGroupLabel> */}
+      {/* <div className="space-y-1">
         {ACCESS_OPTIONS.map(opt => (
           <SidebarBtn key={opt} label={opt} active={access === opt} onClick={() => set("access")(opt)} />
         ))}
-      </div>
+      </div> */}
 
-      <SidebarGroupLabel>Difficulty</SidebarGroupLabel>
+      {/* <SidebarGroupLabel>Difficulty</SidebarGroupLabel>
       <div className="space-y-1">
         {DIFFICULTY_OPTIONS.map(opt => (
           <SidebarBtn key={opt} label={opt} active={difficulty === opt} onClick={() => set("difficulty")(opt)} />
         ))}
-      </div>
+      </div> */}
 
       {/* <div className="mt-6 pt-4 border-t border-slate-200 dark:border-zinc-800">
         <p className="text-[11px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-widest mb-3 px-2">

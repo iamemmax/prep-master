@@ -3,9 +3,19 @@
 import { useState } from "react";
 import { Crown } from "lucide-react";
 import UpgradeModal from "../upgrade/UpgradeModal";
+import { useUserSubscription } from "../../util/apis/subscription/subscription";
 
 export default function UnlockSectionBanner() {
   const [open, setOpen] = useState(false);
+  const { data: subResp, isLoading } = useUserSubscription();
+
+  // Hide the banner once the user has a valid subscription. We also keep it
+  // hidden while the query is in flight so an already-subscribed user never
+  // sees a stale "Upgrade" prompt flash on first paint.
+  const isActiveSubscriber =
+    !!subResp?.data?.is_subscribed && !!subResp?.data?.subscription?.is_valid;
+  if (isLoading || isActiveSubscriber) return null;
+
   return (
     <div className="w-full rounded-[.875rem] border border-[#FEE685] dark:border-amber-500/30 bg-linear-to-tr from-[#FFFBEB] to-[#FFF7ED] dark:from-amber-500/10 dark:to-orange-500/10 px-6 py-8 mb-6 flex flex-col items-center text-center gap-4">
 

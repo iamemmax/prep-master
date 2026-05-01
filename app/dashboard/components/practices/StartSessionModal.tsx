@@ -12,7 +12,7 @@ import { useRouter } from "next/navigation";
 import { ErrorModal } from "@/components/ui/ErrorModal";
 import { SmallSpinner } from "@/components/ui/Spinner";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ShieldCheck, BookOpen, X } from "lucide-react";
 import { clearProctorReports } from "../../util/proctor/report";
 
@@ -20,7 +20,7 @@ import { clearProctorReports } from "../../util/proctor/report";
 const sessionSchema = z.object({
   exam_config_id:                   z.number({ message: "Exam type is required" }),
   number_of_questions:            z.number({ message: "Number of questions is required" }).min(1, "At least 1 question").max(2700, "Max 2,700 questions"),
-  session_mode:                   z.enum(["timed", "untimed", "topic-focus"], { message: "Session mode is required" }),
+  session_mode:                   z.enum(["timed", "untimed", "topic_focused"], { message: "Session mode is required" }),
   difficulty_level:               z.enum(["mixed", "easy", "medium", "hard"], { message: "Difficulty is required" }),
   time_limit_minutes:             z.number().min(1, "At least 1 minute").nullable().optional(),
   subjects_selected:              z.array(z.number()).default([]),   // subject ids picked from the exam
@@ -58,8 +58,32 @@ const TIME_PRESETS = [
 const SESSION_MODES = [
   { key: "timed",       label: "Timed",       sub: "Simulate real exam conditions" },
   { key: "untimed",     label: "Untimed",     sub: "Learn at your own pace"         },
-  { key: "topic-focus", label: "Topic Focus", sub: "Master specific area"           },
+  { key: "topic_focused", label: "Topic Focus", sub: "Master specific area"           },
 ] as const;
+
+// Per-exam subject rules. JAMB candidates always sit Mathematics + English plus
+// 2 electives, so we pre-select those two and cap the picker at 4 total.
+interface ExamSubjectRule {
+  /** Subject names that are auto-selected and cannot be removed (matched case-insensitively, partial match). */
+  required: string[];
+  /** Maximum total subjects the user can pick. */
+  maxSubjects: number;
+}
+
+const EXAM_RULES: Record<string, ExamSubjectRule> = {
+  JAMB: { required: ["English", "Mathematics"], maxSubjects: 4 },
+};
+
+function getExamRule(examName: string | undefined): ExamSubjectRule | null {
+  if (!examName) return null;
+  const key = examName.trim().toUpperCase();
+  return EXAM_RULES[key] ?? null;
+}
+
+function matchesRequired(subjectName: string, required: string[]) {
+  const n = subjectName.toLowerCase();
+  return required.some((r) => n.includes(r.toLowerCase()));
+}
 
 // ─── Component ───────────────────────────────────────────────────────────────
 export default function SessionSetupModal({ onClose, examName = "SAT", examDesc = "Standardized Test for College Admissions", open, preselectedSubject = null, }: {
@@ -98,14 +122,23 @@ const {
   },
 });
 const router = useRouter()
+const examRule = getExamRule(examName);
 // Subjects toggle — OFF means "all subjects". When a preselected subject is
-// passed in we force the toggle ON and hide the picker entirely.
-const [useSubjects, setUseSubjects] = useState(!!preselectedSubject);
+// passed in (or a rule-based exam like JAMB), we force the toggle ON.
+const [useSubjects, setUseSubjects] = useState(!!preselectedSubject || !!examRule);
 const { data: examDetails, isLoading: loadingSubjects } =
   useGetAvailableExamsDetails(open?.id ? String(open.id) : "");
-const availableSubjects = examDetails?.data?.subjects ?? [];
+const availableSubjects = useMemo(
+  () => examDetails?.data?.subjects ?? [],
+  [examDetails],
+);
 
 const {mutate:handleStart,isPending} = useStartPracticeExam()
+// Keep the spinner visible across the gap between mutation success and the
+// route actually rendering — router.push resolves async and isPending flips
+// off the moment the API returns, otherwise the button looks idle mid-redirect.
+const [isRedirecting, setIsRedirecting] = useState(false);
+const isStarting = isPending || isRedirecting;
 const onSubmit = (data: z.output<typeof sessionSchema>) => {
   // Enter browser fullscreen synchronously on the user's click so the gesture
   // requirement of the Fullscreen API is satisfied. Silently no-ops on
@@ -125,11 +158,13 @@ const onSubmit = (data: z.output<typeof sessionSchema>) => {
          // New practice → wipe any prior proctoring reports from this device.
          clearProctorReports();
        }
+       setIsRedirecting(true);
        router.push(`/dashboard/practice/start-practice/${res?.data?.session?.id ?? res?.data?.id}`)
     },
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 onError: (error: any) => {
-  const errorMessage = 
+  setIsRedirecting(false);
+  const errorMessage =
     error?.response?.data?.data?.non_field_errors?.[0]
     || error?.response?.data?.message
     || formatAxiosErrorMessage(error as AxiosError)
@@ -158,17 +193,37 @@ useEffect(() => {
   // eslint-disable-next-line react-hooks/exhaustive-deps
 }, [useSubjects]);
 
-// Turning the toggle ON auto-selects every subject in the exam, so the user
-// starts with "all subjects of this exam" instead of an empty list.
+// Turning the toggle ON auto-selects subjects. For exams with a rule (e.g.
+// JAMB), only the required subjects (English, Mathematics) are pre-selected.
+// For free-form exams, every available subject is selected.
 useEffect(() => {
   if (preselectedSubject) return;
   if (!useSubjects) return;
   if (availableSubjects.length === 0) return;
   if (subjectsVal.length > 0) return;
+  if (examRule) {
+    const requiredIds = availableSubjects
+      .filter((s) => matchesRequired(s.name, examRule.required))
+      .map((s) => s.id);
+    if (requiredIds.length > 0) setValue("subjects_selected", requiredIds);
+    return;
+  }
   setValue("subjects_selected", availableSubjects.map((s) => s.id));
   // eslint-disable-next-line react-hooks/exhaustive-deps
-}, [useSubjects, availableSubjects]);
+}, [useSubjects, availableSubjects, examRule]);
 
+// Map of subject ids that the rule says cannot be removed — keeps the chip
+// list reactive to availableSubjects loading.
+const requiredSubjectIds = useMemo(() => {
+  if (!examRule) return new Set<number>();
+  return new Set(
+    availableSubjects
+      .filter((s) => matchesRequired(s.name, examRule.required))
+      .map((s) => s.id),
+  );
+}, [examRule, availableSubjects]);
+
+const atSubjectCap = examRule ? subjectsVal.length >= examRule.maxSubjects : false;
 const subjectsBlocked = useSubjects && subjectsVal.length === 0;
 
 
@@ -290,20 +345,29 @@ const subjectsBlocked = useSubjects && subjectsVal.length === 0;
                         const selectedSet = new Set(selectedIds);
                         const remaining = availableSubjects.filter(s => !selectedSet.has(s.id));
                         const allOn = remaining.length === 0;
+                        const limitLabel = examRule
+                          ? `${selectedIds.length} of ${examRule.maxSubjects} selected`
+                          : `${selectedIds.length} of ${availableSubjects.length} selected`;
+                        const placeholder =
+                          atSubjectCap ? `Maximum ${examRule!.maxSubjects} subjects reached` :
+                          allOn        ? "All subjects added" :
+                                         "Add a subject";
 
                         return (
                           <>
                             <div className="flex items-center justify-between mb-2">
                               <p className="text-[10px] font-semibold text-slate-500 dark:text-zinc-400 tabular-nums">
-                                {selectedIds.length} of {availableSubjects.length} selected
+                                {limitLabel}
                               </p>
-                              <button
-                                type="button"
-                                onClick={() => field.onChange(allOn ? [] : availableSubjects.map(s => s.id))}
-                                className="text-[10px] font-semibold text-indigo-600 dark:text-indigo-300 hover:underline"
-                              >
-                                {allOn ? "Clear all" : "Select all"}
-                              </button>
+                              {!examRule && (
+                                <button
+                                  type="button"
+                                  onClick={() => field.onChange(allOn ? [] : availableSubjects.map(s => s.id))}
+                                  className="text-[10px] font-semibold text-indigo-600 dark:text-indigo-300 hover:underline"
+                                >
+                                  {allOn ? "Clear all" : "Select all"}
+                                </button>
+                              )}
                             </div>
 
                             {/* Dropdown — pick a subject from the exam to add it */}
@@ -312,12 +376,13 @@ const subjectsBlocked = useSubjects && subjectsVal.length === 0;
                               onValueChange={(v) => {
                                 const id = Number(v);
                                 if (!id || selectedSet.has(id)) return;
+                                if (atSubjectCap) return;
                                 field.onChange([...selectedIds, id]);
                               }}
-                              disabled={allOn}
+                              disabled={allOn || atSubjectCap}
                             >
                               <SelectTrigger className="h-9 w-full bg-white dark:bg-zinc-900 dark:text-white text-xs">
-                                <SelectValue placeholder={allOn ? "All subjects added" : "Add a subject"} />
+                                <SelectValue placeholder={placeholder} />
                               </SelectTrigger>
                               <SelectContent
                                 className="z-10000"
@@ -336,24 +401,38 @@ const subjectsBlocked = useSubjects && subjectsVal.length === 0;
                                 {selectedIds.map(id => {
                                   const subj = availableSubjects.find(s => s.id === id);
                                   const label = subj?.name ?? `Subject #${id}`;
+                                  const locked = requiredSubjectIds.has(id);
                                   return (
                                     <span
                                       key={id}
-                                      className="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 rounded-full bg-indigo-600 text-white border border-indigo-600"
+                                      className={`inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 rounded-full border ${
+                                        locked
+                                          ? "bg-amber-100 text-[#5A3300] border-[#F7C948] dark:bg-amber-500/15 dark:text-amber-200 dark:border-amber-500/40"
+                                          : "bg-indigo-600 text-white border-indigo-600"
+                                      }`}
+                                      title={locked ? "Required for this exam" : undefined}
                                     >
                                       {label}
-                                      <button
-                                        type="button"
-                                        onClick={() => field.onChange(selectedIds.filter(x => x !== id))}
-                                        className="ml-0.5 text-white/80 hover:text-white"
-                                        aria-label={`Remove ${label}`}
-                                      >
-                                        <X size={11} strokeWidth={3} />
-                                      </button>
+                                      {!locked && (
+                                        <button
+                                          type="button"
+                                          onClick={() => field.onChange(selectedIds.filter(x => x !== id))}
+                                          className="ml-0.5 text-white/80 hover:text-white"
+                                          aria-label={`Remove ${label}`}
+                                        >
+                                          <X size={11} strokeWidth={3} />
+                                        </button>
+                                      )}
                                     </span>
                                   );
                                 })}
                               </div>
+                            )}
+
+                            {examRule && (
+                              <p className="text-[10px] text-slate-500 dark:text-zinc-400 mt-2">
+                                {examName} requires {examRule.required.join(" + ")} (locked) and lets you add up to {examRule.maxSubjects - examRule.required.length} more — {examRule.maxSubjects} subjects total.
+                              </p>
                             )}
                           </>
                         );
@@ -597,11 +676,11 @@ const subjectsBlocked = useSubjects && subjectsVal.length === 0;
             </button>
             <button
               type="submit"
-              disabled={subjectsBlocked || isPending}
+              disabled={subjectsBlocked || isStarting}
               className="flex-1 h-11 rounded-xl flex items-center justify-center gap-x-2 text-sm font-bold text-white transition-all hover:opacity-90 hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0"
               style={{ background: "linear-gradient(135deg, #6366F1, #7C3AED)" }}
             >
-              Start Practice Test {isPending && <SmallSpinner/>}
+              {isStarting ? "Starting…" : "Start Practice Test"} {isStarting && <SmallSpinner/>}
             </button>
           </div>
 

@@ -65,6 +65,10 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
   }, [dashboardSeen]);
 
   const startTour = useCallback((id: TourId) => {
+    // Tour has no playable steps in this build (typically because every step
+    // describes a feature behind the production coming-soon gate). Skip so we
+    // don't leave activeTourId set with an unrenderable empty step list.
+    if (TOURS[id].length === 0) return;
     setWelcomeOpen(false);
     setActiveTourId(id);
     setStepIndex(0);

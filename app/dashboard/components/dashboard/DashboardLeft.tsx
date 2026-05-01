@@ -1,6 +1,6 @@
 "use client"
 import React, { useState } from 'react'
-import { Star, Calendar, Clock, X, ChevronRight, CheckCircle2, PlayCircle, BookOpen } from 'lucide-react';
+import { Star, Calendar, Clock, X, ChevronRight, CheckCircle2, PlayCircle, BookOpen, Crown, Sparkles, Zap, Brain } from 'lucide-react';
 import * as Progress from "@radix-ui/react-progress";
 import Unlockicon from '@/utils/icons/UnlockIcon';
 import { getScoreAccent } from '@/utils/color/getPercentageColor';
@@ -11,6 +11,7 @@ import { dashboardOverviewData } from '../../util/types/dashboard/dashbaordOverv
 import { useAuth } from '@/context/authentication';
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import UpgradeModal from '../upgrade/UpgradeModal';
+import { useUserSubscription } from '../../util/apis/subscription/subscription';
 
 function ScoreBar({ score }: { score: number }) {
   const accent = getScoreAccent(score);
@@ -101,6 +102,151 @@ function SkeletonCard() {
   );
 }
 
+function SubscriptionInfoCard({
+  planName,
+  tier,
+  price,
+  currency,
+  durationDays,
+  daysRemaining,
+  creditsRemaining,
+  creditsTotal,
+  endDate,
+}: {
+  planName: string;
+  tier: string;
+  price: string;
+  currency: string;
+  durationDays: number;
+  daysRemaining: number;
+  creditsRemaining: number;
+  creditsTotal: number;
+  endDate: string;
+}) {
+  const creditPct = creditsTotal > 0
+    ? Math.min(100, Math.round((creditsRemaining / creditsTotal) * 100))
+    : 0;
+  const formattedEnd = new Date(endDate).toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+  const formattedPrice =
+    currency === "NGN"
+      ? `₦${Number(price).toLocaleString("en-NG")}`
+      : `${currency} ${Number(price).toLocaleString()}`;
+  const periodNoun =
+    durationDays >= 360 ? "yr"
+    : durationDays >= 28 ? "mo"
+    : durationDays >= 7 ? "wk"
+    : `${durationDays}d`;
+
+  // How far through the billing cycle we are (0% just renewed, 100% expiring).
+  const cyclePct = durationDays > 0
+    ? Math.min(100, Math.max(0, Math.round(((durationDays - daysRemaining) / durationDays) * 100)))
+    : 0;
+
+  return (
+    <div className="relative overflow-hidden rounded-2xl text-white shadow-md">
+      {/* Gradient base — warm brand palette: dark brown → amber → brand orange */}
+      <div
+        className="absolute inset-0"
+        style={{ background: "linear-gradient(135deg, #5A3300 0%, #894B00 45%, #FE9A00 100%)" }}
+        aria-hidden
+      />
+      {/* Decorative blurs in the same brand range — yellow on top, deep orange below */}
+      <div className="absolute -right-12 -top-12 w-48 h-48 rounded-full bg-[#F7C948]/35 blur-3xl pointer-events-none" />
+      <div className="absolute -left-10 -bottom-16 w-40 h-40 rounded-full bg-[#FF6900]/30 blur-3xl pointer-events-none" />
+      {/* Subtle warm dot pattern — uses brand yellow at low opacity instead of white */}
+      <div
+        aria-hidden
+        className="absolute inset-0 opacity-[0.10] pointer-events-none"
+        style={{
+          backgroundImage: "radial-gradient(circle at 1px 1px, #F7C948 1px, transparent 0)",
+          backgroundSize: "18px 18px",
+        }}
+      />
+
+      <div className="relative p-5">
+        {/* Top row — Crown anchor + tier chip */}
+        <div className="flex items-start justify-between gap-3 mb-4">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <span className="inline-flex items-center justify-center w-9 h-9 rounded-xl bg-[#F7C948] text-[#5A3300] shrink-0 shadow-sm">
+              <Crown size={18} fill="currentColor" />
+            </span>
+            <div className="min-w-0">
+              <p className="text-[10px] uppercase tracking-wider text-amber-200/80 font-semibold">
+                {tier} plan · Active
+              </p>
+              <p className="text-base sm:text-lg font-black tracking-tight leading-tight">
+                {planName}
+              </p>
+            </div>
+          </div>
+          <span className="inline-flex items-center gap-1 text-[10px] font-bold tabular-nums px-2 py-1 rounded-full bg-white/15 backdrop-blur-sm">
+            {formattedPrice}
+            <span className="text-amber-200/80 font-medium">/{periodNoun}</span>
+          </span>
+        </div>
+
+        {/* Horizontal stat row — Days, Credits, Renewal */}
+        <div className="flex items-stretch divide-x divide-white/15 mb-4">
+          <div className="flex-1 pr-3">
+            <p className="text-[10px] uppercase tracking-wider text-amber-200/70 font-semibold">Days left</p>
+            <p className="text-2xl font-black tabular-nums leading-none mt-1">{daysRemaining}</p>
+            <p className="text-[10px] text-white/60 mt-1 tabular-nums">of {durationDays}</p>
+          </div>
+          <div className="flex-1 px-3">
+            <p className="text-[10px] uppercase tracking-wider text-amber-200/70 font-semibold inline-flex items-center gap-1">
+              <Sparkles size={9} fill="currentColor" className="text-[#F7C948]" />
+              AI credits
+            </p>
+            <p className="text-2xl font-black tabular-nums leading-none mt-1">
+              {creditsRemaining.toLocaleString()}
+            </p>
+            <p className="text-[10px] text-white/60 mt-1 tabular-nums">of {creditsTotal.toLocaleString()}</p>
+          </div>
+          <div className="flex-1 pl-3">
+            <p className="text-[10px] uppercase tracking-wider text-amber-200/70 font-semibold">Renews</p>
+            <p className="text-sm font-bold leading-tight mt-1.5 tabular-nums">{formattedEnd}</p>
+            <p className="text-[10px] text-white/60 mt-1">{cyclePct}% used</p>
+          </div>
+        </div>
+
+        {/* Cycle + credit progress strips. Labels stay legible on the warm
+            gradient by going to bright amber-100 / white instead of the lower
+            opacities we use for secondary text elsewhere on the card. */}
+        <div className="space-y-3">
+          <div>
+            <div className="flex items-center justify-between text-xs mb-1.5">
+              <span className="text-amber-100 font-bold uppercase tracking-wider">Billing cycle</span>
+              <span className="text-white font-bold tabular-nums">{cyclePct}%</span>
+            </div>
+            <div className="h-1.5 rounded-full bg-black/25 overflow-hidden">
+              <div
+                className="h-full rounded-full transition-all duration-700 bg-linear-to-r from-[#F7C948] to-[#FFE066]"
+                style={{ width: `${cyclePct}%` }}
+              />
+            </div>
+          </div>
+          <div>
+            <div className="flex items-center justify-between text-xs mb-1.5">
+              <span className="text-amber-100 font-bold uppercase tracking-wider">Credits used</span>
+              <span className="text-white font-bold tabular-nums">{100 - creditPct}%</span>
+            </div>
+            <div className="h-1.5 rounded-full bg-black/25 overflow-hidden">
+              <div
+                className="h-full rounded-full transition-all duration-700 bg-white"
+                style={{ width: `${100 - creditPct}%` }}
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function CountdownCard({
   overview,
   examName,
@@ -184,6 +330,13 @@ const DashboardLeft = ({ overview }: prop) => {
   const [page, setPage] = useState(1)
   const { data, isLoading } = useGetPracticeHistory(page)
 const {authState:{user}}=useAuth()
+  // Hide the "Unlock Your Full Potential" card when the user already has a
+  // valid subscription. Stay hidden during the in-flight fetch so subscribers
+  // never see the upgrade pitch flash before the data lands.
+  const { data: subResp, isLoading: loadingSub } = useUserSubscription()
+  const isActiveSubscriber =
+    !!subResp?.data?.is_subscribed && !!subResp?.data?.subscription?.is_valid
+  const showUnlock = !loadingSub && !isActiveSubscriber
   const allTests    = data?.data ?? []
   const recentTests = allTests.slice(0, 5)
   const totalCount  = data?.count ?? 0
@@ -193,38 +346,54 @@ const {authState:{user}}=useAuth()
   return (
     <div className="lg:col-span-2 flex flex-col gap-6">
 
-      {/* Cards row */}
+      {/* Cards row — free users see the Unlock pitch; subscribers see their
+          plan summary in the same slot. The Countdown card stays the right
+          partner regardless. */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
 
-        {/* Unlock card */}
-        <div
-          className="relative border border-[#FEE685] rounded-2xl p-8 overflow-hidden"
-          style={{ background: "linear-gradient(to right, #FFFBEB, #FFF7ED)" }}
-        >
-          <div className="absolute right-0 h-full w-full bottom-0 opacity-80 pointer-events-none select-none flex items-end justify-end pr-2 pb-2">
-            <Unlockicon className='' />
-          </div>
-          <div className="flex items-center gap-2 mb-2">
-            <Star size={15} className="text-amber-500 fill-amber-400" />
-            <h3 className="font-bold text-[#314158] text-sm lg:text-base">Unlock Your Full Potential</h3>
-          </div>
-          <p className="text-xs text-[#314158] font-inter mb-3 leading-5">
-            Get unlimited access to all 17,000 questions, advanced analytics, and personalized study plans with Premium.
-          </p>
-          <ul className="space-y-1.5 mb-4">
-            {["Unlimited practice attempts", "Access to all premium questions", "Detailed performance analytics", "Custom study plans"].map(f => (
-              <li key={f} className="flex items-center font-inter gap-3 text-xs text-slate-600">
-                <span className="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0" />{f}
-              </li>
-            ))}
-          </ul>
-          <button
-            onClick={() => setShowUpgrade(true)}
-            className="px-5 py-2 rounded-[.5275rem] bg-linear-to-r from-[#FE9A00] to-[#FF6900] text-white text-xs font-bold hover:shadow-md transition-shadow cursor-pointer"
+        {/* Subscriber: plan summary card. Free user: Unlock-Premium pitch. */}
+        {isActiveSubscriber && subResp?.data?.subscription ? (
+          <SubscriptionInfoCard
+            planName={subResp.data.subscription.plan.name}
+            tier={subResp.data.subscription.plan.tier}
+            price={subResp.data.subscription.plan.price}
+            currency={subResp.data.subscription.plan.currency}
+            durationDays={subResp.data.subscription.plan.duration_days}
+            daysRemaining={subResp.data.subscription.days_remaining}
+            creditsRemaining={subResp.data.subscription.ai_credits_remaining}
+            creditsTotal={subResp.data.subscription.plan.ai_credits}
+            endDate={subResp.data.subscription.end_date}
+          />
+        ) : showUnlock ? (
+          <div
+            className="relative border border-[#FEE685] rounded-2xl p-8 overflow-hidden"
+            style={{ background: "linear-gradient(to right, #FFFBEB, #FFF7ED)" }}
           >
-            Upgrade Now
-          </button>
-        </div>
+            <div className="absolute right-0 h-full w-full bottom-0 opacity-80 pointer-events-none select-none flex items-end justify-end pr-2 pb-2">
+              <Unlockicon className='' />
+            </div>
+            <div className="flex items-center gap-2 mb-2">
+              <Star size={15} className="text-amber-500 fill-amber-400" />
+              <h3 className="font-bold text-[#314158] text-sm lg:text-base">Unlock Your Full Potential</h3>
+            </div>
+            <p className="text-xs text-[#314158] font-inter mb-3 leading-5">
+              Get unlimited access to all 17,000 questions, advanced analytics, and personalized study plans with Premium.
+            </p>
+            <ul className="space-y-1.5 mb-4">
+              {["Unlimited practice attempts", "Access to all premium questions", "Detailed performance analytics", "Custom study plans"].map(f => (
+                <li key={f} className="flex items-center font-inter gap-3 text-xs text-slate-600">
+                  <span className="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0" />{f}
+                </li>
+              ))}
+            </ul>
+            <button
+              onClick={() => setShowUpgrade(true)}
+              className="px-5 py-2 rounded-[.5275rem] bg-linear-to-r from-[#FE9A00] to-[#FF6900] text-white text-xs font-bold hover:shadow-md transition-shadow cursor-pointer"
+            >
+              Upgrade Now
+            </button>
+          </div>
+        ) : null}
 
         {/* Countdown card */}
         <CountdownCard overview={overview} examName={user?.exam_config?.preparing_for_exam} examDate={user?.exam_config?.exam_date ?? null} />

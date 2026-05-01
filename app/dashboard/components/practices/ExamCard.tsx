@@ -55,10 +55,10 @@ const ExamCard = ({ exam, isPremiumLocked,onStart }: ExamCardProps) => {
       {/* Stats — 4 cols */}
       <div className="grid grid-cols-4 i border-b border-[#EEF0F4] dark:border-zinc-800 pb-3 px-4 gap-2">
         {[
-          { value: exam.questions.toLocaleString(), label: "Questions"  },
-          { value: exam.topics,                     label: "Topics"     },
-          { value: exam.difficulty,                 label: "Difficulty" },
-          { value: exam.freeAccess,                 label: "Free access"},
+          { value: (exam.questions ?? 0).toLocaleString(), label: "Questions"  },
+          { value: exam.topics ?? 0,                       label: "Topics"     },
+          { value: exam.difficulty ?? "—",                 label: "Difficulty" },
+          { value: exam.freeAccess ?? 0,                   label: "Free access"},
         ].map(({ value, label }) => (
           <div key={label} className="mt-1.25">
             <p className="text-sm  text-[#0F172B] dark:text-zinc-100 font-semibold font-inter leading-none">{value}</p>

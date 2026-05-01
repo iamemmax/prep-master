@@ -155,6 +155,34 @@ export default function RootLayout({
       <body
         className={`${jarkataSans.variable} ${inter.variable} ${geistSans.variable} ${geistMono.variable} ${inter.variable} ${nunito.variable} ${poppins.variable} ${montserrat.variable} ${playfair.variable} antialiased`}
       >
+        {/* JSON-LD: tells Google this is an educational platform with a search box. */}
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify([
+              {
+                "@context": "https://schema.org",
+                "@type": "EducationalOrganization",
+                name: SITE_NAME,
+                url: SITE_URL,
+                description: SITE_DESCRIPTION,
+                logo: `${SITE_URL}/favicon.ico`,
+                sameAs: [],
+              },
+              {
+                "@context": "https://schema.org",
+                "@type": "WebSite",
+                name: SITE_NAME,
+                url: SITE_URL,
+                potentialAction: {
+                  "@type": "SearchAction",
+                  target: `${SITE_URL}/?q={search_term_string}`,
+                  "query-input": "required name=search_term_string",
+                },
+              },
+            ]),
+          }}
+        />
         <NextTopLoader
           color="#f1d111"
           initialPosition={0.08}

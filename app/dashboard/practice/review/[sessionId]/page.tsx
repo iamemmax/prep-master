@@ -3,11 +3,12 @@
 import { use, useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import {
-  ArrowLeft, Check, X as XIcon, Flag, Sparkles, ChevronDown, ChevronUp,
-  Clock3, BookOpen, Filter, AlertTriangle, RotateCw,
+  ArrowLeft, Check, X as XIcon, Flag, Sparkles,
+  Clock3, BookOpen,  AlertTriangle, RotateCw,
 } from "lucide-react";
 import DashboardHeader from "@/app/dashboard/components/dashboard/DashboardHeader";
-import { useSessionReview, useQuestionAnalysis } from "@/app/dashboard/util/ai/useAIFeedback";
+import { useQuestionAnalysis } from "@/app/dashboard/util/ai/useAIFeedback";
+import { useGetSessionReview } from "@/app/dashboard/util/apis/practice/sessionReview";
 import { ReviewQuestion, QuestionAnalysisRequest } from "@/app/dashboard/util/ai/types";
 import ErrorCard from "@/app/dashboard/components/coach/ErrorCard";
 import { TourAutoStart } from "@/app/dashboard/util/tour/TourContext";
@@ -17,8 +18,8 @@ type FilterKey = "all" | "wrong" | "correct" | "skipped";
 export default function ReviewPage({ params }: { params: Promise<{ sessionId: string }> }) {
   const { sessionId } = use(params);
   const router = useRouter();
-  const { data, isLoading, error, refetch } = useSessionReview(sessionId);
-  const [filter, setFilter] = useState<FilterKey>("wrong");
+  const { data, isLoading, error, refetch } = useGetSessionReview(sessionId);
+  const [filter, setFilter] = useState<FilterKey>("all");
 
   const counts = useMemo(() => {
     const qs = data?.questions ?? [];
@@ -65,50 +66,61 @@ export default function ReviewPage({ params }: { params: Promise<{ sessionId: st
       <DashboardHeader />
       <TourAutoStart tourId="review" />
 
-      <main className="max-w-3xl mx-auto px-4 sm:px-6 py-8">
-        {/* Page header */}
-        <div className="mb-6">
-          <button
-            onClick={() => router.push("/dashboard/practice")}
-            className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-100 transition-colors mb-3"
-          >
-            <ArrowLeft size={13} />
-            Back to practice
-          </button>
-          <div className="flex items-start justify-between gap-4 flex-wrap">
-            <div className="min-w-0">
-              <p className="text-[11px] uppercase tracking-wider text-slate-400 dark:text-zinc-500 font-medium">Review</p>
-              <div className="flex items-center gap-2 mt-1">
-                <span className="inline-flex items-center h-7 px-2.5 rounded-md bg-[#F7C948] text-[#5A3300] font-black text-xs tracking-tight">
-                  {data.exam_type.toUpperCase()}
-                </span>
-                <h1 className="text-xl font-bold tracking-tight truncate">Session answer key</h1>
-              </div>
-              <p className="text-xs text-slate-500 dark:text-zinc-400 mt-1">
-                Submitted {new Date(data.submitted_at).toLocaleString()}
-              </p>
-            </div>
-            <div className="text-right shrink-0">
-              <p className="text-3xl font-black tabular-nums text-slate-900 dark:text-zinc-100 leading-none">
-                {data.score}<span className="text-lg text-slate-400 font-medium">%</span>
-              </p>
-              <p className="text-[11px] text-slate-500 dark:text-zinc-400 mt-1 tabular-nums">
-                {data.correct_answers} / {data.total_questions} correct
-              </p>
+      {/* Sticky review header — pinned just below the DashboardHeader (which
+          is itself sticky at top-0). Holds the back link, exam title + score,
+          and the filter pills so they stay accessible while questions scroll. */}
+      <div className="sticky top-15 lg:top-16 z-30 bg-slate-50/90 dark:bg-zinc-950/90 backdrop-blur-md border-b border-slate-200 dark:border-zinc-800">
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 pt-3 pb-2.5 sm:pt-4 sm:pb-3">
+          {/* Top row: back link + score */}
+          <div className="flex items-center justify-between gap-3 mb-2.5 sm:mb-3">
+            <button
+              onClick={() => router.push("/dashboard/practice")}
+              className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-100 transition-colors"
+            >
+              <ArrowLeft size={13} />
+              <span className="hidden sm:inline">Back to practice</span>
+              <span className="sm:hidden">Back</span>
+            </button>
+            <div className="flex items-baseline gap-1.5 shrink-0">
+              <span className="text-2xl sm:text-[28px] font-black tabular-nums text-slate-900 dark:text-zinc-100 leading-none">
+                {Math.round(data.score)}
+                <span className="text-sm sm:text-base text-slate-400 font-medium ml-0.5">%</span>
+              </span>
+              <span className="text-[10px] sm:text-[11px] text-slate-500 dark:text-zinc-400 tabular-nums">
+                · {data.correct_answers}/{data.total_questions}
+              </span>
             </div>
           </div>
-        </div>
 
-        {/* Filter strip */}
-        <div data-tour="review-filters" className="flex items-center gap-2 flex-wrap mb-6">
-          <Filter size={12} className="text-slate-400 dark:text-zinc-500" />
-          <FilterPill active={filter === "wrong"}   onClick={() => setFilter("wrong")}   label="Wrong"   count={counts.wrong}   tone="wrong" />
-          <FilterPill active={filter === "skipped"} onClick={() => setFilter("skipped")} label="Skipped" count={counts.skipped} tone="warn" />
-          <FilterPill active={filter === "correct"} onClick={() => setFilter("correct")} label="Correct" count={counts.correct} tone="ok" />
-          <FilterPill active={filter === "all"}     onClick={() => setFilter("all")}     label="All"     count={counts.all}     tone="neutral" />
-        </div>
+          {/* Title row — exam pill + heading + submitted timestamp inline */}
+          <div className="flex items-center gap-2 mb-2.5 sm:mb-3 min-w-0">
+            <span className="inline-flex items-center h-6 px-2 rounded bg-[#F7C948] text-[#5A3300] font-black text-[10px] tracking-tight shrink-0">
+              {data.exam_type.toUpperCase()}
+            </span>
+            <h1 className="text-sm sm:text-base font-bold tracking-tight truncate text-slate-900 dark:text-zinc-100">
+              Session answer key
+            </h1>
+            <span className="hidden sm:inline text-[11px] text-slate-400 dark:text-zinc-500 truncate">
+              · Submitted {new Date(data.submitted_at).toLocaleDateString()}
+            </span>
+          </div>
 
-        {/* Questions list */}
+          {/* Filter pills */}
+          <div
+            data-tour="review-filters"
+            className="flex items-center gap-1.5 overflow-x-auto -mx-1 px-1 pb-0.5"
+            style={{ scrollbarWidth: "none" }}
+          >
+            <FilterPill active={filter === "all"}     onClick={() => setFilter("all")}     label="All"     count={counts.all}     tone="neutral" />
+            <FilterPill active={filter === "wrong"}   onClick={() => setFilter("wrong")}   label="Wrong"   count={counts.wrong}   tone="wrong" />
+            <FilterPill active={filter === "correct"} onClick={() => setFilter("correct")} label="Correct" count={counts.correct} tone="ok" />
+            <FilterPill active={filter === "skipped"} onClick={() => setFilter("skipped")} label="Skipped" count={counts.skipped} tone="warn" />
+          </div>
+        </div>
+      </div>
+
+      {/* Scrollable content */}
+      <main className="max-w-3xl mx-auto px-4 sm:px-6 py-6">
         {visible.length === 0 ? (
           <div className="text-center py-16 bg-white dark:bg-zinc-900 rounded-2xl border border-slate-200 dark:border-zinc-800">
             <Check size={28} className="text-emerald-500 mx-auto mb-2" />
@@ -228,7 +240,7 @@ function QuestionCard({ question, index }: { question: ReviewQuestion; index: nu
         </div>
 
         {/* AI deeper analysis toggle */}
-        <button
+        {/* <button
           data-tour={index === 0 ? "review-ai" : undefined}
           onClick={() => setShowAI(v => !v)}
           className="w-full inline-flex items-center justify-center gap-1.5 text-xs font-semibold px-3 h-9 rounded-md border border-[#F7C948]/60 dark:border-amber-500/40 bg-[#FFFBEB] dark:bg-amber-500/10 text-[#5A3300] dark:text-amber-200 hover:bg-[#FEF3C7] dark:hover:bg-amber-500/20 transition-colors"
@@ -236,10 +248,10 @@ function QuestionCard({ question, index }: { question: ReviewQuestion; index: nu
           <Sparkles size={12} className="text-[#E17100]" fill="currentColor" />
           {showAI ? "Hide AI deeper explanation" : "Get AI deeper explanation"}
           {showAI ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
-        </button>
+        </button> */}
 
         {/* AI analysis panel */}
-        {showAI && <AIExplanationPanel question={question} />}
+        {/* {showAI && <AIExplanationPanel question={question} />} */}
       </div>
     </article>
   );

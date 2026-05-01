@@ -54,7 +54,7 @@ export default function SignupExamsPage() {
   const selectedCountry = useWatch({ control, name: "country" })
   const selectedExamType = useWatch({ control, name: "exam_type" })
 
-  const { data: examsResponse, isLoading: isLoadingExams } = useGetExamsByCountry(selectedCountry)
+  const { data: examsResponse, isLoading: isLoadingExams } = useGetExamsByCountry()
   const exams = examsResponse?.data ?? []
 
   const { mutate: submitOnboarding, isPending: isSkipping } = useCompleteOnboarding()

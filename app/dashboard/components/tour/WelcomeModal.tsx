@@ -1,7 +1,7 @@
 "use client";
 
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { Sparkles, X, ArrowRight, BookOpen, Target, TrendingUp } from "lucide-react";
+import { Sparkles, X, ArrowRight, BookOpen, ShieldCheck, ListChecks } from "lucide-react";
 import { useAuth } from "@/context/authentication";
 import { useTour } from "../../util/tour/TourContext";
 
@@ -42,18 +42,18 @@ export default function WelcomeModal() {
           <ul className="space-y-2.5">
             <Highlight
               icon={<BookOpen size={13} className="text-[#2B7FFF]" />}
-              title="Practice smarter"
-              body="Pick an exam, choose subjects, and set your own difficulty + timer."
+              title="Practice your way"
+              body="Pick an exam, choose subjects, and set your own difficulty, timer, and question count."
             />
             <Highlight
-              icon={<Target size={13} className="text-rose-500" />}
-              title="Fix your weak spots"
-              body="AI Coach tells you exactly what to practice next after every session."
+              icon={<ShieldCheck size={13} className="text-emerald-500" />}
+              title="Proctored sessions"
+              body="Optional webcam monitoring for phones, multi-person, and gaze — kept on this device only."
             />
             <Highlight
-              icon={<TrendingUp size={13} className="text-emerald-500" />}
-              title="Track your progress"
-              body="Trends, topic mastery, and projected exam score — all updated live."
+              icon={<ListChecks size={13} className="text-[#F7C948]" />}
+              title="Review every answer"
+              body="Per-question explanations and filters by Wrong, Correct, or Skipped to drill into what matters."
             />
           </ul>
         </div>

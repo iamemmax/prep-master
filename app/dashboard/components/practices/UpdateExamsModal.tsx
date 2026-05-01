@@ -10,8 +10,8 @@ import { ErrorModal } from "@/components/ui/ErrorModal";
 import { useErrorModalState } from "@/hooks";
 import { formatAxiosErrorMessage } from "@/utils";
 import { AxiosError } from "axios";
-import { Plus, Trash2, Search } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { Plus, Trash2, Search, Calendar } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Control,
   Controller,
@@ -55,11 +55,9 @@ type ExamRowValue = UpdateExamsForm["exams"][number];
 interface Props {
   open: boolean;
   onClose: () => void;
-  /** User's profile country — used as the default for new rows. */
-  country?: string | null;
 }
 
-export default function UpdateExamsModal({ open, onClose, country }: Props) {
+export default function UpdateExamsModal({ open, onClose }: Props) {
   const {
     isErrorModalOpen,
     setErrorModalState,
@@ -69,22 +67,19 @@ export default function UpdateExamsModal({ open, onClose, country }: Props) {
 
   const { data: configResp, isLoading: loadingConfig } = useGetPracticeExamConfig();
 
-  const defaultValues: UpdateExamsForm = useMemo(() => {
-    const fallbackCountry = country ?? "";
-    const examRows: ExamRowValue[] = (configResp?.data ?? []).map((entry) => ({
-      // Server entries don't carry a country today — fall back to the profile.
-      country: fallbackCountry,
-      exam_type_id: entry.exam_type.id,
-      exam_date: entry.exam_date ?? "",
-      target_score: entry.target_score ?? "",
-      daily_study_hours: entry.daily_study_hours ?? 1,
-      current_level: (LEVELS.includes(entry.current_level as typeof LEVELS[number])
-        ? (entry.current_level as typeof LEVELS[number])
-        : "Intermediate") as typeof LEVELS[number],
-      send_progress_report: !!entry.send_progress_report,
-    }));
-    return { exams: examRows.length > 0 ? examRows : [emptyRow(fallbackCountry)] };
-  }, [country, configResp]);
+  // This modal is add-only: existing exams are never pre-filled into the form;
+  // it always opens with a fresh empty row so the user can register a new
+  // exam. Existing exam_type_ids are tracked separately so the picker can
+  // hide exams the user has already added.
+  const existingExamTypeIds = useMemo(
+    () => new Set((configResp?.data ?? []).map((entry) => entry.exam_type.id)),
+    [configResp],
+  );
+
+  const defaultValues: UpdateExamsForm = useMemo(
+    () => ({ exams: [emptyRow()] }),
+    [],
+  );
 
   const {
     control,
@@ -125,7 +120,7 @@ export default function UpdateExamsModal({ open, onClose, country }: Props) {
     }));
     save(payload, {
       onSuccess: () => {
-        toast.success("Your exams have been updated.");
+        toast.success(payload.length > 1 ? "Your new exams have been added." : "Your new exam has been added.");
         onClose();
       },
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -151,10 +146,10 @@ export default function UpdateExamsModal({ open, onClose, country }: Props) {
           <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col max-h-[90dvh]">
             <DialogHeader className="px-6 pt-5 pb-4 border-b border-slate-100 dark:border-zinc-800 shrink-0">
               <DialogTitle className="text-base font-semibold text-slate-900 dark:text-zinc-100">
-                Update my exams
+                Add a new exam
               </DialogTitle>
               <DialogDescription className="text-xs text-slate-500 dark:text-zinc-400">
-                Each exam can have its own country. Add or remove rows as needed.
+                Register a new exam for your study plan. Exams already in your profile won&apos;t appear in the list.
               </DialogDescription>
             </DialogHeader>
 
@@ -165,7 +160,7 @@ export default function UpdateExamsModal({ open, onClose, country }: Props) {
                 </p>
                 <button
                   type="button"
-                  onClick={() => append(emptyRow(country ?? ""))}
+                  onClick={() => append(emptyRow())}
                   className="inline-flex items-center gap-1 h-7 px-2.5 rounded-md text-[11px] font-semibold text-indigo-600 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-500/10 hover:bg-indigo-100 dark:hover:bg-indigo-500/20 transition-colors"
                 >
                   <Plus size={12} /> Add exam
@@ -177,18 +172,30 @@ export default function UpdateExamsModal({ open, onClose, country }: Props) {
               )}
 
               <div className="space-y-3">
-                {fields.map((field, idx) => (
-                  <ExamConfigRow
-                    key={field.id}
-                    idx={idx}
-                    rowCountry={watchedExams[idx]?.country ?? ""}
-                    control={control}
-                    register={register}
-                    errors={errors}
-                    canRemove={fields.length > 1}
-                    onRemove={() => remove(idx)}
-                  />
-                ))}
+                {fields.map((field, idx) => {
+                  // Hide exams already in the user's profile *and* exams
+                  // picked in any other row of this form, so the same exam
+                  // can never be added twice.
+                  const otherRowIds = watchedExams
+                    .map((r, i) => (i !== idx ? r?.exam_type_id : undefined))
+                    .filter((v): v is number => typeof v === "number");
+                  const excluded = new Set<number>([
+                    ...existingExamTypeIds,
+                    ...otherRowIds,
+                  ]);
+                  return (
+                    <ExamConfigRow
+                      key={field.id}
+                      idx={idx}
+                      excludedExamTypeIds={excluded}
+                      control={control}
+                      register={register}
+                      errors={errors}
+                      canRemove={fields.length > 1}
+                      onRemove={() => remove(idx)}
+                    />
+                  );
+                })}
               </div>
             </div>
 
@@ -207,7 +214,7 @@ export default function UpdateExamsModal({ open, onClose, country }: Props) {
                 disabled={isPending || loadingConfig}
                 className="flex-1 h-10 text-sm font-semibold inline-flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white"
               >
-                {isPending ? <>Saving <SmallSpinner /></> : loadingConfig ? <>Loading <SmallSpinner /></> : "Save changes"}
+                {isPending ? <>Adding <SmallSpinner /></> : loadingConfig ? <>Loading <SmallSpinner /></> : "Add exam"}
               </Button>
             </div>
           </form>
@@ -227,8 +234,9 @@ export default function UpdateExamsModal({ open, onClose, country }: Props) {
 
 interface RowProps {
   idx: number;
-  /** Live country value for this row, watched at the parent. */
-  rowCountry: string;
+  /** Exam type ids that should be hidden from this row's picker (already in
+   *  the user's profile, or picked in another row of the form). */
+  excludedExamTypeIds: Set<number>;
   control: Control<UpdateExamsForm>;
   register: UseFormRegister<UpdateExamsForm>;
   errors: FieldErrors<UpdateExamsForm>;
@@ -236,10 +244,21 @@ interface RowProps {
   onRemove: () => void;
 }
 
-function ExamConfigRow({ idx, rowCountry, control, register, errors, canRemove, onRemove }: RowProps) {
+function ExamConfigRow({ idx, excludedExamTypeIds, control, register, errors, canRemove, onRemove }: RowProps) {
   const rowErr = errors.exams?.[idx];
-  const { data: examsResp, isLoading: loadingExams } = useGetExamsByCountry(rowCountry);
-  const examOptions = examsResp?.data ?? [];
+  const { data: examsResp, isLoading: loadingExams } = useGetExamsByCountry();
+  const allExams = useMemo(() => examsResp?.data ?? [], [examsResp]);
+  const examOptions = useMemo(
+    () => allExams.filter((e) => !excludedExamTypeIds.has(e.id)),
+    [allExams, excludedExamTypeIds],
+  );
+  const allExamsAlreadyAdded =
+    !loadingExams && allExams.length > 0 && examOptions.length === 0;
+
+  // Merge RHF's ref with our own so we can imperatively call showPicker() on
+  // the native date input from a custom button.
+  const dateInputRef = useRef<HTMLInputElement | null>(null);
+  const dateReg = register(`exams.${idx}.exam_date`);
 
   return (
     <div className="group rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900/60 p-4 shadow-xs hover:border-slate-300 dark:hover:border-zinc-600 transition-colors">
@@ -282,37 +301,32 @@ function ExamConfigRow({ idx, rowCountry, control, register, errors, canRemove, 
           )}
         </div>
 
-        {/* Exam type — depends on this row's country */}
+        {/* Exam — searchable, independent of country */}
         <div>
           <label className="block text-[11px] font-semibold text-slate-700 dark:text-zinc-300 mb-1.5">Exam</label>
           <Controller
             name={`exams.${idx}.exam_type_id`}
             control={control}
             render={({ field }) => (
-              <Select
+              <ExamSelectWithSearch
+                options={examOptions}
                 value={field.value ? String(field.value) : ""}
                 onValueChange={(v) => field.onChange(Number(v))}
-                disabled={!rowCountry || loadingExams}
-              >
-                <SelectTrigger className={`h-10 w-full text-xs bg-slate-50 dark:bg-zinc-800/50 dark:text-zinc-100 ${rowErr?.exam_type_id ? "border-rose-500" : ""}`}>
-                  <SelectValue
-                    placeholder={
-                      !rowCountry
-                        ? "Pick a country first"
-                        : loadingExams
-                        ? "Loading exams…"
-                        : examOptions.length === 0
-                        ? "No exams in this country"
-                        : "Select exam"
-                    }
-                  />
-                </SelectTrigger>
-                <SelectContent className="z-10000" position="popper" sideOffset={4}>
-                  {examOptions.map((e) => (
-                    <SelectItem key={e.id} value={String(e.id)} className="text-xs">{e.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                disabled={loadingExams || allExamsAlreadyAdded}
+                placeholder={
+                  loadingExams
+                    ? "Loading exams…"
+                    : allExamsAlreadyAdded
+                    ? "You've added every available exam"
+                    : "Select exam"
+                }
+                emptyHint={
+                  allExamsAlreadyAdded
+                    ? "You've added every available exam"
+                    : "No exams available"
+                }
+                hasError={!!rowErr?.exam_type_id}
+              />
             )}
           />
           {rowErr?.exam_type_id && (
@@ -323,11 +337,28 @@ function ExamConfigRow({ idx, rowCountry, control, register, errors, canRemove, 
         {/* Exam date */}
         <div>
           <label className="block text-[11px] font-semibold text-slate-700 dark:text-zinc-300 mb-1.5">Exam date</label>
-          <Input
-            type="date"
-            {...register(`exams.${idx}.exam_date`)}
-            className={`h-10 text-xs bg-slate-50 dark:bg-zinc-800/50 dark:text-zinc-100 pr-1 [&::-webkit-calendar-picker-indicator]:ml-auto [&::-webkit-calendar-picker-indicator]:mr-0 [&::-webkit-calendar-picker-indicator]:cursor-pointer dark:[&::-webkit-calendar-picker-indicator]:invert ${rowErr?.exam_date ? "border-rose-500" : ""}`}
-          />
+          <div className="relative">
+            <Input
+              type="date"
+              {...dateReg}
+              ref={(el) => { dateReg.ref(el); dateInputRef.current = el; }}
+              className={`h-10 text-xs bg-slate-50 dark:bg-zinc-800/50 dark:text-zinc-100 pr-9 [&::-webkit-calendar-picker-indicator]:hidden [&::-webkit-inner-spin-button]:hidden ${rowErr?.exam_date ? "border-rose-500" : ""}`}
+            />
+            <button
+              type="button"
+              onClick={() => {
+                const el = dateInputRef.current;
+                if (!el) return;
+                if (typeof el.showPicker === "function") el.showPicker();
+                else el.focus();
+              }}
+              aria-label="Open date picker"
+              tabIndex={-1}
+              className="absolute right-2 top-1/2 -translate-y-1/2 inline-flex items-center justify-center w-6 h-6 rounded-md text-slate-500 dark:text-zinc-400 hover:bg-slate-200 dark:hover:bg-zinc-700 transition-colors"
+            >
+              <Calendar size={14} />
+            </button>
+          </div>
           {rowErr?.exam_date && (
             <p className="mt-1 text-[11px] text-rose-500">{rowErr.exam_date.message}</p>
           )}
@@ -397,7 +428,7 @@ function ExamConfigRow({ idx, rowCountry, control, register, errors, canRemove, 
                 <Checkbox
                   checked={!!field.value}
                   onCheckedChange={(c) => field.onChange(c === true)}
-                  className="h-4 w-4"
+                  className="h-4 w-4 border-slate-300 dark:border-zinc-500 dark:bg-zinc-800 data-[state=checked]:bg-indigo-600 data-[state=checked]:border-indigo-600 dark:data-[state=checked]:bg-indigo-500 dark:data-[state=checked]:border-indigo-500 dark:data-[state=checked]:text-white"
                 />
                 Send weekly progress reports by email
               </label>
@@ -406,6 +437,75 @@ function ExamConfigRow({ idx, rowCountry, control, register, errors, canRemove, 
         </div>
       </div>
     </div>
+  );
+}
+
+// ─── Searchable exam select ──────────────────────────────────────────────────
+
+function ExamSelectWithSearch({
+  options,
+  value,
+  onValueChange,
+  disabled,
+  placeholder,
+  emptyHint,
+  hasError,
+}: {
+  options: { id: number; name: string }[];
+  value: string;
+  onValueChange: (v: string) => void;
+  disabled?: boolean;
+  placeholder: string;
+  emptyHint: string;
+  hasError?: boolean;
+}) {
+  const [search, setSearch] = useState("");
+
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return options;
+    return options.filter((o) => o.name.toLowerCase().includes(q));
+  }, [search, options]);
+
+  return (
+    <Select
+      value={value}
+      onValueChange={onValueChange}
+      onOpenChange={(o) => { if (!o) setSearch(""); }}
+      disabled={disabled}
+    >
+      <SelectTrigger className={`h-10 w-full text-xs bg-slate-50 dark:bg-zinc-800/50 dark:text-zinc-100 ${hasError ? "border-rose-500" : ""}`}>
+        <SelectValue placeholder={placeholder} />
+      </SelectTrigger>
+      <SelectContent className="z-10000 max-h-80" position="popper" sideOffset={4}>
+        <div className="sticky top-0 z-10 bg-white dark:bg-zinc-900 border-b border-slate-100 dark:border-zinc-800 p-2">
+          <div className="relative">
+            <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 dark:text-zinc-500 pointer-events-none" />
+            <input
+              autoFocus
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              onKeyDown={(e) => e.stopPropagation()}
+              placeholder="Search exam..."
+              className="w-full h-8 pl-7 pr-2 rounded-md text-xs bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 outline-none focus:border-indigo-400 transition-colors text-slate-700 dark:text-zinc-200 placeholder:text-slate-400 dark:placeholder:text-zinc-500"
+            />
+          </div>
+        </div>
+        {options.length === 0 ? (
+          <div className="px-3 py-3 text-xs text-slate-400 dark:text-zinc-500 italic text-center">
+            {emptyHint}
+          </div>
+        ) : filtered.length === 0 ? (
+          <div className="px-3 py-3 text-xs text-slate-400 dark:text-zinc-500 italic text-center">
+            No exams match &quot;{search}&quot;
+          </div>
+        ) : (
+          filtered.map((o) => (
+            <SelectItem key={o.id} value={String(o.id)} className="text-xs">{o.name}</SelectItem>
+          ))
+        )}
+      </SelectContent>
+    </Select>
   );
 }
 
@@ -468,9 +568,9 @@ function CountrySelectWithSearch({
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-function emptyRow(country: string): ExamRowValue {
+function emptyRow(): ExamRowValue {
   return {
-    country,
+    country: "",
     exam_type_id: undefined as unknown as number,
     exam_date: "",
     target_score: "",

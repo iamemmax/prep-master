@@ -45,7 +45,7 @@ export default function FeaturesGrid() {
           </div>
 
           <h2 className="mt-5 text-balance text-3xl font-extrabold tracking-tight text-[#292D32] sm:text-4xl lg:text-5xl">
-            Everything You Need to Succeed
+            All you need to succeed
           </h2>
           <p className="mx-auto mt-3 max-w-xl text-pretty text-sm leading-relaxed text-muted-foreground sm:mt-4 sm:text-base">
             Comprehensive tools powered by cutting-edge AI technology designed to help you master

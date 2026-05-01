@@ -11,6 +11,7 @@ import { Crown, Menu, X, Sun, Moon, Settings } from "lucide-react";
 import PrepLogo from "@/utils/icons/logos/PrepLogo";
 import UpgradeModal from "../upgrade/UpgradeModal";
 import CreditBadge from "./CreditBadge";
+import { useUserSubscription } from "../../util/apis/subscription/subscription";
 
 const IS_PROD = process.env.NODE_ENV === "production";
 
@@ -27,6 +28,14 @@ const DashboardHeader = () => {
   const { resolved, toggle } = useTheme();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [upgradeOpen, setUpgradeOpen] = useState(false);
+  // Hide upgrade CTAs once a valid subscription is active. The dropdown
+  // subtitle also flips from "Free Account" to the plan name.
+  const { data: userSub } = useUserSubscription();
+  const activeSub =
+    userSub?.data?.is_subscribed && userSub?.data?.subscription?.is_valid
+      ? userSub.data.subscription
+      : null;
+  const showUpgrade = !activeSub;
 
   const handleLogout = () => {
     authDispatch({ type: "LOGOUT" });
@@ -109,15 +118,17 @@ const DashboardHeader = () => {
               <CreditBadge />
             </div>
 
-            {/* Upgrade — desktop only */}
-            <button
-              data-tour="header-upgrade"
-              onClick={() => setUpgradeOpen(true)}
-              className="hidden lg:flex items-center gap-1.5 px-4 py-2 rounded-[.5275rem] bg-linear-to-r from-[#FE9A00] to-[#FF6900] text-white text-sm lg:text-base font-inter font-bold shadow-sm hover:shadow-md transition-shadow cursor-pointer"
-            >
-              <Crown size={15} />
-              Upgrade
-            </button>
+            {/* Upgrade — desktop only, hidden when a valid plan is active */}
+            {showUpgrade && (
+              <button
+                data-tour="header-upgrade"
+                onClick={() => setUpgradeOpen(true)}
+                className="hidden lg:flex items-center gap-1.5 px-4 py-2 rounded-[.5275rem] bg-linear-to-r from-[#FE9A00] to-[#FF6900] text-white text-sm lg:text-base font-inter font-bold shadow-sm hover:shadow-md transition-shadow cursor-pointer"
+              >
+                <Crown size={15} />
+                Upgrade
+              </button>
+            )}
 
             {/* User dropdown */}
             <DropdownMenu.Root>
@@ -127,7 +138,9 @@ const DashboardHeader = () => {
                     <p className="text-sm font-semibold text-slate-700 dark:text-zinc-200 leading-tight">
                       {`${user?.user?.first_name ?? ""} ${user?.user?.last_name ?? ""}`}
                     </p>
-                    <p className="text-xs text-slate-400 dark:text-zinc-500">Free Account</p>
+                    <p className="text-xs text-slate-400 dark:text-zinc-500">
+                      {activeSub ? `${activeSub.plan.name} · ${activeSub.days_remaining}d left` : "Free Account"}
+                    </p>
                   </div>
                   <Avatar.Root className="w-9 h-9 lg:w-10 lg:h-10 rounded-full overflow-hidden">
                     <Avatar.Fallback className="w-full h-full bg-linear-to-tr font-inter font-semibold text-sm lg:text-base from-[#2B7FFF] to-[#615FFF] flex items-center justify-center text-white">
@@ -234,14 +247,16 @@ const DashboardHeader = () => {
             Profile &amp; settings
           </Link>
 
-          {/* Upgrade on mobile */}
-          <button
-            onClick={() => { setMobileOpen(false); setUpgradeOpen(true); }}
-            className="mt-1 flex items-center justify-center gap-1.5 px-4 py-3 rounded-xl bg-linear-to-r from-[#FE9A00] to-[#FF6900] text-white text-sm font-inter font-bold cursor-pointer"
-          >
-            <Crown size={15} />
-            Upgrade to Pro
-          </button>
+          {/* Upgrade on mobile — hidden when a valid plan is active */}
+          {showUpgrade && (
+            <button
+              onClick={() => { setMobileOpen(false); setUpgradeOpen(true); }}
+              className="mt-1 flex items-center justify-center gap-1.5 px-4 py-3 rounded-xl bg-linear-to-r from-[#FE9A00] to-[#FF6900] text-white text-sm font-inter font-bold cursor-pointer"
+            >
+              <Crown size={15} />
+              Upgrade to Pro
+            </button>
+          )}
         </nav>
       </div>
 

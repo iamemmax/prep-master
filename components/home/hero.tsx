@@ -56,7 +56,7 @@ export default function Hero() {
             <MotionReveal>
               <div className="inline-flex items-center gap-2 rounded-full border border-amber-200 bg-amber-50 px-4 py-1 text-xs font-semibold text-amber-700 shadow-sm">
                 <Zap className="h-3.5 w-3.5 text-amber-500" />
-                AI-Powered Exam Preparation Platform
+                AI-Empowered Exam Preparation Platform
               </div>
             </MotionReveal>
 
@@ -64,7 +64,7 @@ export default function Hero() {
               <h1 className="mt-7 font-bold  sm:leading-[1.15] tracking-tight text-[#1a1f2e] text-[23px] sm:text-[42px] lg:text-[56px]">
                 Ace any exams with{" "}
                 <strong className="text-primary underline decoration-[3px] underline-offset-[6px]">
-                  AI-powered
+                  AI-Empowered
                 </strong>
                 <br />
                 learning and practice

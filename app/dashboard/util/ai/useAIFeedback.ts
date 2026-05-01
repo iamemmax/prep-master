@@ -14,8 +14,6 @@ import {
   ProgressInsightRequest,
   QuestionAnalysis,
   QuestionAnalysisRequest,
-  SessionReview,
-  ReviewQuestion,
 } from "./types";
 
 interface HookState<T> {
@@ -391,71 +389,4 @@ function buildMockQuestionAnalysis(req: QuestionAnalysisRequest): QuestionAnalys
 }
 export function useQuestionAnalysis(req: QuestionAnalysisRequest | null) {
   return useMockFetch(req, buildMockQuestionAnalysis, req ? `qanalysis:${req.question_id}` : null, 900);
-}
-
-// ─── Session review (full answer key after submission) ───────────────────────
-// Backend endpoint will return this shape. For UI dev we fabricate a
-// deterministic review based on sessionId so the page renders consistently.
-function buildMockSessionReview(sessionId: string | number): SessionReview {
-  const seed = String(sessionId).length;
-  const examTypes = ["WAEC", "JAMB", "SAT", "GRE"];
-  const topics = ["Algebra", "Geometry", "Reading comprehension", "Data interpretation", "Vocabulary"];
-
-  const mkQuestion = (i: number): ReviewQuestion => {
-    const topic = topics[(i + seed) % topics.length];
-    const correctLabel = ["A", "B", "C", "D"][(i * 3 + seed) % 4];
-    // Every 3rd question wrong, every 7th skipped.
-    const picked = (i + seed) % 7 === 0 ? null
-                 : (i + seed) % 3 === 0 ? ["A", "B", "C", "D"].find(l => l !== correctLabel) ?? "B"
-                 :                        correctLabel;
-    const is_correct = picked === correctLabel;
-    return {
-      id: i + 1,
-      text:
-        topic === "Algebra"      ? `If 3x + 7 = ${10 + i}, what is the value of x?` :
-        topic === "Geometry"     ? `A rectangle has length ${6 + i} and width ${4 + (i % 3)}. What is its perimeter?` :
-        topic === "Reading comprehension" ? `Based on the passage, the author's primary purpose is to:` :
-        topic === "Data interpretation"   ? `According to the chart, which year had the largest year-over-year increase in revenue?` :
-                                 `Which word best replaces the underlined word "${["prescient","salient","innocuous","verbose"][i % 4]}" in the sentence?`,
-      options: [
-        { label: "A", text: topic === "Algebra" ? `${i}` : "Answer A for this question" },
-        { label: "B", text: topic === "Algebra" ? `${i + 1}` : "Answer B for this question" },
-        { label: "C", text: topic === "Algebra" ? `${i + 2}` : "Answer C for this question" },
-        { label: "D", text: topic === "Algebra" ? `${i + 3}` : "Answer D for this question" },
-      ],
-      correct_answer: correctLabel,
-      selected_answer: picked,
-      is_correct,
-      explanation:
-        topic === "Algebra"
-          ? `Isolate x: subtract 7 from both sides, then divide by 3. The value should fall in the small single-digit range typical of intro algebra questions.`
-          : `Work through the stem clause by clause. Eliminate options that break at least one condition, then compare the remaining two side-by-side.`,
-      topic,
-      difficulty: ["easy", "medium", "hard"][(i + seed) % 3],
-      time_spent_sec: 45 + ((i * 13 + seed) % 60),
-    };
-  };
-
-  const total = 10;
-  const questions = Array.from({ length: total }, (_, i) => mkQuestion(i));
-  const correct_answers = questions.filter(q => q.is_correct).length;
-
-  return {
-    session_id: sessionId,
-    exam_type: examTypes[seed % examTypes.length],
-    difficulty: "mixed",
-    score: Math.round((correct_answers / total) * 100),
-    correct_answers,
-    total_questions: total,
-    submitted_at: new Date().toISOString(),
-    questions,
-  };
-}
-export function useSessionReview(sessionId: string | number | null) {
-  return useMockFetch(
-    sessionId,
-    (id) => buildMockSessionReview(id),
-    sessionId != null ? `review:${sessionId}` : null,
-    800,
-  );
 }

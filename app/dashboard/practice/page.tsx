@@ -11,10 +11,7 @@ import PracticeIntakeModal from "../components/practices/PracticeIntakeModal";
 import ActiveSessionsStrip from "../components/practices/ActiveSessionsStrip";
 import QuickActions from "../components/practices/QuickActions";
 import UpdateExamsModal from "../components/practices/UpdateExamsModal";
-import { useAuth } from "@/context/authentication";
 import { X, SlidersHorizontal, ChevronRight, ArrowUpDown, Sparkles, BookOpenCheck } from "lucide-react";
-import { useGetAvailableExamsDetails } from "../util/apis/practice/availableExamsDetails";
-import { availableData } from "../util/types/dashboard/examlisttypes";
 import { useGetDashboardOverview } from "../util/apis/dashboard/fetchDashboardOverview";
 import { Userexam } from "../util/types/dashboard/dashbaordOverview";
 import { TourAutoStart } from "../util/tour/TourContext";
@@ -65,44 +62,26 @@ export function getBorderClass(difficulty_level: Exam["difficulty_level"]): stri
   }
 }
 
-function mapToExam(d: availableData): Exam {
-  const diff = (d.available_difficulties?.[0] ?? "medium").toLowerCase() as Exam["difficulty_level"];
-  return {
-    id: d.id,
-    name: d.name,
-    description: d.description,
-    questions: d.total_questions,
-    topics: d.total_topics || d?.subject_count,
-    difficulty: diff.charAt(0).toUpperCase() + diff.slice(1),
-    freeAccess: 50,
-    lastScore: d.previous_score_percentage ?? null,
-    progress: d.previous_score_percentage ?? 0,
-    badge: d.is_premium ? "Premium" : null,
-    category: d.name,
-    access: d.is_premium ? "premium" : "free",
-    difficulty_level: diff,
-    started: d?.active_session_id != null,
-    sessionId: d?.active_session_id ?? undefined,
-  };
-}
-
-function mapUserExamToExam(ue: Userexam): Exam {
-  const et = ue.exam_type;
+function mapUserExamToExam(ue: Userexam): Exam | null {
+  const et = ue.exam;
+  // Guard: a freshly-created config may come back before the server has
+  // hydrated the nested exam. Skip those rows rather than crashing.
+  if (!et) return null;
   const diff = (et.difficulty_level ?? "medium").toLowerCase() as Exam["difficulty_level"];
   return {
     id: et.id,
-    examConfigId: ue.id,
+    examConfigId: ue.config_id,
     name: et.name,
-    description: et.description,
-    questions: et.total_questions,
-    topics: et.total_topics || et.subjects?.length || 0,
+    description: "",
+    questions: et.total_questions ?? 0,
+    topics: et.total_topics ?? et.subjects?.length ?? 0,
     difficulty: diff.charAt(0).toUpperCase() + diff.slice(1),
     freeAccess: 50,
-    lastScore: et.previous_score_percentage ?? null,
-    progress: et.previous_score_percentage ?? 0,
-    badge: et.is_premium ? "Premium" : null,
+    lastScore: et.last_score ?? null,
+    progress: et.last_score ?? 0,
+    badge: null,
     category: et.name,
-    access: et.is_premium ? "premium" : "free",
+    access: "free",
     difficulty_level: diff,
     started: et.active_session_id != null,
     sessionId: et.active_session_id ?? undefined,
@@ -170,27 +149,57 @@ export default function PracticeExamsPage() {
   const [sortBy, setSortBy]             = useState<SortKey>("recommended");
   const [category, setCategory]         = useState<string>("All");
 
-  const { authState: { user } } = useAuth();
   const { data: overviewResponse, isLoading: overviewLoading, isFetching } = useGetDashboardOverview();
-  const { data: detailResponse, isLoading: detailLoading }                 = useGetAvailableExamsDetails(selectedExamRef ?? "");
 
-  const isLoading = selectedExamRef ? detailLoading : overviewLoading;
+  const isLoading = overviewLoading;
 
   const apiExams = useMemo<Exam[]>(() => {
-    if (selectedExamRef) {
-      if (!detailResponse?.data) return [];
-      const mapped = mapToExam(detailResponse.data);
-      // Resolve the user-exam id (exam_config_id) by matching against user_exams.
-      // The selected ref may be the exam_type itself or one of its subjects.
-      const userExams = overviewResponse?.data?.user_exams ?? [];
-      const userExam =
-        userExams.find(ue => ue.exam_type.id === mapped.id) ??
-        userExams.find(ue => ue.exam_type.subjects?.some(s => s.reference === selectedExamRef));
-      return [{ ...mapped, examConfigId: userExam?.id }];
-    }
     const userExams = overviewResponse?.data?.user_exams ?? [];
-    return userExams.map(mapUserExamToExam);
-  }, [selectedExamRef, overviewResponse, detailResponse]);
+
+    if (selectedExamRef) {
+      // Try the exam ref first, then fall back to a subject ref. Everything
+      // we need to render the card already lives in user_exams — no extra
+      // endpoint call is needed.
+      const examMatch = userExams.find(ue => ue.exam?.reference === selectedExamRef);
+      if (examMatch) {
+        const mapped = mapUserExamToExam(examMatch);
+        return mapped ? [mapped] : [];
+      }
+      const subjectMatch = userExams.find(ue =>
+        ue.exam?.subjects?.some(s => s.reference === selectedExamRef)
+      );
+      if (subjectMatch) {
+        const subj = subjectMatch.exam.subjects.find(s => s.reference === selectedExamRef);
+        if (!subj) return [];
+        const diff = (subj.difficulty_level ?? subjectMatch.exam.difficulty_level ?? "medium")
+          .toString()
+          .toLowerCase() as Exam["difficulty_level"];
+        return [{
+          id: subjectMatch.exam.id,
+          examConfigId: subjectMatch.config_id,
+          name: subj.name,
+          description: `${subjectMatch.exam.name} · ${subj.name}`,
+          questions: subj.total_questions ?? 0,
+          topics: subj.total_topics ?? 0,
+          difficulty: diff.charAt(0).toUpperCase() + diff.slice(1),
+          freeAccess: 50,
+          lastScore: subjectMatch.exam.last_score ?? null,
+          progress: subjectMatch.exam.last_score ?? 0,
+          badge: null,
+          category: subjectMatch.exam.name,
+          access: "free",
+          difficulty_level: diff,
+          started: subjectMatch.exam.active_session_id != null,
+          sessionId: subjectMatch.exam.active_session_id ?? undefined,
+        }];
+      }
+      return [];
+    }
+
+    return userExams
+      .map(mapUserExamToExam)
+      .filter((e): e is Exam => e !== null);
+  }, [selectedExamRef, overviewResponse]);
 
   // If the user picked a specific subject in the sidebar (rather than a whole
   // exam), find it inside user_exams so we can pre-select + lock it in the
@@ -198,7 +207,7 @@ export default function PracticeExamsPage() {
   const preselectedSubject: { id: number; name: string } | null = (() => {
     if (!selectedExamRef) return null;
     for (const ue of overviewResponse?.data?.user_exams ?? []) {
-      const subj = ue.exam_type.subjects?.find(s => s.reference === selectedExamRef);
+      const subj = ue.exam?.subjects?.find((s) => s.reference === selectedExamRef);
       if (subj) return { id: subj.id, name: subj.name };
     }
     return null;
@@ -209,16 +218,7 @@ export default function PracticeExamsPage() {
     [apiExams],
   );
 
-  const categoryOptions = useMemo<string[]>(() => {
-    const uniq = Array.from(new Set(apiExams.map(e => e.category))).filter(Boolean);
-    return ["All", ...uniq];
-  }, [apiExams]);
-
-  const categoryCounts = useMemo<Record<string, number>>(() => {
-    const counts: Record<string, number> = { All: apiExams.length };
-    for (const e of apiExams) counts[e.category] = (counts[e.category] ?? 0) + 1;
-    return counts;
-  }, [apiExams]);
+ 
 
   const filtered = useMemo<Exam[]>(() => {
     const diffRank: Record<Exam["difficulty_level"], number> = { easy: 1, medium: 2, hard: 3 };
@@ -318,7 +318,7 @@ export default function PracticeExamsPage() {
                 </p>
               </div>
               <div data-tour="practice-filters" className="flex items-center gap-2 sm:gap-3 flex-wrap">
-                <div className="relative">
+                {/* <div className="relative">
                   <ArrowUpDown size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-zinc-500 pointer-events-none" />
                   <select
                     value={sortBy}
@@ -331,7 +331,7 @@ export default function PracticeExamsPage() {
                     <option value="progress_desc">My progress</option>
                   </select>
                   <ChevronRight size={13} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 dark:text-zinc-500 rotate-90 pointer-events-none" />
-                </div>
+                </div> */}
                 <button
                   onClick={() => setSidebarOpen(true)}
                   className="lg:hidden flex items-center gap-1.5 text-sm font-semibold h-10 px-3 rounded-[10px] border border-slate-200 dark:border-zinc-700 text-slate-600 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-800 transition-colors shrink-0"
@@ -356,7 +356,7 @@ export default function PracticeExamsPage() {
                   className="inline-flex items-center gap-1.5 text-sm font-semibold h-10 px-3 rounded-[10px] border border-slate-200 dark:border-zinc-700 text-slate-600 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-800 transition-colors shrink-0"
                 >
                   <BookOpenCheck size={15} />
-                  <span className="hidden sm:inline">Update my exams</span>
+                  <span className="hidden sm:inline">Add new exams</span>
                 </button>
               </div>
             </div>
@@ -388,6 +388,25 @@ export default function PracticeExamsPage() {
             {/* Exam grid */}
             {isLoading ? (
               <SkeletonGrid />
+            ) : !selectedExamRef && (overviewResponse?.data?.user_exams ?? []).length === 0 ? (
+              <div className="text-center py-16 bg-white dark:bg-zinc-900 rounded-2xl border border-slate-200 dark:border-zinc-800 px-6">
+                <div className="w-14 h-14 mx-auto rounded-full bg-indigo-50 dark:bg-indigo-500/15 flex items-center justify-center mb-4">
+                  <BookOpenCheck size={22} className="text-indigo-600 dark:text-indigo-300" />
+                </div>
+                <p className="text-slate-800 dark:text-zinc-100 font-semibold text-base">No exams added yet</p>
+                <p className="text-slate-400 dark:text-zinc-500 text-sm mt-1 max-w-sm mx-auto">
+                  Add the exams you&apos;re preparing for to see practice cards tailored to you.
+                </p>
+                <div className="flex flex-wrap items-center justify-center gap-2 mt-5">
+                  <button
+                    onClick={() => setExamsModalOpen(true)}
+                    className="inline-flex items-center gap-1.5 text-xs font-bold px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white transition-colors"
+                  >
+                    <BookOpenCheck size={13} />
+                    Add exams
+                  </button>
+                </div>
+              </div>
             ) : filtered.length === 0 ? (
               <div className="text-center py-16 bg-white dark:bg-zinc-900 rounded-2xl border border-slate-200 dark:border-zinc-800 px-6">
                 <div className="w-14 h-14 mx-auto rounded-full bg-[#FFF4DF] dark:bg-amber-500/15 flex items-center justify-center mb-4">
@@ -406,6 +425,8 @@ export default function PracticeExamsPage() {
                       Clear filters
                     </button>
                   )}
+                  {
+                    !isProductionGated() &&
                   <button
                     onClick={() => setIntakeOpen(true)}
                     className="text-xs font-bold px-4 py-2 rounded-lg text-white transition-all hover:opacity-90"
@@ -413,6 +434,7 @@ export default function PracticeExamsPage() {
                   >
                     Generate questions with AI →
                   </button>
+                  }
                 </div>
               </div>
             ) : (
@@ -455,7 +477,6 @@ export default function PracticeExamsPage() {
       <UpdateExamsModal
         open={examsModalOpen}
         onClose={() => setExamsModalOpen(false)}
-        country={user?.profile?.country ?? ""}
       />
 
       {sessionExam && (

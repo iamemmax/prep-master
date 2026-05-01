@@ -9,6 +9,12 @@ export const QUERYKEY = {
    PRACTICE_AVAILABLE_EXAMS_DETAILS:["PRACTICE_AVAILABLE_EXAMS_DETAILS"],
    PRACTICE_QUESTION_DETAILS:["PRACTICE_QUESTION_DETAILS"],
    PRACTICE_EXAM_CONFIG:["PRACTICE_EXAM_CONFIG"],
+   PRACTICE_SESSION_REVIEW:["PRACTICE_SESSION_REVIEW"],
+   //profile
+   USER_SETTINGS:["user-settings"],
+   //subscriptions
+   SUBSCRIPTION_PLANS:["subscription-plans"],
+   USER_SUBSCRIPTION:["user-subscription"],
    // PRACTICE_:["practice-exams-list"],
-  
+
 }
