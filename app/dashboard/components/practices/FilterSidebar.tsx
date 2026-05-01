@@ -52,7 +52,7 @@ interface SidebarExam {
 }
 
 const FilterSidebar = ({ filters, setFilters, onExamSelect, selectedExamRef = null }: FilterSidebarProps) => {
-  const { category, access, difficulty } = filters;
+  const { category } = filters;
   const { data: response, isLoading } = useGetDashboardOverview();
   const { data: subResp } = useUserSubscription();
   const { remaining, total } = useCreditBalance();
@@ -65,10 +65,11 @@ const FilterSidebar = ({ filters, setFilters, onExamSelect, selectedExamRef = nu
 
   // Earliest scheduled exam by date string. Pure: no Date.now() inside the
   // memo — the actual "days left" comes from `overview.days_remaining`,
-  // which the backend computes server-side.
+  // which the backend computes server-side. We also drop rows with a missing
+  // joined exam (the backend can return `exam: null` for fresh configs).
   const nextExam = useMemo(() => {
     const withDates = userExams
-      .filter((e) => e.exam_date)
+      .filter((e) => e.exam_date && e.exam)
       .map((e) => ({ name: e.exam.name, date: e.exam_date as string }));
     withDates.sort((a, b) => a.date.localeCompare(b.date));
     return withDates[0] ?? null;

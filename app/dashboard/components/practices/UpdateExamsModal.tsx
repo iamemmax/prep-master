@@ -72,7 +72,15 @@ export default function UpdateExamsModal({ open, onClose }: Props) {
   // exam. Existing exam_type_ids are tracked separately so the picker can
   // hide exams the user has already added.
   const existingExamTypeIds = useMemo(
-    () => new Set((configResp?.data ?? []).map((entry) => entry.exam_type.id)),
+    () =>
+      new Set(
+        // Backend can occasionally return entries with a null exam_type (e.g.
+        // a freshly-created config row before the join hydrates). Skip those
+        // rather than crashing the whole render.
+        (configResp?.data ?? [])
+          .filter((entry) => entry.exam_type != null)
+          .map((entry) => entry.exam_type.id),
+      ),
     [configResp],
   );
 

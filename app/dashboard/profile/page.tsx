@@ -734,15 +734,19 @@ function ExamConfigCard({ config }: { config: ExamConfigEntry }) {
   const target = config.target_score?.trim() ? config.target_score : "—";
   const level = config.current_level?.trim() || null;
   const hours = config.daily_study_hours;
+  // Backend sometimes returns config rows with no joined exam_type yet —
+  // fall back to a placeholder name + zeroed counts so the card still renders.
+  const examTypeName = config.exam_type?.name ?? "Pending";
+  const totalQuestions = config.exam_type?.total_questions ?? 0;
 
   return (
     <div className="rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-4 hover:border-slate-300 dark:hover:border-zinc-700 transition-colors">
       <div className="flex items-center gap-2 mb-3 flex-wrap">
         <span className="inline-flex items-center h-6 px-2 rounded bg-[#F7C948] text-[#5A3300] font-black text-[10px] tracking-tight shrink-0">
-          {config.exam_type.name.toUpperCase()}
+          {examTypeName.toUpperCase()}
         </span>
         <span className="text-[10px] text-slate-400 dark:text-zinc-500 capitalize">
-           {config.exam_type.total_questions} questions
+           {totalQuestions} questions
         </span>
       </div>
 
