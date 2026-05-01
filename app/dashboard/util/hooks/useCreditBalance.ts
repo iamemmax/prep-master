@@ -23,7 +23,11 @@ export function useCreditBalance(): { remaining: number; total: number } {
 
   const remaining = Number(sub.ai_credits_remaining ?? 0);
   const total = Number(sub.plan?.ai_credits ?? 0);
-  // Defensive: if backend ever returns total=0 with credits remaining,
-  // fall back to remaining as the ceiling so we never divide by zero.
-  return { remaining, total: total > 0 ? total : Math.max(remaining, 1) };
+  // If the plan has no AI quota at all (free tier subscription record), report
+  // {0, 0} so the SubscriptionProvider treats the user as "no plan to be low
+  // against" — otherwise the auto-paywall would fire on every click.
+  if (total <= 0 && remaining <= 0) return { remaining: 0, total: 0 };
+  // Divide-by-zero guard: only kicks in when the backend returns leftover
+  // credits with no declared total (rare data inconsistency).
+  return { remaining, total: total > 0 ? total : remaining };
 }

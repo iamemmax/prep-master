@@ -20,8 +20,11 @@ const SubscriptionContext = createContext<SubscriptionContextValue | null>(null)
 
 export function SubscriptionProvider({ children }: { children: React.ReactNode }) {
   const { remaining, total } = useCreditBalance();
-  const percentRemaining = total > 0 ? (remaining / total) * 100 : 0;
-  const isLow = percentRemaining <= LOW_CREDIT_THRESHOLD_PCT;
+  // Only meaningful when there's a plan to be low against. Free users (total=0)
+  // get isLow=false so the click-hijack doesn't paywall them out of their free
+  // tier — they can still hit the Upgrade button explicitly.
+  const percentRemaining = total > 0 ? (remaining / total) * 100 : 100;
+  const isLow = total > 0 && percentRemaining <= LOW_CREDIT_THRESHOLD_PCT;
 
   // `dismissed` is hydrated from sessionStorage via a lazy initializer (no
   // effect, no cascading render). `manuallyOpen` lets other components force
