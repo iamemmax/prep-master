@@ -54,7 +54,7 @@ export default function SignupTargetPage() {
   const email = userInfo?.email ?? examData?.email ?? ""
 
   // ✅ Guard ensures required step-1 fields exist before submitting
-  if (!email || !examData?.country || !examData?.exam_type || !examData?.exam_date) {
+  if (!email || !examData?.country || !examData?.exam_type) {
     router.push(email ? "/signup/exams" : "/signup")
     return
   }
@@ -63,7 +63,7 @@ export default function SignupTargetPage() {
     email,
     country: examData.country,
     exam_type: examData.exam_type,
-    exam_date: examData.exam_date,
+    exam_date: examData.exam_date ?? null,
     target_score: data.target_score,
     daily_study_hours: data.daily_study_hours,
     current_level: data.current_level,

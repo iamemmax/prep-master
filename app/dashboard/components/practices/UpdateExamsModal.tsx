@@ -35,7 +35,7 @@ const LEVELS = ["Beginner", "Intermediate", "Advanced"] as const;
 const examConfigSchema = z.object({
   country: z.string().min(1, "Country is required"),
   exam_type_id: z.number({ message: "Please select an exam" }).int().positive(),
-  exam_date: z.string().min(1, "Exam date is required"),
+  exam_date: z.string().optional(),
   target_score: z.string().min(1, "Target score is required"),
   daily_study_hours: z
     .number({ message: "Must be a number" })

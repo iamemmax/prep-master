@@ -24,9 +24,9 @@ const baseExamOnboardingSchema = z.object({
   exam_name: z.string().optional(), // UI display only — not sent to API
   exam_date: z
     .string()
-    .min(1, "Exam date is required")
-    .refine((val) => !isNaN(Date.parse(val)), { message: "Invalid date format" })
-    .refine((val) => new Date(val) > new Date(), { message: "Exam date must be in the future" }),
+    .optional()
+    .refine((val) => !val || !isNaN(Date.parse(val)), { message: "Invalid date format" })
+    .refine((val) => !val || new Date(val) > new Date(), { message: "Exam date must be in the future" }),
   target_score: z.string().min(1, "Target score is required"),
   daily_study_hours: z
     .number({ message: "Must be a number" })
