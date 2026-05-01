@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { usePathname } from "next/navigation";
 import { MessagesSquare, X, Phone, Mail } from "lucide-react";
 import { FaWhatsapp } from "react-icons/fa";
 
@@ -14,8 +15,14 @@ const SUPPORT = {
 };
 
 export default function ContactSupportFab() {
+  const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const wrapperRef = useRef<HTMLDivElement>(null);
+
+  // Hidden inside an active practice session — the bottom-right corner there
+  // is owned by the dock's Prev/Next/Finish buttons, and the support menu has
+  // nowhere to anchor without overlapping them.
+  const hideOnRoute = pathname?.includes("/dashboard/practice/start-practice/");
 
   useEffect(() => {
     if (!open) return;
@@ -37,6 +44,8 @@ export default function ContactSupportFab() {
   const telHref = `tel:${SUPPORT.phone.replace(/[^\d+]/g, "")}`;
   const waHref  = `https://wa.me/${SUPPORT.whatsapp.replace(/\D/g, "")}`;
   const mailHref = `mailto:${SUPPORT.email}`;
+
+  if (hideOnRoute) return null;
 
   return (
     <div

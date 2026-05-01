@@ -93,7 +93,7 @@ export default function UpgradeModal({
     <Dialog open={open} onOpenChange={(v) => { if (!v && !initiating) onClose(); }}>
       <DialogContent
         showCloseButton={false}
-        className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 p-0 gap-0 text-slate-900 dark:text-zinc-100 rounded-2xl overflow-hidden flex flex-col max-h-[90vh] shadow-2xl"
+        className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 p-0 gap-0 text-slate-900 dark:text-zinc-100 rounded-2xl overflow-hidden flex flex-col max-h-[90vh] shadow-2xl font-inter"
         style={{ maxWidth: 820 }}
       >
         {/* Hero */}
@@ -267,29 +267,34 @@ export default function UpgradeModal({
           )}
         </div>
 
-        {/* Footer */}
-        <div className="flex items-center justify-between gap-3 px-6 py-3 border-t border-slate-100 dark:border-zinc-800 shrink-0 bg-white dark:bg-zinc-900">
-          <p className="text-[10px] sm:text-[11px] text-slate-500 dark:text-zinc-400">
+        {/* Footer — stacks vertically on mobile so the buttons get full width
+            instead of getting squeezed by the secure-checkout note. */}
+        <div className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-between gap-3 px-4 sm:px-6 py-3 border-t border-slate-100 dark:border-zinc-800 shrink-0 bg-white dark:bg-zinc-900">
+          <p className="text-[10px] sm:text-[11px] text-slate-500 dark:text-zinc-400 text-center sm:text-left">
             Secure Paystack checkout. Cancel anytime.
           </p>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 w-full sm:w-auto">
             <button
               onClick={onClose}
               disabled={initiating}
-              className="text-[11px] sm:text-xs font-semibold px-3 sm:px-4 h-9 sm:h-10 rounded-lg text-slate-600 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors disabled:opacity-50"
+              className="flex-1 sm:flex-none text-[11px] sm:text-xs font-semibold px-3 sm:px-4 h-10 rounded-lg text-slate-600 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors disabled:opacity-50"
             >
               Maybe later
             </button>
             <button
               onClick={handleContinue}
               disabled={!selectedPlan || initiating}
-              className="inline-flex items-center gap-1.5 text-[11px] sm:text-xs font-bold px-3 sm:px-5 h-9 sm:h-10 rounded-lg text-white shadow-sm transition-all hover:shadow-md hover:-translate-y-0.5 disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:translate-y-0"
+              className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 text-[11px] sm:text-xs font-bold px-3 sm:px-5 h-10 rounded-lg text-white shadow-sm transition-all hover:shadow-md hover:-translate-y-0.5 disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:translate-y-0 whitespace-nowrap"
               style={{ background: "linear-gradient(135deg, #FE9A00, #FF6900)" }}
             >
               {initiating ? (
                 <><SmallSpinner /> Redirecting…</>
               ) : selectedPlan ? (
-                <><Zap size={13} fill="currentColor" /> Continue with {selectedPlan.name}</>
+                <>
+                  <Zap size={13} fill="currentColor" />
+                  <span className="sm:hidden">Continue</span>
+                  <span className="hidden sm:inline">Continue with {selectedPlan.name}</span>
+                </>
               ) : (
                 <>Continue</>
               )}
