@@ -7,7 +7,8 @@ type Confidence = "guess" | "likely" | "certain";
 interface QuestionViewModel {
   text: string;
   options: { id: number; option_text: string }[];
-  topic: { name: string };
+  topic: { name: string } | null;
+  subject?: { name: string } | null;
   difficulty_level: string;
   explanation?: string;
 }
