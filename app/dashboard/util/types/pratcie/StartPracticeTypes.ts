@@ -22,7 +22,7 @@ export interface Question {
   id: number;
   reference: string;
   subject: Subject;
-  topic: Subject;
+  topic: Subject | null;
   text: string;
   options: Option[] | Record<string, string>;
   explanation?: string;
@@ -95,7 +95,7 @@ interface Examconfig {
   id: number;
   reference: string;
   exam_type: Examtype;
-  exam_date: string;
+  exam_date: string | null;
   target_score: string;
   daily_study_hours: number;
   current_level: string;

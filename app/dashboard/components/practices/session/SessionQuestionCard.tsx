@@ -58,7 +58,7 @@ export default function SessionQuestionCard({
               Question {current + 1} of {total}
             </p>
             <div className="flex items-center gap-2 mt-1 flex-wrap">
-              <p className="text-sm font-medium text-slate-700 dark:text-zinc-300">{question.topic.name}</p>
+              <p className="text-sm font-medium text-slate-700 dark:text-zinc-300">{question.topic?.name ?? question.subject?.name ?? "General"}</p>
               <span className={`text-[10px] font-bold capitalize px-1.5 py-0.5 rounded ${
                 question.difficulty_level === "easy"
                   ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400"
