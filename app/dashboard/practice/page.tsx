@@ -288,11 +288,11 @@ export default function PracticeExamsPage() {
           {/* Mobile Sidebar Drawer */}
           {sidebarOpen && (
             <div className="lg:hidden fixed inset-0 z-50 flex">
-              <div className="absolute inset-0 bg-black/40" onClick={() => setSidebarOpen(false)} />
-              <div className="relative bg-white w-72 max-w-[85vw] h-full overflow-y-auto p-4 shadow-xl">
+              <div className="absolute inset-0 bg-black/40 dark:bg-black/60" onClick={() => setSidebarOpen(false)} />
+              <div className="relative bg-white dark:bg-zinc-900 w-72 max-w-[85vw] h-full overflow-y-auto p-4 shadow-xl border-r border-slate-200 dark:border-zinc-800">
                 <div className="flex items-center justify-between mb-4">
-                  <p className="font-bold text-slate-800">Filters</p>
-                  <button onClick={() => setSidebarOpen(false)} className="text-slate-400 hover:text-slate-600 p-1">
+                  <p className="font-bold text-slate-800 dark:text-zinc-100">Filters</p>
+                  <button onClick={() => setSidebarOpen(false)} className="text-slate-400 dark:text-zinc-500 hover:text-slate-600 dark:hover:text-zinc-200 p-1">
                     <X size={18} />
                   </button>
                 </div>

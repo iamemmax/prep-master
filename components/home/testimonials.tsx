@@ -87,7 +87,8 @@ export default function Testimonials() {
             Testimonials
           </Badge>
           <h2 className="mt-5 text-balance text-3xl font-extrabold tracking-tight text-[#292D32] sm:text-[48px]">
-            Loved and trusted Worldwide
+            {/* Loved and trusted Worldwide */}
+            Trusted by Thousands Worldwide
           </h2>
           <p className="mx-auto -mt-2 font-light max-w-4xl text-pretty text-sm text-muted-foreground sm:mt-4 sm:text-xl">
             Join thousands of successful students who achieved their goals with PrepMaster
