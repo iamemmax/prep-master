@@ -180,7 +180,7 @@ export default function PracticeExamUI({ params }: { params: Promise<{ sessionId
 
   if (!sessionId || isLoading || !session || questions.length === 0) {
     return (
-      <div className="flex h-screen h-dvh items-center justify-center bg-slate-50 dark:bg-zinc-950">
+      <div className="flex  h-dvh items-center justify-center bg-slate-50 dark:bg-zinc-950">
         <div className="w-8 h-8 rounded-full border-2 border-slate-400 dark:border-zinc-500 border-t-transparent animate-spin" />
       </div>
     );
