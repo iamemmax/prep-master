@@ -7,7 +7,6 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { Button } from "@/components/ui/button"
 import AuthStepHeader from "@/components/auth/auth-step-header"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Slider } from "@/components/ui/slider"
 import {  Step2Data, step2Schema } from "../../schema/signup/userInfoSchema"
 // import { useCompleteOnboarding } from "../../apis/signup/verifyUser"
 import { useOnboardingStore } from "@/app/store/onboardingStore"
@@ -102,7 +101,7 @@ export default function SignupTargetPage() {
 
         <form className="mt-6 space-y-5" onSubmit={handleSubmit(onSubmit)}>
 
-          {/* Target score slider */}
+          {/* Target score (auto-set) */}
           <div>
             <div className="text-xs font-medium text-[#0F172A]">Target score</div>
             <Controller
@@ -112,18 +111,13 @@ export default function SignupTargetPage() {
                 <div className="mt-2 rounded-md bg-[#F8FAFC] px-4 py-3">
                   <div className="flex items-center justify-between">
                     <div className="text-[24px] font-semibold text-[#0F172A]">{field.value}</div>
-                    <span className="text-xs text-[#94A3B8]">
-                      {examData?.exam_name}
+                    <span className="text-[10px] font-semibold uppercase tracking-wider text-[#B7791F] bg-primary/10 px-2 py-0.5 rounded">
+                      Auto-set
                     </span>
                   </div>
-                  <Slider
-                    min={400}
-                    max={1600}
-                    step={10}
-                    value={[Number(field.value)]}
-                    onValueChange={(val) => field.onChange(String(val[0]))}
-                    className="mt-3 w-full"
-                  />
+                  <p className="mt-1 text-xs text-[#94A3B8]">
+                    {examData?.exam_name ? `Recommended for ${examData.exam_name}` : "We'll tune this as you practice."}
+                  </p>
                 </div>
               )}
             />

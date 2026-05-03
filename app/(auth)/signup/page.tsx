@@ -167,9 +167,13 @@ export default function SignupPage() {
         </form>
 
         <p className="mt-5 text-xs md:text-sm leading-relaxed text-[#94A3B8]">
-          By creating an account, you agree to the{" "}
+          By creating an account, you agree to our{" "}
           <Link href="/terms" className="underline underline-offset-2">
             Terms of Service
+          </Link>{" "}
+          and{" "}
+          <Link href="/privacy" className="underline underline-offset-2">
+            Privacy Policy
           </Link>
           . We&apos;ll occasionally send you account-related emails.
         </p>

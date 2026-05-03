@@ -51,7 +51,6 @@ export default function SignupExamsPage() {
     },
   })
 
-  const selectedCountry = useWatch({ control, name: "country" })
   const selectedExamType = useWatch({ control, name: "exam_type" })
 
   const { data: examsResponse, isLoading: isLoadingExams } = useGetExamsByCountry()
@@ -166,7 +165,7 @@ export default function SignupExamsPage() {
                     const picked = exams.find((e) => e.id === id)
                     setValue("exam_name", picked?.name ?? "")
                   }}
-                  disabled={!selectedCountry || isLoadingExams}
+                  disabled={isLoadingExams}
                 >
                   <SelectTrigger
                     className={`h-11 w-full bg-[#F8FAFC] text-sm ${
@@ -175,9 +174,7 @@ export default function SignupExamsPage() {
                   >
                     <SelectValue
                       placeholder={
-                        !selectedCountry
-                          ? "Select a country first"
-                          : isLoadingExams
+                        isLoadingExams
                           ? "Loading exams..."
                           : exams.length === 0
                           ? "No exams available"

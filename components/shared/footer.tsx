@@ -15,7 +15,7 @@ const FOOTER_LINKS = [
 const LEGAL = [
   { label: "Terms", href: "/terms" },
   { label: "Privacy", href: "/privacy" },
-  // { label: "Cookies", href: "/cookies" },
+  { label: "Cookies", href: "/cookies" },
 ]
 
 export default function Footer() {
@@ -66,7 +66,7 @@ export default function Footer() {
         </div>
 
         <MotionReveal delay={0.14} className="mt-10 flex flex-col gap-4 border-t border-white/10 pt-6 text-xs text-white/55 sm:flex-row sm:items-center sm:justify-between">
-          <div>© {new Date().getFullYear()} Upstage. All rights reserved.</div>
+          <div>© {new Date().getFullYear()} Prepmaster. All rights reserved.</div>
           <div className="flex flex-wrap gap-x-5 gap-y-2">
             {LEGAL.map((l) => (
               <Link key={l.href} href={l.href} className="hover:text-white">

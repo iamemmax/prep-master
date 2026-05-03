@@ -92,7 +92,8 @@ export default function Testimonials() {
             Trusted Worldwide */}
           </h2>
           <p className="mx-auto -mt-2 font-light max-w-4xl text-pretty text-sm text-muted-foreground sm:mt-4 sm:text-xl">
-            Join thousands of successful students who achieved their goals with PrepMaster
+            {/* Join thousands of successful students who achieved their goals with PrepMaster */}
+            Empowering learners everywhere at home and abroad to achieve their goals with PrepMaster
           </p>
         </MotionReveal>
 
