@@ -131,7 +131,7 @@ export default function NotFound() {
                       "linear-gradient(135deg, rgba(236,178,46,0.5), rgba(254,154,0,0.25), transparent)",
                   }}
                 />
-                <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-6 backdrop-blur">
+                <div className="rounded-2xl border border-white/10 bg-white/4 p-6 backdrop-blur">
                   <div className="flex items-baseline justify-between">
                     <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/50">
                       Section · Errors
@@ -160,7 +160,7 @@ export default function NotFound() {
                   </p>
 
                   <ul className="mt-4 space-y-2 text-sm">
-                    <li className="flex items-center gap-3 rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-white/40 line-through">
+                    <li className="flex items-center gap-3 rounded-lg border border-white/10 bg-white/3 px-3 py-2 text-white/40 line-through">
                       <span className="grid h-6 w-6 shrink-0 place-items-center rounded-md border border-white/15 text-[10px] font-bold">
                         A
                       </span>
