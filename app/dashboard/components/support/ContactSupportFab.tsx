@@ -40,7 +40,6 @@ export default function ContactSupportFab() {
       document.removeEventListener("keydown", onKey);
     };
   }, [open]);
-
   // Strip everything except digits/+ for tel: links. WhatsApp uses a wa.link
   // short URL routed by Meta, so we use it directly instead of building a
   // wa.me link from the number.
