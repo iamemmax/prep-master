@@ -9,9 +9,10 @@ import { FaWhatsapp } from "react-icons/fa";
 // across every dashboard route. Numbers can be in any human-readable format —
 // the component strips formatting before generating tel: / wa.me links.
 const SUPPORT = {
-  whatsapp: "+234 800 000 0000",
-  phone:    "+234 800 000 0000",
-  email:    "support@prepmaster.app",
+  whatsapp:      "+234 800 000 0000",
+  whatsapp_link: "https://wa.link/qeo22v",
+  phone:         "+2347040951012",
+  email:         "support@upstagetechltd.com",
 };
 
 export default function ContactSupportFab() {
@@ -40,9 +41,11 @@ export default function ContactSupportFab() {
     };
   }, [open]);
 
-  // Strip everything except digits/+ for tel: links and digits-only for wa.me.
+  // Strip everything except digits/+ for tel: links. WhatsApp uses a wa.link
+  // short URL routed by Meta, so we use it directly instead of building a
+  // wa.me link from the number.
   const telHref = `tel:${SUPPORT.phone.replace(/[^\d+]/g, "")}`;
-  const waHref  = `https://wa.me/${SUPPORT.whatsapp.replace(/\D/g, "")}`;
+  const waHref  = SUPPORT.whatsapp_link;
   const mailHref = `mailto:${SUPPORT.email}`;
 
   if (hideOnRoute) return null;
@@ -51,7 +54,7 @@ export default function ContactSupportFab() {
     <div
       ref={wrapperRef}
       data-no-paywall
-      className="fixed bottom-6 right-6 z-40 flex flex-col items-end"
+      className="fixed bottom-16 right-6 z-40 flex flex-col items-end"
     >
       {open && (
         <div

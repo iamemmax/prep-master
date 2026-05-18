@@ -7,7 +7,7 @@ import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { useAuth } from "@/context/authentication";
 import { useTheme } from "@/context/theme";
 import { useRouter, usePathname } from "next/navigation";
-import { Crown, Menu, X, Sun, Moon, Settings } from "lucide-react";
+import { Crown, Sun, Moon, Settings } from "lucide-react";
 import PrepLogo from "@/utils/icons/logos/PrepLogo";
 import UpgradeModal from "../upgrade/UpgradeModal";
 import CreditBadge from "./CreditBadge";
@@ -26,7 +26,6 @@ const DashboardHeader = () => {
   const pathname = usePathname();
   const { authDispatch, authState: { user } } = useAuth();
   const { resolved, toggle } = useTheme();
-  const [mobileOpen, setMobileOpen] = useState(false);
   const [upgradeOpen, setUpgradeOpen] = useState(false);
   // Hide upgrade CTAs once a valid subscription is active. The dropdown
   // subtitle also flips from "Free Account" to the plan name.
@@ -170,6 +169,15 @@ const DashboardHeader = () => {
                     {resolved === "dark" ? <Sun size={14} /> : <Moon size={14} />}
                     {resolved === "dark" ? "Light mode" : "Dark mode"}
                   </DropdownMenu.Item>
+                  {showUpgrade && (
+                    <DropdownMenu.Item
+                      onSelect={() => setUpgradeOpen(true)}
+                      className="lg:hidden flex items-center gap-2 px-3 py-2 text-sm text-[#B7791F] font-semibold rounded-lg hover:bg-amber-50 dark:hover:bg-amber-500/10 cursor-pointer outline-none transition-colors"
+                    >
+                      <Crown size={14} />
+                      Upgrade to Pro
+                    </DropdownMenu.Item>
+                  )}
                   <DropdownMenu.Separator className="my-1 h-px bg-slate-100 dark:bg-zinc-800" />
                   <DropdownMenu.Item
                     className="px-3 py-2 text-sm text-rose-600 font-medium rounded-lg hover:bg-rose-50 dark:hover:bg-rose-500/10 cursor-pointer outline-none transition-colors"
@@ -181,83 +189,8 @@ const DashboardHeader = () => {
               </DropdownMenu.Portal>
             </DropdownMenu.Root>
 
-            {/* Hamburger — mobile only */}
-            <button
-              className="md:hidden p-1.5 rounded-lg text-slate-600 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-900 transition-colors shrink-0"
-              onClick={() => setMobileOpen((prev) => !prev)}
-              aria-label="Toggle menu"
-            >
-              {mobileOpen ? <X size={18} /> : <Menu size={18} />}
-            </button>
           </div>
         </div>
-      </div>
-
-      {/* Mobile drawer */}
-      <div
-        className={`md:hidden overflow-hidden transition-all duration-300 ease-in-out ${
-          mobileOpen ? "max-h-128 opacity-100" : "max-h-0 opacity-0"
-        }`}
-      >
-        <nav className="px-4 pb-4 pt-3 flex flex-col gap-1 border-t border-slate-100 dark:border-zinc-800">
-
-          {/* Credit balance — mobile only, lives at top of drawer */}
-         
-
-          {NAV_LINKS.map(({ label, href, disable }, i) => {
-            const isActive = pathname === href;
-            const animClass = `px-4 py-3 rounded-xl font-inter text-sm font-medium transition-all duration-300 ${
-              mobileOpen ? "translate-y-0 opacity-100" : "-translate-y-2 opacity-0"
-            }`;
-            if (disable) {
-              return (
-                <span
-                  key={href}
-                  aria-disabled="true"
-                  style={{ transitionDelay: mobileOpen ? `${i * 60}ms` : "0ms" }}
-                  className={`${animClass} cursor-not-allowed opacity-45 text-[#45556C] dark:text-zinc-500 select-none`}
-                >
-                  {label}
-                </span>
-              );
-            }
-            return (
-              <Link
-                key={href}
-                href={href}
-                onClick={() => setMobileOpen(false)}
-                style={{ transitionDelay: mobileOpen ? `${i * 60}ms` : "0ms" }}
-                className={`${animClass} ${
-                  isActive
-                    ? "text-[#F7C948] bg-amber-50 dark:bg-amber-500/10 font-semibold"
-                    : "text-[#45556C] dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-900 hover:text-slate-900 dark:hover:text-zinc-100"
-                }`}
-              >
-                {label}
-              </Link>
-            );
-          })}
-
-          <Link
-            href="/dashboard/profile"
-            onClick={() => setMobileOpen(false)}
-            className="px-4 py-3 rounded-xl font-inter text-sm font-medium text-[#45556C] dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-900 flex items-center gap-2"
-          >
-            <Settings size={14} />
-            Profile &amp; settings
-          </Link>
-
-          {/* Upgrade on mobile — hidden when a valid plan is active */}
-          {showUpgrade && (
-            <button
-              onClick={() => { setMobileOpen(false); setUpgradeOpen(true); }}
-              className="mt-1 flex items-center justify-center gap-1.5 px-4 py-3 rounded-xl bg-linear-to-r from-[#FE9A00] to-[#FF6900] text-white text-sm font-inter font-bold cursor-pointer"
-            >
-              <Crown size={15} />
-              Upgrade to Pro
-            </button>
-          )}
-        </nav>
       </div>
 
       <UpgradeModal open={upgradeOpen} onClose={() => setUpgradeOpen(false)} />

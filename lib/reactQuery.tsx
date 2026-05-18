@@ -32,9 +32,9 @@ const ReactQueryProvider: React.FunctionComponent<ReactQueryProviderProps> = ({
   return (
     <QueryClientProvider client={queryClient}>
       {children}
-      {process.env.NODE_ENV !== 'test' && (
+      {/* {process.env.NODE_ENV !== 'test' && (
         <ReactQueryDevtools initialIsOpen={false} position='bottom' />
-      )}
+      )} */}
     </QueryClientProvider>
   );
 };
