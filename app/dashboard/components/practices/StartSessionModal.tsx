@@ -5,6 +5,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Exam } from "../../practice/page";
 import { useStartPracticeExam } from "../../util/apis/practice/createPracticeExam";
 import { useGetAvailableExamsDetails } from "../../util/apis/practice/availableExamsDetails";
+import { useGetPracticeExamConfig } from "../../util/apis/practice/fetchExamConfig";
 import { useErrorModalState } from "@/hooks";
 import { formatAxiosErrorMessage } from "@/utils";
 import { AxiosError } from "axios";
@@ -86,13 +87,15 @@ function matchesRequired(subjectName: string, required: string[]) {
 }
 
 // ─── Component ───────────────────────────────────────────────────────────────
-export default function SessionSetupModal({ onClose, examName = "SAT", examDesc = "Standardized Test for College Admissions", open, preselectedSubject = null, }: {
+export default function SessionSetupModal({ onClose, examName = "SAT", examDesc = "Standardized Test for College Admissions", open, preselectedSubject = null, aiGenerate = false, }: {
   onClose?: () => void;
   examName?: string;
   examDesc?: string;
   open: Exam | null;
   /** When set, the modal pre-selects this subject and hides the subject-picker section. */
   preselectedSubject?: { id: number; name: string } | null;
+  /** When true, submit goes to the AI-generate endpoint (requires a preselected subject). */
+  aiGenerate?: boolean;
   onSubmit?: (data: SessionFormData) => void;
 }) {
 
@@ -102,6 +105,20 @@ export default function SessionSetupModal({ onClose, examName = "SAT", examDesc 
         openErrorModalWithMessage,
         errorModalMessage,
       } = useErrorModalState();
+
+// Resolve the user's exam config for the current exam type. The browse flow
+// (subjects under a category) opens the modal with only the exam_type id —
+// the real exam_config_id has to be looked up from the user's configs.
+const { data: examConfigResp } = useGetPracticeExamConfig();
+const resolvedExamConfigId = useMemo(() => {
+  const fromExam = open?.examConfigId;
+  if (fromExam) return fromExam;
+  const entry = (examConfigResp?.data ?? []).find(
+    (e) => e.exam_type?.id === open?.id,
+  );
+  return entry?.id ?? open?.id ?? 1;
+}, [examConfigResp, open]);
+
 const {
   control,
   handleSubmit,
@@ -110,17 +127,23 @@ const {
 } = useForm<z.input<typeof sessionSchema>, unknown, z.output<typeof sessionSchema>>({
   resolver: zodResolver(sessionSchema),
   defaultValues: {
-    exam_config_id:                  open?.examConfigId ?? open?.id ?? 1,
+    exam_config_id:                  resolvedExamConfigId,
     number_of_questions:           30,
     session_mode:                  "timed",
     difficulty_level:              "easy",
     time_limit_minutes:            45,
-    subjects_selected:             preselectedSubject ? [preselectedSubject.id] : [],
+    subjects_selected:             [],
     topics_selected:               [],
     show_explanation_after_answer: false,
     enable_proctoring:             false,
   },
 });
+
+// Configs load async — once they arrive, sync the form so the submit carries
+// the real exam_config_id instead of the fallback used at mount time.
+useEffect(() => {
+  setValue("exam_config_id", resolvedExamConfigId);
+}, [resolvedExamConfigId, setValue]);
 const router = useRouter()
 const examRule = getExamRule(examName);
 // Subjects toggle — OFF means "all subjects". When a preselected subject is
@@ -139,6 +162,30 @@ const {mutate:handleStart,isPending} = useStartPracticeExam()
 // off the moment the API returns, otherwise the button looks idle mid-redirect.
 const [isRedirecting, setIsRedirecting] = useState(false);
 const isStarting = isPending || isRedirecting;
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const handleMutationError = (error: any) => {
+  setIsRedirecting(false);
+  const errorMessage =
+    error?.response?.data?.data?.non_field_errors?.[0]
+    || error?.response?.data?.message
+    || formatAxiosErrorMessage(error as AxiosError)
+    || 'An error occurred. Please try again.';
+  openErrorModalWithMessage(String(errorMessage));
+};
+
+const handleMutationSuccess = (
+  res: { data?: { session?: { id?: number }; id?: number } } | undefined,
+  enableProctoring: boolean,
+) => {
+  if (typeof window !== "undefined") {
+    sessionStorage.setItem("prep:proctoring", enableProctoring ? "on" : "off");
+    clearProctorReports();
+  }
+  setIsRedirecting(true);
+  router.push(`/dashboard/practice/start-practice/${res?.data?.session?.id ?? res?.data?.id}`);
+};
+
 const onSubmit = (data: z.output<typeof sessionSchema>) => {
   // Enter browser fullscreen synchronously on the user's click so the gesture
   // requirement of the Fullscreen API is satisfied. Silently no-ops on
@@ -150,29 +197,22 @@ const onSubmit = (data: z.output<typeof sessionSchema>) => {
     const req = el.requestFullscreen ?? el.webkitRequestFullscreen;
     req?.call(el).catch(() => { /* denied or unsupported */ });
   }
-  handleStart(data,{
-    onSuccess:(res)=>{
-       if (typeof window !== "undefined") {
-         // Runtime marker read by Calculator + start-practice page
-         sessionStorage.setItem("prep:proctoring", data.enable_proctoring ? "on" : "off");
-         // New practice → wipe any prior proctoring reports from this device.
-         clearProctorReports();
-       }
-       setIsRedirecting(true);
-       router.push(`/dashboard/practice/start-practice/${res?.data?.session?.id ?? res?.data?.id}`)
-    },
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-onError: (error: any) => {
-  setIsRedirecting(false);
-  const errorMessage =
-    error?.response?.data?.data?.non_field_errors?.[0]
-    || error?.response?.data?.message
-    || formatAxiosErrorMessage(error as AxiosError)
-    || 'An error occurred. Please try again.';
-  openErrorModalWithMessage(String(errorMessage));
+
+  const payload = aiGenerate && preselectedSubject
+    ? {
+        ...data,
+        // Subject is identified by name on the AI flow — never send its id.
+        subjects_selected: [],
+        use_ai_questions: true,
+        subject_name: preselectedSubject.name,
+      }
+    : data;
+
+  handleStart(payload, {
+    onSuccess: (res) => handleMutationSuccess(res, data.enable_proctoring),
+    onError: handleMutationError,
+  });
 }
-    })
-  }
 
 
 
@@ -224,7 +264,9 @@ const requiredSubjectIds = useMemo(() => {
 }, [examRule, availableSubjects]);
 
 const atSubjectCap = examRule ? subjectsVal.length >= examRule.maxSubjects : false;
-const subjectsBlocked = useSubjects && subjectsVal.length === 0;
+// In the preselected-subject (AI) flow the subject is sent as `subject_name`,
+// not via `subjects_selected`, so an empty id list isn't a blocker.
+const subjectsBlocked = !preselectedSubject && useSubjects && subjectsVal.length === 0;
 
 
   return (

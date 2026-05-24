@@ -8,6 +8,16 @@ interface ExamCardProps {
   onStart: () => void;
 }
 
+function difficultyToLevel(difficulty: string | number | null | undefined): string {
+  if (difficulty == null) return "—";
+  switch (String(difficulty).toLowerCase()) {
+    case "easy":   return "Beginner";
+    case "medium": return "Intermediate";
+    case "hard":   return "Advanced";
+    default:       return String(difficulty);
+  }
+}
+
 const ExamCard = ({ exam, isPremiumLocked,onStart }: ExamCardProps) => {
   const router = useRouter()
   const canContinue = !isPremiumLocked && exam?.sessionId != null;
@@ -57,7 +67,7 @@ const ExamCard = ({ exam, isPremiumLocked,onStart }: ExamCardProps) => {
         {[
           { value: (exam.questions ?? 0).toLocaleString(), label: "Questions"  },
           { value: exam.topics ?? 0,                       label: "Topics"     },
-          { value: exam.difficulty ?? "—",                 label: "Difficulty" },
+          { value: difficultyToLevel(exam.difficulty),     label: "Difficulty" },
           { value: exam.freeAccess ?? 0,                   label: "Free access"},
         ].map(({ value, label }) => (
           <div key={label} className="mt-1.25">

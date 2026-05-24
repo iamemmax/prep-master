@@ -14,28 +14,22 @@ import { useGetDashboardOverview } from "../../util/apis/dashboard/fetchDashboar
 import { useUserSubscription } from "../../util/apis/subscription/subscription";
 import { useCreditBalance } from "../../util/hooks/useCreditBalance";
 import { useSubscription } from "../subscription/SubscriptionProvider";
+import { useUserCategories } from "../../util/hooks/useUserCategories";
 
-// interface ProgressBarEntry {
-//   label: string;
-//   pct: number;
-//   color: string;
-// }
+export interface SidebarExamPick {
+  examId: number;
+  examName: string;
+  categoryId: number;
+  categoryName: string;
+}
 
 interface FilterSidebarProps {
   filters: Filters;
   setFilters: React.Dispatch<React.SetStateAction<Filters>>;
-  onExamSelect?: (ref: string | null) => void;
-  selectedExamRef?: string | null;
+  /** Called when the user picks an exam from a category. Pass `null` to clear. */
+  onExamPick?: (pick: SidebarExamPick | null) => void;
+  selectedExamId?: number | null;
 }
-
-// const ACCESS_OPTIONS: string[] = ["All", "Free", "Premium"];
-// const DIFFICULTY_OPTIONS: string[] = ["Any Level", "Beginner", "Intermediate ", "Advanced"];
-
-// const MY_PROGRESS: ProgressBarEntry[] = [
-//   { label: "SAT", pct: 72, color: "#6366F1" },
-//   { label: "GRE", pct: 45, color: "#3B82F6" },
-//   { label: "LSAT", pct: 12, color: "#8B5CF6" },
-// ];
 
 function SidebarGroupLabel({ children }: { children: React.ReactNode }) {
   return (
@@ -45,15 +39,9 @@ function SidebarGroupLabel({ children }: { children: React.ReactNode }) {
   );
 }
 
-interface SidebarExam {
-  reference: string;
-  name: string;
-  subjects: { reference: string; name: string }[];
-}
-
-const FilterSidebar = ({ filters, setFilters, onExamSelect, selectedExamRef = null }: FilterSidebarProps) => {
+const FilterSidebar = ({ filters, setFilters, onExamPick, selectedExamId = null }: FilterSidebarProps) => {
   const { category } = filters;
-  const { data: response, isLoading } = useGetDashboardOverview();
+  const { data: response } = useGetDashboardOverview();
   const { data: subResp } = useUserSubscription();
   const { remaining, total } = useCreditBalance();
   const { openUpgradeModal } = useSubscription();
@@ -62,6 +50,12 @@ const FilterSidebar = ({ filters, setFilters, onExamSelect, selectedExamRef = nu
     () => response?.data?.user_exams ?? [],
     [response],
   );
+
+  const { userCategories, isLoading: categoriesLoading, error: catsError } = useUserCategories();
+
+  // Track which category is expanded. Only one open at a time keeps the
+  // sidebar from growing into a wall of nested lists.
+  const [openCategoryId, setOpenCategoryId] = useState<number | null>(null);
 
   // Earliest scheduled exam by date string. Pure: no Date.now() inside the
   // memo — the actual "days left" comes from `overview.days_remaining`,
@@ -85,39 +79,8 @@ const FilterSidebar = ({ filters, setFilters, onExamSelect, selectedExamRef = nu
     : creditPct > 20 ? "bg-[#F7C948]"
     : "bg-rose-500";
 
-  const rawList = useMemo<SidebarExam[]>(() => {
-    const userExams = response?.data?.user_exams ?? [];
-    const seen = new Set<string>();
-    return userExams.reduce<SidebarExam[]>((acc, ue) => {
-      const ref = ue.exam?.reference;
-      if (!ref || seen.has(ref)) return acc;
-      seen.add(ref);
-      acc.push({
-        reference: ref,
-        name: ue.exam.name,
-        subjects: ue.exam.subjects ?? [],
-      });
-      return acc;
-    }, []);
-  }, [response]);
-
-  const initialOpen =
-    rawList.find(
-      (exam) =>
-        exam.name === category ||
-        exam.subjects.some((s) => s.name === category)
-    )?.reference ?? null;
-
-  const [openExam, setOpenExam] = useState<string | null>(initialOpen);
-
   const set = (key: keyof Filters) => (v: string) =>
     setFilters(f => ({ ...f, [key]: v }));
-
-  const handleExamClick = (exam: { reference: string; name: string }) => {
-    set("category")(exam.name);
-    onExamSelect?.(exam.reference);
-    setOpenExam((prev) => (prev === exam.reference ? null : exam.reference));
-  };
 
   return (
     <aside className="w-56 shrink-0 pt-1">
@@ -125,55 +88,65 @@ const FilterSidebar = ({ filters, setFilters, onExamSelect, selectedExamRef = nu
         FILTER
       </p>
 
-      <SidebarGroupLabel>Exam</SidebarGroupLabel>
+      {/* <SidebarGroupLabel>Categories</SidebarGroupLabel> */}
       <div className="space-y-1">
-        {/* All Exams */}
         <SidebarBtn
           label="All Exams"
-          active={!selectedExamRef && category === "All Exams"}
-          onClick={() => { set("category")("All Exams"); onExamSelect?.(null); }}
+          active={selectedExamId == null && category === "All Exams"}
+          onClick={() => { set("category")("All Exams"); onExamPick?.(null); setOpenCategoryId(null); }}
         />
 
-        {isLoading ? (
-          Array.from({ length: 4 }).map((_, i) => (
+        {categoriesLoading ? (
+          Array.from({ length: 6 }).map((_, i) => (
             <div key={i} className="h-8 mx-2 rounded-lg bg-slate-100 dark:bg-zinc-800 animate-pulse" />
           ))
+        ) : catsError ? (
+          <p
+            className="px-3 py-2 text-[11px] text-rose-500 wrap-break-word"
+            title={catsError instanceof Error ? catsError.message : String(catsError)}
+          >
+            Couldn&apos;t load categories: {catsError instanceof Error ? catsError.message : "unknown error"}
+          </p>
+        ) : userCategories.length === 0 ? (
+          <p className="px-3 py-2 text-[11px] text-slate-400 dark:text-zinc-500">
+            No exams yet. Add one to see categories.
+          </p>
         ) : (
-          rawList.map((exam) => {
-            const isOpen = openExam === exam.reference;
-            const isActive = selectedExamRef === exam.reference;
-            const hasSubjects = (exam.subjects?.length ?? 0) > 0;
-
+          userCategories.map((cat) => {
+            const isOpen = openCategoryId === cat.id;
             return (
-              <div key={exam.reference}>
-                {/* Exam name header — toggles accordion + selects exam */}
+              <div key={cat.id}>
                 <button
-                  onClick={() => handleExamClick(exam)}
-                  className={`w-full flex items-center justify-between px-3 font-inter cursor-pointer py-2 rounded-lg text-xs transition-all duration-150 ${
-                    isActive
-                      ? "bg-[#F7C948] text-black font-semibold border-[0.3px] border-[#F7C948]"
-                      : "text-[#616980] dark:text-zinc-400 hover:bg-slate-100 dark:hover:bg-zinc-800 hover:text-slate-900 dark:hover:text-zinc-100 font-normal"
+                  onClick={() => setOpenCategoryId((prev) => (prev === cat.id ? null : cat.id))}
+                  className={`w-full flex items-center justify-between gap-2 px-3 py-2 rounded-lg text-xs font-inter cursor-pointer transition-colors duration-150 ${
+                    isOpen
+                      ? "bg-slate-100 dark:bg-zinc-800 text-slate-900 dark:text-zinc-100 font-semibold"
+                      : "text-[#616980] dark:text-zinc-400 hover:bg-slate-100 dark:hover:bg-zinc-800 hover:text-slate-900 dark:hover:text-zinc-100"
                   }`}
+                  title={cat.description ?? undefined}
                 >
-                  <span className="text-left">{exam.name}</span>
-                  {hasSubjects && (
-                    <ChevronDown
-                      className={`h-3.5 w-3.5 shrink-0 transition-transform duration-150 ${
-                        isOpen ? "rotate-180" : ""
-                      }`}
-                    />
-                  )}
+                  <span className="text-left truncate">{cat.name}</span>
+                  <ChevronDown
+                    className={`h-3.5 w-3.5 shrink-0 transition-transform duration-150 ${isOpen ? "rotate-180" : ""}`}
+                  />
                 </button>
 
-                {/* Subjects — only when accordion open */}
-                {hasSubjects && isOpen && (
+                {isOpen && (
                   <div className="mt-0.5 ml-3 space-y-0.5 border-l border-slate-200 dark:border-zinc-800 pl-2">
-                    {exam.subjects.map((subject) => (
+                    {cat.exams.map((exam) => (
                       <SidebarBtn
-                        key={subject.reference}
-                        label={subject.name}
-                        active={selectedExamRef === subject.reference}
-                        onClick={() => { set("category")(subject.name); onExamSelect?.(subject.reference); }}
+                        key={exam.id}
+                        label={exam.name}
+                        active={selectedExamId === exam.id}
+                        onClick={() => {
+                          set("category")(cat.name);
+                          onExamPick?.({
+                            examId: exam.id,
+                            examName: exam.name,
+                            categoryId: cat.id,
+                            categoryName: cat.name,
+                          });
+                        }}
                       />
                     ))}
                   </div>
@@ -231,7 +204,7 @@ const FilterSidebar = ({ filters, setFilters, onExamSelect, selectedExamRef = nu
 
       {/* Quick stats — pulled from the dashboard overview so the sidebar
           doubles as a tiny "your prep at a glance" panel. */}
-      {overview && (
+      {/* {overview && (
         <div className="mt-5 pt-4 border-t border-slate-200 dark:border-zinc-800">
           <SidebarGroupLabel>Your stats</SidebarGroupLabel>
           <ul className="px-2 space-y-1.5">
@@ -267,7 +240,7 @@ const FilterSidebar = ({ filters, setFilters, onExamSelect, selectedExamRef = nu
             </li>
           </ul>
         </div>
-      )}
+      )} */}
 
       {/* Next exam countdown — only when the user has a scheduled date.
           `days_remaining` is server-computed so we don't need Date.now() here. */}
@@ -297,37 +270,6 @@ const FilterSidebar = ({ filters, setFilters, onExamSelect, selectedExamRef = nu
           </div>
         </div>
       )}
-
-      {/* <SidebarGroupLabel>Access</SidebarGroupLabel> */}
-      {/* <div className="space-y-1">
-        {ACCESS_OPTIONS.map(opt => (
-          <SidebarBtn key={opt} label={opt} active={access === opt} onClick={() => set("access")(opt)} />
-        ))}
-      </div> */}
-
-      {/* <SidebarGroupLabel>Difficulty</SidebarGroupLabel>
-      <div className="space-y-1">
-        {DIFFICULTY_OPTIONS.map(opt => (
-          <SidebarBtn key={opt} label={opt} active={difficulty === opt} onClick={() => set("difficulty")(opt)} />
-        ))}
-      </div> */}
-
-      {/* <div className="mt-6 pt-4 border-t border-slate-200 dark:border-zinc-800">
-        <p className="text-[11px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-widest mb-3 px-2">
-          My Progress
-        </p>
-        {MY_PROGRESS.map(({ label, pct, color }) => (
-          <div key={label} className="mb-3 px-2">
-            <div className="flex justify-between text-xs mb-1">
-              <span className="text-slate-600 dark:text-zinc-300 font-medium">{label}</span>
-              <span className="text-slate-400 dark:text-zinc-500">{pct}%</span>
-            </div>
-            <div className="h-1.5 rounded-full bg-slate-200 dark:bg-zinc-800 overflow-hidden">
-              <div className="h-full rounded-full" style={{ width: `${pct}%`, background: color }} />
-            </div>
-          </div>
-        ))}
-      </div> */}
     </aside>
   );
 };

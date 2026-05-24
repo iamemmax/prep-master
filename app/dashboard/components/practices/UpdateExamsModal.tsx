@@ -17,6 +17,7 @@ import {
   Controller,
   FieldErrors,
   UseFormRegister,
+  UseFormSetValue,
   useFieldArray,
   useForm,
   useWatch,
@@ -27,6 +28,7 @@ import { getNames } from "country-list";
 import { useGetExamsByCountry } from "@/app/(auth)/apis/signup/getExamsByCountry";
 import { useUpdateUserExams } from "../../util/apis/dashboard/updateUserExams";
 import { useGetPracticeExamConfig } from "../../util/apis/practice/fetchExamConfig";
+import { useGetCategories, useGetExamsByCategory } from "../../util/apis/practice/categories";
 import toast from "react-hot-toast";
 
 const COUNTRIES = getNames().sort((a, b) => a.localeCompare(b));
@@ -34,6 +36,7 @@ const LEVELS = ["Beginner", "Intermediate", "Advanced"] as const;
 
 const examConfigSchema = z.object({
   country: z.string().min(1, "Country is required"),
+  category_id: z.number().int().positive().optional(),
   exam_type_id: z.number({ message: "Please select an exam" }).int().positive(),
   exam_date: z.string().optional(),
   target_score: z.string().min(1, "Target score is required"),
@@ -94,6 +97,7 @@ export default function UpdateExamsModal({ open, onClose }: Props) {
     handleSubmit,
     register,
     reset,
+    setValue,
     formState: { errors },
   } = useForm<UpdateExamsForm>({
     resolver: zodResolver(updateExamsSchema),
@@ -196,8 +200,10 @@ export default function UpdateExamsModal({ open, onClose }: Props) {
                       key={field.id}
                       idx={idx}
                       excludedExamTypeIds={excluded}
+                      categoryId={watchedExams[idx]?.category_id ?? null}
                       control={control}
                       register={register}
+                      setValue={setValue}
                       errors={errors}
                       canRemove={fields.length > 1}
                       onRemove={() => remove(idx)}
@@ -245,17 +251,36 @@ interface RowProps {
   /** Exam type ids that should be hidden from this row's picker (already in
    *  the user's profile, or picked in another row of the form). */
   excludedExamTypeIds: Set<number>;
+  /** When set, narrows the exam picker to this category via the
+   *  exam-categories endpoint. Null means "all exams". */
+  categoryId: number | null;
   control: Control<UpdateExamsForm>;
   register: UseFormRegister<UpdateExamsForm>;
+  setValue: UseFormSetValue<UpdateExamsForm>;
   errors: FieldErrors<UpdateExamsForm>;
   canRemove: boolean;
   onRemove: () => void;
 }
 
-function ExamConfigRow({ idx, excludedExamTypeIds, control, register, errors, canRemove, onRemove }: RowProps) {
+function ExamConfigRow({ idx, excludedExamTypeIds, categoryId, control, register, setValue, errors, canRemove, onRemove }: RowProps) {
   const rowErr = errors.exams?.[idx];
-  const { data: examsResp, isLoading: loadingExams } = useGetExamsByCountry();
-  const allExams = useMemo(() => examsResp?.data ?? [], [examsResp]);
+  const { data: categoriesResp, isLoading: loadingCategories } = useGetCategories();
+  const categories = useMemo(() => categoriesResp?.data ?? [], [categoriesResp]);
+
+  // Exam source switches based on whether a category is picked. The category
+  // endpoint returns a narrower list; without a category we show all exams.
+  const { data: allExamsResp, isLoading: loadingAllExams } = useGetExamsByCountry();
+  const { data: examsByCategoryResp, isLoading: loadingExamsByCategory } =
+    useGetExamsByCategory(categoryId);
+
+  const loadingExams = categoryId != null ? loadingExamsByCategory : loadingAllExams;
+  const allExams = useMemo(
+    () =>
+      (categoryId != null
+        ? examsByCategoryResp?.data
+        : allExamsResp?.data) ?? [],
+    [categoryId, examsByCategoryResp, allExamsResp],
+  );
   const examOptions = useMemo(
     () => allExams.filter((e) => !excludedExamTypeIds.has(e.id)),
     [allExams, excludedExamTypeIds],
@@ -309,7 +334,40 @@ function ExamConfigRow({ idx, excludedExamTypeIds, control, register, errors, ca
           )}
         </div>
 
-        {/* Exam — searchable, independent of country */}
+        {/* Category — narrows the exam picker via /exam-categories/ */}
+        <div>
+          <label className="block text-[11px] font-semibold text-slate-700 dark:text-zinc-300 mb-1.5">Category</label>
+          <Controller
+            name={`exams.${idx}.category_id`}
+            control={control}
+            render={({ field }) => (
+              <Select
+                value={field.value ? String(field.value) : ""}
+                onValueChange={(v) => {
+                  const id = v ? Number(v) : undefined;
+                  field.onChange(id);
+                  // Picked category changes the exam list, so wipe any prior
+                  // exam selection that may no longer belong to this category.
+                  setValue(`exams.${idx}.exam_type_id`, undefined as unknown as number);
+                }}
+                disabled={loadingCategories || categories.length === 0}
+              >
+                <SelectTrigger className="h-10 w-full text-xs bg-slate-50 dark:bg-zinc-800/50 dark:text-zinc-100">
+                  <SelectValue placeholder={loadingCategories ? "Loading categories…" : "All categories"} />
+                </SelectTrigger>
+                <SelectContent className="z-10000 max-h-80" position="popper" sideOffset={4}>
+                  {categories.map((cat) => (
+                    <SelectItem key={cat.id} value={String(cat.id)} className="text-xs">
+                      {cat.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          />
+        </div>
+
+        {/* Exam — searchable; filtered by category when one is picked */}
         <div>
           <label className="block text-[11px] font-semibold text-slate-700 dark:text-zinc-300 mb-1.5">Exam</label>
           <Controller
@@ -579,6 +637,7 @@ function CountrySelectWithSearch({
 function emptyRow(): ExamRowValue {
   return {
     country: "",
+    category_id: undefined,
     exam_type_id: undefined as unknown as number,
     exam_date: "",
     target_score: "",

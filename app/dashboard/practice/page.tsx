@@ -13,6 +13,12 @@ import QuickActions from "../components/practices/QuickActions";
 import UpdateExamsModal from "../components/practices/UpdateExamsModal";
 import { X, SlidersHorizontal, ChevronRight, ArrowUpDown, Sparkles, BookOpenCheck } from "lucide-react";
 import { useGetDashboardOverview } from "../util/apis/dashboard/fetchDashboardOverview";
+import { useGetAvailableExamsDetails } from "../util/apis/practice/availableExamsDetails";
+import { useGetExamsByCategory } from "../util/apis/practice/categories";
+import { useUserCategories } from "../util/hooks/useUserCategories";
+import { SidebarExamPick } from "../components/practices/FilterSidebar";
+import BrowseCard from "../components/practices/BrowseCard";
+import { ChevronLeft } from "lucide-react";
 import { Userexam } from "../util/types/dashboard/dashbaordOverview";
 import { TourAutoStart } from "../util/tour/TourContext";
 import { isProductionGated } from "@/components/shared/coming-soon-gate";
@@ -34,6 +40,9 @@ export interface Exam {
   difficulty_level: "easy" | "medium" | "hard";
   started: boolean;
   sessionId?: number;
+  // When the card represents a subject under a parent exam (browsing flow):
+  subjectId?: number;
+  subjectName?: string;
 }
 
 export interface Filters {
@@ -133,6 +142,17 @@ function SkeletonGrid() {
   );
 }
 
+// ─── Empty state ──────────────────────────────────────────────────────────────
+function EmptyState({ icon, title, body }: { icon: React.ReactNode; title: string; body: string }) {
+  return (
+    <div className="text-center py-16 bg-white dark:bg-zinc-900 rounded-2xl border border-slate-200 dark:border-zinc-800 px-6">
+      <div className="w-14 h-14 mx-auto rounded-full bg-slate-50 dark:bg-zinc-800 flex items-center justify-center mb-4">{icon}</div>
+      <p className="text-slate-800 dark:text-zinc-100 font-semibold text-base">{title}</p>
+      <p className="text-slate-400 dark:text-zinc-500 text-sm mt-1 max-w-sm mx-auto">{body}</p>
+    </div>
+  );
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 // const PAGE_SIZE = 20;
 
@@ -143,7 +163,12 @@ export default function PracticeExamsPage() {
   const [filters, setFilters]           = useState<Filters>({ category: "All Exams", access: "All", difficulty: "Any Level" });
   const [search, setSearch]             = useState<string>("");
   const [sidebarOpen, setSidebarOpen]   = useState(false);
-  const [selectedExamRef, setSelectedExamRef] = useState<string | null>(null);
+  const [selectedExamPick, setSelectedExamPick] = useState<SidebarExamPick | null>(null);
+  // Drill-down state for the library browse view in the main grid.
+  // null = show the top-level categories. Set to a category id when the user
+  // clicks a category card; cleared when they hit "Back" or the breadcrumb.
+  const [browseCategoryId, setBrowseCategoryId]       = useState<number | null>(null);
+  const [browseCategoryName, setBrowseCategoryName]   = useState<string | null>(null);
   const [intakeOpen, setIntakeOpen]     = useState(false);
   const [examsModalOpen, setExamsModalOpen] = useState(false);
   const [sortBy, setSortBy]             = useState<SortKey>("recommended");
@@ -151,67 +176,82 @@ export default function PracticeExamsPage() {
 
   const { data: overviewResponse, isLoading: overviewLoading, isFetching } = useGetDashboardOverview();
 
-  const isLoading = overviewLoading;
+  // Lazy-load the picked exam's detail (which carries the subjects[]). Empty
+  // string keeps the underlying useQuery disabled until the user picks.
+  const examDetailId = selectedExamPick ? String(selectedExamPick.examId) : "";
+  const { data: examDetailResp, isLoading: examDetailLoading } = useGetAvailableExamsDetails(examDetailId);
+
+  // Library browse: top-level categories and (when one is drilled into) its
+  // exam types. We use the user-scoped category list so users only see
+  // categories that contain their own configured exams.
+  const { userCategories, isLoading: categoriesLoading } = useUserCategories();
+  const { data: examsByCategoryResp, isLoading: examsByCategoryLoading } = useGetExamsByCategory(browseCategoryId);
+
+  // Intersect the picked-category's exams with the user's enrolled exams so
+  // the drill-down view also hides exams the user hasn't added.
+  const userExamIdsInCategory = useMemo(
+    () =>
+      new Set(
+        (userCategories.find((c) => c.id === browseCategoryId)?.exams ?? []).map(
+          (e) => e.id,
+        ),
+      ),
+    [userCategories, browseCategoryId],
+  );
+
+  const isLoading =
+    overviewLoading ||
+    (selectedExamPick != null && examDetailLoading) ||
+    (browseCategoryId != null && examsByCategoryLoading) ||
+    (selectedExamPick == null && browseCategoryId == null && categoriesLoading);
 
   const apiExams = useMemo<Exam[]>(() => {
-    const userExams = overviewResponse?.data?.user_exams ?? [];
-
-    if (selectedExamRef) {
-      // Try the exam ref first, then fall back to a subject ref. Everything
-      // we need to render the card already lives in user_exams — no extra
-      // endpoint call is needed.
-      const examMatch = userExams.find(ue => ue.exam?.reference === selectedExamRef);
-      if (examMatch) {
-        const mapped = mapUserExamToExam(examMatch);
-        return mapped ? [mapped] : [];
-      }
-      const subjectMatch = userExams.find(ue =>
-        ue.exam?.subjects?.some(s => s.reference === selectedExamRef)
-      );
-      if (subjectMatch) {
-        const subj = subjectMatch.exam.subjects.find(s => s.reference === selectedExamRef);
-        if (!subj) return [];
-        const diff = (subj.difficulty_level ?? subjectMatch.exam.difficulty_level ?? "medium")
+    // Browsing mode: a category exam was picked in the sidebar → render its
+    // subjects as cards. Each card carries the parent exam id (so starting
+    // a session targets the right exam type) plus the subject id/name so
+    // the session-setup modal can lock the subject.
+    if (selectedExamPick && examDetailResp?.data) {
+      const ex = examDetailResp.data;
+      const parentDiff = (ex as unknown as { difficulty_level?: string }).difficulty_level;
+      return (ex.subjects ?? []).map((sub) => {
+        const diff = (sub.difficulty_level ?? parentDiff ?? "medium")
           .toString()
           .toLowerCase() as Exam["difficulty_level"];
-        return [{
-          id: subjectMatch.exam.id,
-          examConfigId: subjectMatch.config_id,
-          name: subj.name,
-          description: `${subjectMatch.exam.name} · ${subj.name}`,
-          questions: subj.total_questions ?? 0,
-          topics: subj.total_topics ?? 0,
+        return {
+          id: ex.id,
+          name: sub.name,
+          description: `${ex.name} · ${sub.name}`,
+          questions: 0,
+          topics: 0,
           difficulty: diff.charAt(0).toUpperCase() + diff.slice(1),
           freeAccess: 50,
-          lastScore: subjectMatch.exam.last_score ?? null,
-          progress: subjectMatch.exam.last_score ?? 0,
-          badge: null,
-          category: subjectMatch.exam.name,
-          access: "free",
+          lastScore: null,
+          progress: 0,
+          badge: sub.is_premium ? "Premium" : null,
+          category: ex.name,
+          access: sub.is_premium ? "premium" : "free",
           difficulty_level: diff,
-          started: subjectMatch.exam.active_session_id != null,
-          sessionId: subjectMatch.exam.active_session_id ?? undefined,
-        }];
-      }
-      return [];
+          started: false,
+          subjectId: sub.id,
+          subjectName: sub.name,
+        };
+      });
     }
 
+    // Default: list the user's own exams as before.
+    const userExams = overviewResponse?.data?.user_exams ?? [];
     return userExams
       .map(mapUserExamToExam)
       .filter((e): e is Exam => e !== null);
-  }, [selectedExamRef, overviewResponse]);
+  }, [selectedExamPick, examDetailResp, overviewResponse]);
 
-  // If the user picked a specific subject in the sidebar (rather than a whole
-  // exam), find it inside user_exams so we can pre-select + lock it in the
-  // session-setup modal.
-  const preselectedSubject: { id: number; name: string } | null = (() => {
-    if (!selectedExamRef) return null;
-    for (const ue of overviewResponse?.data?.user_exams ?? []) {
-      const subj = ue.exam?.subjects?.find((s) => s.reference === selectedExamRef);
-      if (subj) return { id: subj.id, name: subj.name };
-    }
-    return null;
-  })();
+  // When the user clicks a subject card, the chosen Exam already carries the
+  // subjectId/subjectName so the session-setup modal can pre-select + lock
+  // that subject. Reading off `sessionExam` keeps the wiring single-sourced.
+  const preselectedSubject: { id: number; name: string } | null =
+    sessionExam?.subjectId != null && sessionExam.subjectName
+      ? { id: sessionExam.subjectId, name: sessionExam.subjectName }
+      : null;
 
   const activeExams = useMemo<Exam[]>(
     () => apiExams.filter(e => e.started),
@@ -279,8 +319,12 @@ export default function PracticeExamsPage() {
               <FilterSidebar
                 filters={filters}
                 setFilters={setFilters}
-                onExamSelect={setSelectedExamRef}
-                selectedExamRef={selectedExamRef}
+                onExamPick={(pick) => {
+                  setSelectedExamPick(pick);
+                  if (pick) { setBrowseCategoryId(pick.categoryId); setBrowseCategoryName(pick.categoryName); }
+                  else      { setBrowseCategoryId(null);             setBrowseCategoryName(null); }
+                }}
+                selectedExamId={selectedExamPick?.examId ?? null}
               />
             </div>
           </div>
@@ -299,8 +343,13 @@ export default function PracticeExamsPage() {
                 <FilterSidebar
                   filters={filters}
                   setFilters={setFilters}
-                  onExamSelect={setSelectedExamRef}
-                  selectedExamRef={selectedExamRef}
+                  onExamPick={(pick) => {
+                    setSelectedExamPick(pick);
+                    if (pick) { setBrowseCategoryId(pick.categoryId); setBrowseCategoryName(pick.categoryName); }
+                    else      { setBrowseCategoryId(null);             setBrowseCategoryName(null); }
+                    setSidebarOpen(false);
+                  }}
+                  selectedExamId={selectedExamPick?.examId ?? null}
                 />
               </div>
             </div>
@@ -385,64 +434,52 @@ export default function PracticeExamsPage() {
               </div>
             )}
 
-            {/* Exam grid */}
+            {/* Drill-down breadcrumb. Visible whenever the user has stepped
+                into a category or exam, so they always know where they are
+                and can step back out without going through the sidebar. */}
+            {(browseCategoryId || selectedExamPick) && (
+              <nav aria-label="Library breadcrumb" className="mb-4 flex flex-wrap items-center gap-1 text-xs">
+                <button
+                  onClick={() => { setBrowseCategoryId(null); setBrowseCategoryName(null); setSelectedExamPick(null); }}
+                  className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-slate-500 dark:text-zinc-400 hover:bg-slate-100 dark:hover:bg-zinc-800"
+                >
+                  <ChevronLeft size={12} /> All categories
+                </button>
+                {browseCategoryName && (
+                  <>
+                    <span className="text-slate-300 dark:text-zinc-600">/</span>
+                    <button
+                      onClick={() => setSelectedExamPick(null)}
+                      className={`px-2 py-1 rounded-md font-semibold ${selectedExamPick ? "text-slate-500 dark:text-zinc-400 hover:bg-slate-100 dark:hover:bg-zinc-800" : "text-slate-700 dark:text-zinc-200"}`}
+                    >
+                      {browseCategoryName}
+                    </button>
+                  </>
+                )}
+                {selectedExamPick && (
+                  <>
+                    <span className="text-slate-300 dark:text-zinc-600">/</span>
+                    <span className="px-2 py-1 rounded-md font-semibold text-slate-700 dark:text-zinc-200">{selectedExamPick.examName}</span>
+                  </>
+                )}
+              </nav>
+            )}
+
+            {/* Main grid */}
             {isLoading ? (
               <SkeletonGrid />
-            ) : !selectedExamRef && (overviewResponse?.data?.user_exams ?? []).length === 0 ? (
-              <div className="text-center py-16 bg-white dark:bg-zinc-900 rounded-2xl border border-slate-200 dark:border-zinc-800 px-6">
-                <div className="w-14 h-14 mx-auto rounded-full bg-indigo-50 dark:bg-indigo-500/15 flex items-center justify-center mb-4">
-                  <BookOpenCheck size={22} className="text-indigo-600 dark:text-indigo-300" />
-                </div>
-                <p className="text-slate-800 dark:text-zinc-100 font-semibold text-base">No exams added yet</p>
-                <p className="text-slate-400 dark:text-zinc-500 text-sm mt-1 max-w-sm mx-auto">
-                  Add the exams you&apos;re preparing for to see practice cards tailored to you.
-                </p>
-                <div className="flex flex-wrap items-center justify-center gap-2 mt-5">
-                  <button
-                    onClick={() => setExamsModalOpen(true)}
-                    className="inline-flex items-center gap-1.5 text-xs font-bold px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white transition-colors"
-                  >
-                    <BookOpenCheck size={13} />
-                    Add exams
-                  </button>
-                </div>
-              </div>
-            ) : filtered.length === 0 ? (
-              <div className="text-center py-16 bg-white dark:bg-zinc-900 rounded-2xl border border-slate-200 dark:border-zinc-800 px-6">
-                <div className="w-14 h-14 mx-auto rounded-full bg-[#FFF4DF] dark:bg-amber-500/15 flex items-center justify-center mb-4">
-                  <Sparkles size={22} className="text-[#894B00] dark:text-amber-400" />
-                </div>
-                <p className="text-slate-800 dark:text-zinc-100 font-semibold text-base">No exams match your filters</p>
-                <p className="text-slate-400 dark:text-zinc-500 text-sm mt-1 max-w-sm mx-auto">
-                  Try removing a filter, or generate custom practice from your own material.
-                </p>
-                <div className="flex flex-wrap items-center justify-center gap-2 mt-5">
-                  {hasActiveFilters && (
-                    <button
-                      onClick={clearAll}
-                      className="text-xs font-semibold px-4 py-2 rounded-lg border border-slate-200 dark:border-zinc-700 text-slate-600 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-800 transition-colors"
-                    >
-                      Clear filters
-                    </button>
-                  )}
-                  {
-                    !isProductionGated() &&
-                  <button
-                    onClick={() => setIntakeOpen(true)}
-                    className="text-xs font-bold px-4 py-2 rounded-lg text-white transition-all hover:opacity-90"
-                    style={{ background: "linear-gradient(135deg, #FE9A00, #FF6900)" }}
-                  >
-                    Generate questions with AI →
-                  </button>
-                  }
-                </div>
-              </div>
-            ) : (
-              <>
-                {/* Dim grid while fetching next page (keeps content visible) */}
+            ) : selectedExamPick ? (
+              // ── Subjects of the picked exam ──────────────────────────────
+              filtered.length === 0 ? (
+                <EmptyState
+                  icon={<Sparkles size={22} className="text-[#894B00] dark:text-amber-400" />}
+                  title="No subjects yet"
+                  body="This exam doesn't have any subjects published yet."
+                />
+              ) : (
                 <div data-tour="practice-list" className={`grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 transition-opacity duration-200 ${isFetching && !isLoading ? "opacity-60 pointer-events-none" : "opacity-100"}`}>
                   {filtered.map((exam, i) => (
-                    <div key={exam.id} data-tour={i === 0 ? "practice-card" : undefined} className="h-full">
+                    <div key={`${exam.id}-${exam.subjectId ?? i}`} data-tour={i === 0 ? "practice-card" : undefined} className="h-full">
                       <ExamCard
                         exam={exam}
                         isPremiumLocked={exam.access === "premium"}
@@ -451,8 +488,60 @@ export default function PracticeExamsPage() {
                     </div>
                   ))}
                 </div>
-
-              </>
+              )
+            ) : browseCategoryId ? (
+              // ── Exam types in the chosen category (filtered to user's) ──
+              (() => {
+                const exams = (examsByCategoryResp?.data ?? []).filter((ex) =>
+                  userExamIdsInCategory.has(ex.id),
+                );
+                return exams.length === 0 ? (
+                  <EmptyState
+                    icon={<Sparkles size={22} className="text-[#894B00] dark:text-amber-400" />}
+                    title="No exams in this category"
+                    body="You haven't added any exams from this category yet."
+                  />
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+                    {exams.map((ex) => (
+                      <BrowseCard
+                        key={ex.id}
+                        name={ex.name}
+                        description={ex.description}
+                        badge={ex.is_premium ? "Premium" : null}
+                        meta={`${ex.subject_count} ${ex.subject_count === 1 ? "subject" : "subjects"}`}
+                        onClick={() => setSelectedExamPick({
+                          examId: ex.id,
+                          examName: ex.name,
+                          categoryId: browseCategoryId!,
+                          categoryName: browseCategoryName ?? "",
+                        })}
+                      />
+                    ))}
+                  </div>
+                );
+              })()
+            ) : (
+              // ── Top-level categories — only ones the user has exams in ──
+              userCategories.length === 0 ? (
+                <EmptyState
+                  icon={<BookOpenCheck size={22} className="text-indigo-600 dark:text-indigo-300" />}
+                  title="No exams yet"
+                  body="Add an exam to your study plan to see its category here."
+                />
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+                  {userCategories.map((cat) => (
+                    <BrowseCard
+                      key={cat.id}
+                      name={cat.name}
+                      description={cat.description}
+                      meta={`${cat.exams.length} ${cat.exams.length === 1 ? "exam" : "exams"}`}
+                      onClick={() => { setBrowseCategoryId(cat.id); setBrowseCategoryName(cat.name); }}
+                    />
+                  ))}
+                </div>
+              )
             )}
 
             <div className="mt-6">
@@ -486,6 +575,7 @@ export default function PracticeExamsPage() {
           open={sessionExam}
           onClose={() => setSessionExam(null)}
           preselectedSubject={preselectedSubject}
+          aiGenerate={preselectedSubject != null}
         />
       )}
     </div>
