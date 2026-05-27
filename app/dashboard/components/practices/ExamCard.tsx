@@ -1,6 +1,7 @@
 "use client"
 import { useRouter } from "next/navigation";
 import { Exam, getBadgeClass } from "../../practice/page";
+import { useUserSubscription } from "../../util/apis/subscription/subscription";
 
 interface ExamCardProps {
   exam: Exam;
@@ -20,6 +21,13 @@ function difficultyToLevel(difficulty: string | number | null | undefined): stri
 
 const ExamCard = ({ exam, isPremiumLocked,onStart }: ExamCardProps) => {
   const router = useRouter()
+  const { data: subResp } = useUserSubscription();
+  const sub = subResp?.data?.subscription ?? null;
+  const subStatus = (sub?.status ?? "").toLowerCase();
+  const isSubscribed =
+    !!subResp?.data?.is_subscribed ||
+    !!sub?.is_valid ||
+    (sub != null && subStatus !== "expired" && subStatus !== "cancelled" && (sub.days_remaining ?? 0) > 0);
   const canContinue = !isPremiumLocked && exam?.sessionId != null;
   const btnLabel = isPremiumLocked
     ? "Upgrade to Access"
@@ -68,7 +76,7 @@ const ExamCard = ({ exam, isPremiumLocked,onStart }: ExamCardProps) => {
           { value: (exam.questions ?? 0).toLocaleString(), label: "Questions"  },
           { value: exam.topics ?? 0,                       label: "Topics"     },
           { value: difficultyToLevel(exam.difficulty),     label: "Difficulty" },
-          { value: exam.freeAccess ?? 0,                   label: "Free access"},
+          // { value: exam.freeAccess ?? 0,                   label: "Free access"},
         ].map(({ value, label }) => (
           <div key={label} className="mt-1.25">
             <p className="text-sm  text-[#0F172B] dark:text-zinc-100 font-semibold font-inter leading-none">{value}</p>
@@ -103,7 +111,9 @@ const ExamCard = ({ exam, isPremiumLocked,onStart }: ExamCardProps) => {
           </p>
         ) : (
           <p className="text-[10px] text-slate-400 dark:text-zinc-500">
-            Not started · {exam.freeAccess} free questions ready
+            {isSubscribed
+              ? "Not started"
+              : `Not started · ${exam.freeAccess} free questions ready`}
           </p>
         )}
       </div>

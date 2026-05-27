@@ -10,6 +10,10 @@ interface Props {
   steps?: { icon: string; text: string }[];
   /** Subtle tagline at the bottom. */
   footer?: string;
+  /** Current retry attempt (1-indexed). 0 = first attempt, no retry banner shown. */
+  retryAttempt?: number;
+  /** Maximum retries the caller will perform; used to display "(2/3)". */
+  maxRetries?: number;
 }
 
 const DEFAULT_STEPS = [
@@ -30,7 +34,11 @@ export default function SessionGeneratingState({
   title = "Generating your practice",
   steps = DEFAULT_STEPS,
   footer = "Hang tight — this usually takes a few seconds.",
+  retryAttempt = 0,
+  maxRetries = 0,
 }: Props) {
+  const isRetrying = retryAttempt > 0;
+  const totalAttempts = maxRetries + 1;
   const [idx, setIdx] = useState(0);
   useEffect(() => {
     const t = setInterval(() => setIdx((i) => (i + 1) % steps.length), 1600);
@@ -122,6 +130,13 @@ export default function SessionGeneratingState({
           }}
         />
       </div>
+
+      {isRetrying && (
+        <p className="relative mt-3 text-[11px] font-semibold text-amber-600 dark:text-amber-400 inline-flex items-center gap-1.5">
+          <span className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-pulse" />
+          That took a while — retrying… ({retryAttempt + 1}/{totalAttempts})
+        </p>
+      )}
 
       <p className="relative mt-5 text-[11px] text-slate-400 dark:text-zinc-500">{footer}</p>
 

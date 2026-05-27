@@ -136,7 +136,22 @@ export default function AIPracticeModal({ open, onClose }: Props) {
 
   const { mutate: handleStart, isPending } = useStartPracticeExam();
   const [isRedirecting, setIsRedirecting] = useState(false);
+  // Track retry attempts so the loading screen can say "Retrying… (2/3)" and
+  // we cap the auto-retry loop at a safe upper bound.
+  const MAX_RETRIES = 2;
+  const [retryAttempt, setRetryAttempt] = useState(0);
   const isStarting = isPending || isRedirecting;
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const isTimeoutError = (error: any): boolean => {
+    if (!error) return false;
+    if (error.code === "ECONNABORTED") return true;
+    const msg = String(error?.message ?? "").toLowerCase();
+    if (msg.includes("timeout") || msg.includes("timed out")) return true;
+    // 408 Request Timeout / 504 Gateway Timeout from the server count too.
+    const status = Number(error?.response?.status);
+    return status === 408 || status === 504;
+  };
 
   const onSubmit = (data: AIFormData) => {
     // Entering fullscreen needs to happen synchronously inside the click for
@@ -148,6 +163,11 @@ export default function AIPracticeModal({ open, onClose }: Props) {
       const req = el.requestFullscreen ?? el.webkitRequestFullscreen;
       req?.call(el).catch(() => { /* denied or unsupported */ });
     }
+    setRetryAttempt(0);
+    submitStart(data, 0);
+  };
+
+  const submitStart = (data: AIFormData, attempt: number) => {
     handleStart(
       {
         exam_config_id: data.exam_config_id,
@@ -168,6 +188,7 @@ export default function AIPracticeModal({ open, onClose }: Props) {
             sessionStorage.setItem("prep:proctoring", data.enable_proctoring ? "on" : "off");
             clearProctorReports();
           }
+          setRetryAttempt(0);
           setIsRedirecting(true);
           router.push(
             `/dashboard/practice/start-practice/${res?.data?.session?.id ?? res?.data?.id}`,
@@ -175,7 +196,20 @@ export default function AIPracticeModal({ open, onClose }: Props) {
         },
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         onError: (error: any) => {
+          // Network/server timeout — auto-retry transparently. AI generation
+          // can take a while and the first request often warms the model; a
+          // simple linear-backoff retry rescues most of these without bouncing
+          // the user back to the form.
+          if (isTimeoutError(error) && attempt < MAX_RETRIES) {
+            const nextAttempt = attempt + 1;
+            setRetryAttempt(nextAttempt);
+            // Short backoff so we don't slam a struggling server.
+            window.setTimeout(() => submitStart(data, nextAttempt), 1500);
+            return;
+          }
+
           setIsRedirecting(false);
+          setRetryAttempt(0);
           const message =
             error?.response?.data?.data?.non_field_errors?.[0] ||
             error?.response?.data?.message ||
@@ -203,7 +237,7 @@ export default function AIPracticeModal({ open, onClose }: Props) {
           showCloseButton={false}
         >
           {isStarting ? (
-            <SessionGeneratingState />
+            <SessionGeneratingState retryAttempt={retryAttempt} maxRetries={MAX_RETRIES} />
           ) : needsUpgrade ? (
             <UpgradeRequired
               onClose={() => { setNeedsUpgrade(false); onClose(); }}
