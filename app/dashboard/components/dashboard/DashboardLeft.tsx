@@ -27,13 +27,25 @@ function ScoreBar({ score }: { score: number }) {
 
 function TestCard({ test }: { test: practiceHistoryData }) {
   const router = useRouter();
-  const subjectNames = test.subjects_selected.map((s) => s.name).join(", ") || "Mixed subjects";
-  const topicCount   = test.topics_selected.length;
-  const date         = new Date(test.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
-  const score        = test.score ?? 0;
-  const duration     = test.time_limit_minutes ? `${test.time_limit_minutes}m` : "untimed";
-  const isCompleted  = test.status === "completed";
-  const accent       = isCompleted ? getScoreAccent(score) : "#F7C948";
+  // Backend has been returning `topics_selected` as `null` on some sessions
+  // (and theoretically could do the same for subjects), which used to crash
+  // .map/.length when the user paginated into a page containing one. Guard
+  // every nullable field defensively so a single missing value doesn't
+  // bring down the whole list.
+  const subjects = Array.isArray(test?.subjects_selected) ? test.subjects_selected : [];
+  const topics = Array.isArray(test?.topics_selected) ? test.topics_selected : [];
+  const subjectNames =
+    subjects.map((s) => s?.name).filter(Boolean).join(", ") || "Mixed subjects";
+  const topicCount = topics.length;
+  const createdAt = test?.created_at ? new Date(test.created_at) : null;
+  const date = createdAt && !isNaN(createdAt.getTime())
+    ? createdAt.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })
+    : "—";
+  const rawScore = typeof test?.score === "number" ? test.score : Number(test?.score ?? 0);
+  const score = Number.isFinite(rawScore) ? rawScore : 0;
+  const duration = test?.time_limit_minutes ? `${test.time_limit_minutes}m` : "untimed";
+  const isCompleted = test?.status === "completed";
+  const accent = isCompleted ? getScoreAccent(score) : "#F7C948";
 
   return (
     <button

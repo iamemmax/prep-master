@@ -300,3 +300,17 @@ body:has(.dashboard-scrollbar)::-webkit-scrollbar-button,
   width: 0;
   height: 0;
 }
+/* iOS Safari auto-zooms whenever a focused form control's font-size is below
+   16px. Many of our compact UI surfaces (modals, sidebars) use text-xs/sm,
+   which triggers an unwanted page zoom on every input focus. Force the
+   computed font-size up on mobile so iOS stops zooming, while leaving the
+   visual size alone on tablet/desktop where the bug doesn't apply. */
+@media (max-width: 640px) {
+  input,
+  select,
+  textarea,
+  [contenteditable="true"],
+  [data-slot="select-trigger"] {
+    font-size: 16px !important;
+  }
+}

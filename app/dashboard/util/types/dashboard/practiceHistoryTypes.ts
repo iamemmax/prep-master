@@ -47,8 +47,11 @@ export interface practiceHistoryData {
   is_active: boolean;
   created_at: string;
   updated_at: string;
-  subjects_selected: Subjectsselected[];
-  topics_selected: Subjectsselected[];
+  // The backend has been returning `null` for these on some sessions (e.g.
+  // older records where no subjects/topics were captured). Type them as
+  // nullable so consumers are forced to guard before calling .map/.length.
+  subjects_selected: Subjectsselected[] | null;
+  topics_selected: Subjectsselected[] | null;
   difficulty_level: string;
   number_of_questions: number;
   session_mode: string;
