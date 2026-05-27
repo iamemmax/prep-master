@@ -13,6 +13,8 @@ import { useRouter } from "next/navigation";
 import { useStartPracticeExam } from "../../util/apis/practice/createPracticeExam";
 import { useGetPracticeExamConfig } from "../../util/apis/practice/fetchExamConfig";
 import { useUserCategories } from "../../util/hooks/useUserCategories";
+import { useSubscription } from "../subscription/SubscriptionProvider";
+import { Crown } from "lucide-react";
 import { useErrorModalState } from "@/hooks";
 import { formatAxiosErrorMessage } from "@/utils";
 import { ErrorModal } from "@/components/ui/ErrorModal";
@@ -60,6 +62,7 @@ interface Props {
 
 export default function AIPracticeModal({ open, onClose }: Props) {
   const router = useRouter();
+  const { openUpgradeModal } = useSubscription();
   const {
     isErrorModalOpen,
     setErrorModalState,
@@ -95,6 +98,17 @@ export default function AIPracticeModal({ open, onClose }: Props) {
 
   const sessionMode = useWatch({ control, name: "session_mode" });
   const selectedCategoryId = useWatch({ control, name: "category_id" });
+  const selectedExamConfigId = useWatch({ control, name: "exam_config_id" });
+
+  // Subjects come from the picked exam config's exam_type.subjects[].
+  const availableSubjects = useMemo(() => {
+    const cfg = allExamConfigs.find((e) => e.id === selectedExamConfigId);
+    return cfg?.exam_type?.subjects ?? [];
+  }, [allExamConfigs, selectedExamConfigId]);
+
+  // [needs-upgrade] sub-state controls a friendlier paywall view in place of
+  // the generic error modal for subscription-gated AI failures.
+  const [needsUpgrade, setNeedsUpgrade] = useState(false);
 
   // Narrow the exam picker to the user's exams within the picked category.
   // If no category is set, show all of the user's exam configs.
@@ -113,6 +127,12 @@ export default function AIPracticeModal({ open, onClose }: Props) {
     if (examConfigs.length === 0) return;
     setValue("exam_config_id", examConfigs[0].id);
   }, [open, examConfigs, setValue]);
+
+  // When the exam changes, drop any subject picked under the previous exam
+  // (its subjects[] list is different) so the dropdown starts blank.
+  useEffect(() => {
+    setValue("subject_name", "");
+  }, [selectedExamConfigId, setValue]);
 
   const { mutate: handleStart, isPending } = useStartPracticeExam();
   const [isRedirecting, setIsRedirecting] = useState(false);
@@ -161,6 +181,13 @@ export default function AIPracticeModal({ open, onClose }: Props) {
             error?.response?.data?.message ||
             formatAxiosErrorMessage(error as AxiosError) ||
             "An error occurred. Please try again.";
+          const lower = String(message).toLowerCase();
+          // Subscription-gated failures get a friendlier paywall card with a
+          // direct Subscribe CTA rather than the generic error modal.
+          if (lower.includes("subscription") || lower.includes("subscribe") || lower.includes("premium")) {
+            setNeedsUpgrade(true);
+            return;
+          }
           openErrorModalWithMessage(String(message));
         },
       },
@@ -177,6 +204,15 @@ export default function AIPracticeModal({ open, onClose }: Props) {
         >
           {isStarting ? (
             <SessionGeneratingState />
+          ) : needsUpgrade ? (
+            <UpgradeRequired
+              onClose={() => { setNeedsUpgrade(false); onClose(); }}
+              onSubscribe={() => {
+                setNeedsUpgrade(false);
+                onClose();
+                openUpgradeModal();
+              }}
+            />
           ) : (
           <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col max-h-[90vh]">
             {/* Header */}
@@ -293,14 +329,30 @@ export default function AIPracticeModal({ open, onClose }: Props) {
                   name="subject_name"
                   control={control}
                   render={({ field }) => (
-                    <input
-                      type="text"
-                      autoFocus
-                      value={field.value}
-                      onChange={field.onChange}
-                      placeholder="e.g. Academic Reading"
-                      className="w-full h-10 border border-slate-200 dark:border-zinc-700 rounded-lg px-3 text-xs text-slate-700 dark:text-zinc-200 bg-white dark:bg-zinc-900 placeholder:text-slate-300 dark:placeholder:text-zinc-500 focus:outline-none focus:border-indigo-400 transition-colors"
-                    />
+                    <Select
+                      value={field.value || ""}
+                      onValueChange={field.onChange}
+                      disabled={availableSubjects.length === 0 || !selectedExamConfigId}
+                    >
+                      <SelectTrigger className="h-10 w-full bg-white dark:bg-zinc-900 dark:text-white text-xs">
+                        <SelectValue
+                          placeholder={
+                            !selectedExamConfigId
+                              ? "Pick an exam first"
+                              : availableSubjects.length === 0
+                              ? "No subjects available for this exam"
+                              : "Select subject"
+                          }
+                        />
+                      </SelectTrigger>
+                      <SelectContent className="z-10000" position="popper" sideOffset={4}>
+                        {availableSubjects.map((s) => (
+                          <SelectItem key={s.id} value={s.name} className="text-xs">
+                            {s.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   )}
                 />
                 {errors.subject_name && (
@@ -527,6 +579,46 @@ export default function AIPracticeModal({ open, onClose }: Props) {
         subheading={errorModalMessage || "Please check your inputs and try again."}
       />
     </>
+  );
+}
+
+// Shown in place of the form when the backend rejects the AI start because
+// the user is on the free plan. Gives them a direct path to subscribe rather
+// than the generic "An error occurred" toast.
+function UpgradeRequired({ onClose, onSubscribe }: { onClose: () => void; onSubscribe: () => void }) {
+  return (
+    <div className="flex flex-col items-center text-center px-8 py-10">
+      <div
+        className="w-14 h-14 rounded-2xl flex items-center justify-center shadow-lg mb-4"
+        style={{ background: "linear-gradient(135deg, #F7C948, #FE9A00)" }}
+      >
+        <Crown size={26} className="text-white" fill="currentColor" />
+      </div>
+      <h3 className="text-base font-bold text-slate-900 dark:text-zinc-100">
+        AI practice is a Premium feature
+      </h3>
+      <p className="mt-1.5 text-xs text-slate-500 dark:text-zinc-400 max-w-sm">
+        Subscribe to unlock unlimited AI-generated questions tailored to your exam, plus full access to the question bank.
+      </p>
+
+      <div className="mt-6 w-full flex flex-col sm:flex-row gap-2">
+        <button
+          type="button"
+          onClick={onClose}
+          className="flex-1 h-11 rounded-xl border border-slate-200 dark:border-zinc-700 text-sm font-semibold text-slate-600 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-800 transition-colors"
+        >
+          Maybe later
+        </button>
+        <button
+          type="button"
+          onClick={onSubscribe}
+          className="flex-1 h-11 rounded-xl flex items-center justify-center gap-1.5 text-sm font-bold text-white transition-all hover:opacity-90 hover:-translate-y-0.5"
+          style={{ background: "linear-gradient(135deg, #6366F1, #7C3AED)" }}
+        >
+          <Crown size={14} fill="currentColor" /> Subscribe
+        </button>
+      </div>
+    </div>
   );
 }
 

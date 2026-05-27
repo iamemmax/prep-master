@@ -9,11 +9,19 @@ const FreeAccountBanner = () => {
   const [open, setOpen] = useState(false);
   const { data: subResp, isLoading } = useUserSubscription();
 
-  // Hide the banner once the user has a valid subscription. Also stay hidden
-  // while the query is in flight so subscribers never see a stale "Free
-  // Account" prompt flash before the data lands.
+  // Hide the banner once the user has a subscription. Also stay hidden while
+  // the query is in flight so subscribers never see a stale "Free Account"
+  // prompt flash before the data lands. The check is permissive — any of
+  // `is_subscribed`, `subscription.is_valid`, or a non-expired-looking
+  // `status` / positive `days_remaining` counts. The backend has been
+  // inconsistent about which fields it sets, so a single strict check was
+  // leaving real subscribers staring at the upgrade nudge.
+  const sub = subResp?.data?.subscription ?? null;
+  const subStatus = (sub?.status ?? "").toLowerCase();
   const isActiveSubscriber =
-    !!subResp?.data?.is_subscribed && !!subResp?.data?.subscription?.is_valid;
+    !!subResp?.data?.is_subscribed ||
+    !!sub?.is_valid ||
+    (sub != null && subStatus !== "expired" && subStatus !== "cancelled" && (sub.days_remaining ?? 0) > 0);
   if (isLoading || isActiveSubscriber) return null;
 
   return (

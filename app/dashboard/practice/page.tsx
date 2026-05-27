@@ -178,6 +178,20 @@ export default function PracticeExamsPage() {
 
   const { data: overviewResponse, isLoading: overviewLoading, isFetching } = useGetDashboardOverview();
 
+  // First-time empty state: if the dashboard overview confirms the user has no
+  // exams configured, nudge them straight into the "Add a new exam" modal so
+  // the practice page isn't a dead end. Derived rather than set in an effect
+  // to avoid cascading renders; once the user dismisses it (or adds an exam),
+  // `autoPromptDismissed` keeps it from popping back open this mount.
+  const [autoPromptDismissed, setAutoPromptDismissed] = useState(false);
+  const userHasNoExams =
+    !overviewLoading && (overviewResponse?.data?.user_exams ?? []).length === 0;
+  const showExamsModal = examsModalOpen || (userHasNoExams && !autoPromptDismissed);
+  const closeExamsModal = () => {
+    setExamsModalOpen(false);
+    setAutoPromptDismissed(true);
+  };
+
   // Lazy-load the picked exam's detail (which carries the subjects[]). Empty
   // string keeps the underlying useQuery disabled until the user picks.
   const examDetailId = selectedExamPick ? String(selectedExamPick.examId) : "";
@@ -412,7 +426,7 @@ export default function PracticeExamsPage() {
               </div>
             </div>
 
-            <button
+            {/* <button
               data-tour="practice-intake"
               onClick={() => setIntakeOpen(true)}
               className="sm:hidden w-full flex items-center justify-center gap-2 text-white font-bold text-sm px-5 py-3 rounded-[10px] transition-all shadow-sm mb-4"
@@ -420,7 +434,7 @@ export default function PracticeExamsPage() {
             >
               <Sparkles size={14} />
               Generate from PDF / screenshot
-            </button>
+            </button> */}
 
             <FreeAccountBanner />
 
@@ -553,15 +567,37 @@ export default function PracticeExamsPage() {
         </div>
       </div>
 
-      {/* FABs — AI Practice (new) sits above the PDF-intake FAB */}
+      {/* AI Practice FAB — sits well above the chat-support widget and the
+          PDF-intake FAB. On mobile it becomes a circular, attention-drawing
+          FAB with a pulsing halo and a safe-area-aware offset so it clears
+          iOS home indicators and any third-party chat bubble in the corner. */}
       <button
         onClick={() => setAiPracticeOpen(true)}
         aria-label="AI Practice"
-        className="fixed bottom-30 right-6 flex items-center gap-2 text-white text-sm font-bold px-4 sm:px-5 py-3 rounded-2xl shadow-xl hover:shadow-2xl hover:-translate-y-1 transition-all duration-200 z-40 cursor-pointer"
-        style={{ background: "linear-gradient(135deg, #6366F1, #7C3AED)" }}
+        className="
+          group fixed right-4 sm:right-6 z-50 cursor-pointer text-white font-bold
+          flex items-center justify-center gap-2
+          h-14 w-14 sm:h-auto sm:w-auto rounded-full sm:rounded-2xl
+          sm:px-5 sm:py-3 text-sm
+          shadow-[0_10px_30px_-8px_rgba(99,102,241,0.55)] hover:shadow-[0_14px_40px_-8px_rgba(99,102,241,0.7)]
+          transition-all duration-200 hover:-translate-y-1 active:scale-95
+        "
+        style={{
+          background: "linear-gradient(135deg, #6366F1, #7C3AED)",
+          // 10rem ≈ 160px clears a typical 60–80px chat widget plus the
+          // orange PDF FAB sitting at bottom-6 underneath it.
+          bottom: "calc(env(safe-area-inset-bottom, 0px) + 8rem)",
+        }}
       >
-        <Wand2 size={16} />
-        <span className="hidden sm:inline">AI Practice</span>
+        {/* Pulsing halo — mobile only, to draw the eye to the new feature. */}
+        <span
+          aria-hidden
+          className="absolute inset-0 rounded-full sm:hidden animate-ping opacity-60"
+          style={{ background: "linear-gradient(135deg, #6366F1, #7C3AED)", animationDuration: "2.2s" }}
+        />
+        <Wand2 size={20} className="relative sm:hidden" />
+        <Wand2 size={16} className="relative hidden sm:inline-block" />
+        <span className="relative hidden sm:inline">AI Practice</span>
       </button>
 
      {!isProductionGated() && <button
@@ -576,8 +612,8 @@ export default function PracticeExamsPage() {
       <PracticeIntakeModal open={intakeOpen} onClose={() => setIntakeOpen(false)} />
 
       <UpdateExamsModal
-        open={examsModalOpen}
-        onClose={() => setExamsModalOpen(false)}
+        open={showExamsModal}
+        onClose={closeExamsModal}
       />
 
       {sessionExam && (

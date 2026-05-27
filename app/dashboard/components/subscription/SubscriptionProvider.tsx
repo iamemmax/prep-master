@@ -16,7 +16,7 @@ type SubscriptionContextValue = {
   closeUpgradeModal: () => void;
 };
 
-const SubscriptionContext = createContext<SubscriptionContextValue | null>(null);
+export const SubscriptionContext = createContext<SubscriptionContextValue | null>(null);
 
 export function SubscriptionProvider({ children }: { children: React.ReactNode }) {
   const { remaining, total } = useCreditBalance();

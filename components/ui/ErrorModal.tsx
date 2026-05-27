@@ -1,8 +1,10 @@
 "use client";
 
-import { X } from "lucide-react";
+import { Crown, X } from "lucide-react";
+import { useContext } from "react";
 import { Button } from "./button";
-import { Dialog, DialogClose, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "./dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "./dialog";
+import { SubscriptionContext } from "@/app/dashboard/components/subscription/SubscriptionProvider";
 
 
 
@@ -12,6 +14,20 @@ interface ErrorModalProps {
   heading?: string;
   subheading: string;
   children?: React.ReactNode;
+  /** Optional override for the primary action (defaults to the "Okay" close button). */
+  primaryAction?: { label: string; onClick: () => void; icon?: React.ReactNode };
+}
+
+// Subscription-gated errors get a Subscribe CTA in place of the plain "Okay"
+// button. Matched against a few common phrasings the backend has used.
+function isSubscriptionError(text: string): boolean {
+  const lower = text.toLowerCase();
+  return (
+    lower.includes("subscription") ||
+    lower.includes("subscribe") ||
+    lower.includes("premium plan") ||
+    lower.includes("upgrade")
+  );
 }
 
 export function ErrorModal({
@@ -20,7 +36,27 @@ export function ErrorModal({
   heading = "An error occurred.",
   subheading,
   children,
+  primaryAction,
 }: ErrorModalProps) {
+  // Pull the upgrade-modal opener from the subscription provider when it's
+  // mounted (the dashboard tree). Outside that provider (auth/marketing pages)
+  // the context is null, so we just fall back to the plain "Okay" button.
+  const subCtx = useContext(SubscriptionContext);
+  const openUpgradeModal = subCtx?.openUpgradeModal ?? null;
+
+  const subscriptionLike = !primaryAction && isSubscriptionError(subheading) && openUpgradeModal !== null;
+  const resolvedAction =
+    primaryAction ??
+    (subscriptionLike
+      ? {
+          label: "Subscribe",
+          icon: <Crown size={14} fill="currentColor" />,
+          onClick: () => {
+            setErrorModalState(false);
+            openUpgradeModal?.();
+          },
+        }
+      : null);
   return (
     <Dialog open={isErrorModalOpen} onOpenChange={setErrorModalState}>
       <DialogContent className="bg-[#150130] border-none max-w-lg text-white " showCloseButton={false}
@@ -59,20 +95,26 @@ export function ErrorModal({
 
           {children}
           <div className="px-2 pb-5">
-            <Button
-          // icon={false}
-
-              className="grow bg-[#7E3CE0] cursor-pointer px-1.5 sm:text-sm w-full md:px-12.75"
-              size="lg"
-              // icon={false}
-              type="button"
-              onClick={() => {
-                setErrorModalState(false);
-                // setOpenConfirmDisbursedMadal(false)
-              }}
-            >
-              Okay
-            </Button>
+            {resolvedAction ? (
+              <Button
+                className="grow bg-[#7E3CE0] cursor-pointer px-1.5 sm:text-sm w-full md:px-12.75 inline-flex items-center justify-center gap-1.5"
+                size="lg"
+                type="button"
+                onClick={resolvedAction.onClick}
+              >
+                {resolvedAction.icon}
+                {resolvedAction.label}
+              </Button>
+            ) : (
+              <Button
+                className="grow bg-[#7E3CE0] cursor-pointer px-1.5 sm:text-sm w-full md:px-12.75"
+                size="lg"
+                type="button"
+                onClick={() => setErrorModalState(false)}
+              >
+                Okay
+              </Button>
+            )}
           </div>
         </div>
       </DialogContent>
