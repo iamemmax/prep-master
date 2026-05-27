@@ -20,6 +20,7 @@ export const userOnboardingInfoSchema = z.object({
 const baseExamOnboardingSchema = z.object({
   email: z.string().email("Invalid email address"),
   country: z.string().min(1, "Country is required"),
+  category_id: z.number({ message: "Please select a category" }).int().positive(),
   exam_type: z.number({ message: "Please select an exam" }).int().positive(),
   exam_name: z.string().optional(), // UI display only — not sent to API
   exam_date: z
@@ -40,6 +41,7 @@ export const examOnboardingSchema = baseExamOnboardingSchema
 
 export const step1Schema = baseExamOnboardingSchema.pick({
   country: true,
+  category_id: true,
   exam_type: true,
   exam_name: true,
   exam_date: true,

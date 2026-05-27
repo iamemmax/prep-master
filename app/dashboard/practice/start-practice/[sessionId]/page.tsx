@@ -120,25 +120,84 @@ export default function PracticeExamUI({ params }: { params: Promise<{ sessionId
   useEffect(() => {
     if (hydratedRef.current) return;
     if (!session || questions.length === 0) return;
+
+    // Some payloads nest the session metadata one level deeper for back-compat.
+    // Prefer the top-level fields but fall through to the nested copy so we
+    // never miss responses when resuming.
+    const nested = (session as { session?: typeof session }).session;
+    const responses =
+      (session.responses && session.responses.length > 0
+        ? session.responses
+        : nested?.responses) ?? [];
+    const lastAnsweredId =
+      session.last_answered_question_id ?? nested?.last_answered_question_id ?? null;
+    const answeredCount = session.answered_count ?? nested?.answered_count ?? responses.length;
+
     hydratedRef.current = true;
 
-    const responses = session.responses ?? [];
+    const map: Record<number, number> = {};
+
+    // Primary path: explicit responses array.
     if (responses.length > 0) {
-      const map: Record<number, number> = {};
       for (const r of responses) {
         const qIdx = questions.findIndex(q => q.id === r.question_id);
         if (qIdx === -1) continue;
-        const optIdx = questions[qIdx].options.findIndex(o => o.reference === r.selected_answer);
-        if (optIdx >= 0) map[qIdx] = optIdx;
+        const opts = questions[qIdx].options;
+        const selected = r.selected_answer;
+        // Match defensively — different backends have returned the option
+        // reference ("A"), the option id (5), or even the option text. Try
+        // each shape before giving up.
+        let optIdx = opts.findIndex(o => o.reference === selected);
+        if (optIdx < 0) optIdx = opts.findIndex(o => String(o.reference).trim().toLowerCase() === String(selected).trim().toLowerCase());
+        if (optIdx < 0) optIdx = opts.findIndex(o => String(o.id) === String(selected));
+        if (optIdx < 0) optIdx = opts.findIndex(o => String(o.option_text).trim() === String(selected).trim());
+        // Even if we can't resolve the exact option, still record the question
+        // as answered using a -1 sentinel so the sidebar reflects progress.
+        // The question card handles -1 as "no radio highlighted" (Array[-1] →
+        // undefined), letting the user re-pick without losing their place.
+        map[qIdx] = optIdx >= 0 ? optIdx : -1;
       }
-      if (Object.keys(map).length > 0) setAnswers(map);
     }
+
+    // Fallback: the resume endpoint sometimes returns last_answered_question_id
+    // / answered_count without a populated responses[]. Mark everything up to
+    // and including the last-answered index as answered (sentinel -1) so the
+    // sidebar/counters reflect prior progress.
+    if (lastAnsweredId != null) {
+      const lastIdx = questions.findIndex(q => q.id === lastAnsweredId);
+      if (lastIdx >= 0) {
+        for (let i = 0; i <= lastIdx; i++) {
+          if (map[i] == null) map[i] = -1;
+        }
+      }
+    }
+
+    // Local cache overlay: any answers the user picked in this browser are
+    // persisted to sessionStorage. They override server-derived sentinels so
+    // the previously-picked radio stays highlighted across reloads even when
+    // the resume endpoint doesn't return a usable `selected_answer`.
+    if (typeof window !== "undefined") {
+      const cached = window.sessionStorage.getItem(`prep:answers:${session.id}`);
+      if (cached) {
+        try {
+          const parsed = JSON.parse(cached) as Record<string, number>;
+          for (const [k, v] of Object.entries(parsed)) {
+            const qIdx = Number(k);
+            if (!Number.isFinite(qIdx)) continue;
+            if (typeof v !== "number") continue;
+            map[qIdx] = v;
+          }
+        } catch { /* stale/corrupt cache — ignore */ }
+      }
+    }
+
+    if (Object.keys(map).length > 0) setAnswers(map);
 
     // Resume cursor: prefer the question after the last answered one. Fall
     // back to the first unanswered question if the id can't be located.
     let resumeIdx = -1;
-    if (session.last_answered_question_id != null) {
-      const idx = questions.findIndex(q => q.id === session.last_answered_question_id);
+    if (lastAnsweredId != null) {
+      const idx = questions.findIndex(q => q.id === lastAnsweredId);
       if (idx >= 0 && idx + 1 < questions.length) resumeIdx = idx + 1;
     }
     if (resumeIdx === -1 && responses.length > 0) {
@@ -148,8 +207,7 @@ export default function PracticeExamUI({ params }: { params: Promise<{ sessionId
     }
     if (resumeIdx > 0) {
       setCurrent(resumeIdx);
-      const count = session.answered_count ?? responses.length;
-      toast.success(`Resumed at question ${resumeIdx + 1} · ${count} answered previously`, { duration: 3500 });
+      toast.success(`Resumed at question ${resumeIdx + 1} · ${answeredCount} answered previously`, { duration: 3500 });
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session?.id, questions.length]);
@@ -195,7 +253,30 @@ export default function PracticeExamUI({ params }: { params: Promise<{ sessionId
   const isFinishing = isFlushingSubmits || isEnding || isNavigatingToReview;
 
   useEffect(() => {
-    if (session?.time_limit_minutes) setSeconds(session.time_limit_minutes * 60);
+    if (!session) return;
+    // Some payloads stash `time_limit_minutes` under the nested back-compat
+    // `session.session` object on resume — try both.
+    const nested = (session as { session?: typeof session }).session;
+    const tlm = session.time_limit_minutes ?? nested?.time_limit_minutes ?? 0;
+    if (tlm <= 0) return;
+
+    // Persist the deadline in sessionStorage so a reload mid-session resumes
+    // the countdown from where it was rather than restarting from zero.
+    const totalSecs = tlm * 60;
+    const storageKey = `prep:timer:${session.id}`;
+    if (typeof window === "undefined") {
+      setSeconds(totalSecs);
+      return;
+    }
+    const stored = window.sessionStorage.getItem(storageKey);
+    const deadlineMs = stored ? Number(stored) : NaN;
+    if (Number.isFinite(deadlineMs) && deadlineMs > Date.now()) {
+      setSeconds(Math.max(0, Math.round((deadlineMs - Date.now()) / 1000)));
+    } else {
+      const newDeadline = Date.now() + totalSecs * 1000;
+      window.sessionStorage.setItem(storageKey, String(newDeadline));
+      setSeconds(totalSecs);
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session?.id]);
 
@@ -302,7 +383,17 @@ export default function PracticeExamUI({ params }: { params: Promise<{ sessionId
   }
 
   function selectOption(idx: number) {
-    setAnswers(prev => ({ ...prev, [current]: idx }));
+    setAnswers(prev => {
+      const next = { ...prev, [current]: idx };
+      // Cache locally so a reload mid-session can restore the exact picks even
+      // when the server's resume payload omits the selected answers.
+      if (typeof window !== "undefined" && session) {
+        try {
+          window.sessionStorage.setItem(`prep:answers:${session.id}`, JSON.stringify(next));
+        } catch { /* storage full or denied — ignore */ }
+      }
+      return next;
+    });
     const opt = questions[current].options[idx];
     const p = submitAnswerAsync({
       session_id: session!.id,
@@ -350,6 +441,12 @@ export default function PracticeExamUI({ params }: { params: Promise<{ sessionId
       {
         onSuccess: (res) => {
           setSessionResult(res.data);
+          // Session is done — drop the cached answers/timer so the next run
+          // starts clean.
+          if (typeof window !== "undefined" && session) {
+            window.sessionStorage.removeItem(`prep:answers:${session.id}`);
+            window.sessionStorage.removeItem(`prep:timer:${session.id}`);
+          }
 
           // Personal-best celebration: capture the previous high for this
           // exam type *before* we persist the new one, so the banner can

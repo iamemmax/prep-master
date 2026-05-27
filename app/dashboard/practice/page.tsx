@@ -7,11 +7,12 @@ import FreeAccountBanner from "../components/practices/FreeAccountBanner";
 import DebounceInput from "../util/shared/DebounceInput";
 import UnlockSectionBanner from "../components/practices/UnlockSection";
 import SessionSetupModal from "../components/practices/StartSessionModal";
+import AIPracticeModal from "../components/practices/AIPracticeModal";
 import PracticeIntakeModal from "../components/practices/PracticeIntakeModal";
 import ActiveSessionsStrip from "../components/practices/ActiveSessionsStrip";
 import QuickActions from "../components/practices/QuickActions";
 import UpdateExamsModal from "../components/practices/UpdateExamsModal";
-import { X, SlidersHorizontal, ChevronRight, ArrowUpDown, Sparkles, BookOpenCheck } from "lucide-react";
+import { X, SlidersHorizontal, ChevronRight, ArrowUpDown, Sparkles, BookOpenCheck, Wand2 } from "lucide-react";
 import { useGetDashboardOverview } from "../util/apis/dashboard/fetchDashboardOverview";
 import { useGetAvailableExamsDetails } from "../util/apis/practice/availableExamsDetails";
 import { useGetExamsByCategory } from "../util/apis/practice/categories";
@@ -170,6 +171,7 @@ export default function PracticeExamsPage() {
   const [browseCategoryId, setBrowseCategoryId]       = useState<number | null>(null);
   const [browseCategoryName, setBrowseCategoryName]   = useState<string | null>(null);
   const [intakeOpen, setIntakeOpen]     = useState(false);
+  const [aiPracticeOpen, setAiPracticeOpen] = useState(false);
   const [examsModalOpen, setExamsModalOpen] = useState(false);
   const [sortBy, setSortBy]             = useState<SortKey>("recommended");
   const [category, setCategory]         = useState<string>("All");
@@ -551,7 +553,17 @@ export default function PracticeExamsPage() {
         </div>
       </div>
 
-      {/* FAB */}
+      {/* FABs — AI Practice (new) sits above the PDF-intake FAB */}
+      <button
+        onClick={() => setAiPracticeOpen(true)}
+        aria-label="AI Practice"
+        className="fixed bottom-30 right-6 flex items-center gap-2 text-white text-sm font-bold px-4 sm:px-5 py-3 rounded-2xl shadow-xl hover:shadow-2xl hover:-translate-y-1 transition-all duration-200 z-40 cursor-pointer"
+        style={{ background: "linear-gradient(135deg, #6366F1, #7C3AED)" }}
+      >
+        <Wand2 size={16} />
+        <span className="hidden sm:inline">AI Practice</span>
+      </button>
+
      {!isProductionGated() && <button
         onClick={() => setIntakeOpen(true)}
         className="fixed bottom-6 right-6 flex items-center gap-2 text-white text-sm font-bold px-4 sm:px-5 py-3 rounded-2xl shadow-xl hover:shadow-2xl hover:-translate-y-1 transition-all duration-200 z-40 cursor-pointer"
@@ -575,9 +587,13 @@ export default function PracticeExamsPage() {
           open={sessionExam}
           onClose={() => setSessionExam(null)}
           preselectedSubject={preselectedSubject}
-          aiGenerate={preselectedSubject != null}
         />
       )}
+
+      <AIPracticeModal
+        open={aiPracticeOpen}
+        onClose={() => setAiPracticeOpen(false)}
+      />
     </div>
   );
 }

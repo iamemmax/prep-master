@@ -16,6 +16,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useEffect, useMemo, useState } from "react";
 import { ShieldCheck, BookOpen, X } from "lucide-react";
 import { clearProctorReports } from "../../util/proctor/report";
+import SessionGeneratingState from "./SessionGeneratingState";
 
 // ─── Schema ──────────────────────────────────────────────────────────────────
 const sessionSchema = z.object({
@@ -87,15 +88,13 @@ function matchesRequired(subjectName: string, required: string[]) {
 }
 
 // ─── Component ───────────────────────────────────────────────────────────────
-export default function SessionSetupModal({ onClose, examName = "SAT", examDesc = "Standardized Test for College Admissions", open, preselectedSubject = null, aiGenerate = false, }: {
+export default function SessionSetupModal({ onClose, examName = "SAT", examDesc = "Standardized Test for College Admissions", open, preselectedSubject = null, }: {
   onClose?: () => void;
   examName?: string;
   examDesc?: string;
   open: Exam | null;
   /** When set, the modal pre-selects this subject and hides the subject-picker section. */
   preselectedSubject?: { id: number; name: string } | null;
-  /** When true, submit goes to the AI-generate endpoint (requires a preselected subject). */
-  aiGenerate?: boolean;
   onSubmit?: (data: SessionFormData) => void;
 }) {
 
@@ -144,6 +143,7 @@ const {
 useEffect(() => {
   setValue("exam_config_id", resolvedExamConfigId);
 }, [resolvedExamConfigId, setValue]);
+
 const router = useRouter()
 const examRule = getExamRule(examName);
 // Subjects toggle — OFF means "all subjects". When a preselected subject is
@@ -198,17 +198,7 @@ const onSubmit = (data: z.output<typeof sessionSchema>) => {
     req?.call(el).catch(() => { /* denied or unsupported */ });
   }
 
-  const payload = aiGenerate && preselectedSubject
-    ? {
-        ...data,
-        // Subject is identified by name on the AI flow — never send its id.
-        subjects_selected: [],
-        use_ai_questions: true,
-        subject_name: preselectedSubject.name,
-      }
-    : data;
-
-  handleStart(payload, {
+  handleStart(data, {
     onSuccess: (res) => handleMutationSuccess(res, data.enable_proctoring),
     onError: handleMutationError,
   });
@@ -278,6 +268,17 @@ const subjectsBlocked = !preselectedSubject && useSubjects && subjectsVal.length
         style={{ maxWidth: 520, zIndex: 9999 }}
         showCloseButton={false}
       >
+        {isStarting ? (
+          <SessionGeneratingState
+            title="Starting your session"
+            steps={[
+              { icon: "📋", text: "Loading your questions" },
+              { icon: "🎯", text: "Setting up the timer" },
+              { icon: "✨", text: "Almost there" },
+            ]}
+            footer="Hang tight — getting your session ready."
+          />
+        ) : (
         <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col max-h-[90vh]">
 
           {/* header */}
@@ -727,6 +728,7 @@ const subjectsBlocked = !preselectedSubject && useSubjects && subjectsVal.length
           </div>
 
         </form>
+        )}
       </DialogContent>
     </Dialog>
 

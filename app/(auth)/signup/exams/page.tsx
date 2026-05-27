@@ -15,6 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Step1Data, step1Schema } from "../../schema/signup/userInfoSchema"
 import { useOnboardingStore } from "@/app/store/onboardingStore"
 import { useGetExamsByCountry } from "../../apis/signup/getExamsByCountry"
+import { useGetSignupCategories, useGetSignupExamsByCategory } from "../../apis/signup/getCategories"
 import { useCompleteOnboarding } from "../../apis/signup/completeOnbaording"
 import { useErrorModalState } from "@/hooks"
 import { ErrorModal } from "@/components/ui/ErrorModal"
@@ -45,6 +46,7 @@ export default function SignupExamsPage() {
     resolver: zodResolver(step1Schema),
     defaultValues: {
       country: examData?.country ?? "",
+      category_id: examData?.category_id,
       exam_type: examData?.exam_type,
       exam_name: examData?.exam_name ?? "",
       exam_date: examData?.exam_date ?? "",
@@ -52,9 +54,21 @@ export default function SignupExamsPage() {
   })
 
   const selectedExamType = useWatch({ control, name: "exam_type" })
+  const selectedCategoryId = useWatch({ control, name: "category_id" })
 
-  const { data: examsResponse, isLoading: isLoadingExams } = useGetExamsByCountry()
-  const exams = examsResponse?.data ?? []
+  const { data: categoriesResponse, isLoading: isLoadingCategories } = useGetSignupCategories()
+  const categories = categoriesResponse?.data ?? []
+
+  // Exam source: when a category is picked we use the category endpoint; with
+  // no category yet we fall back to the country/all-exams list so the picker
+  // isn't empty.
+  const { data: examsByCategoryResp, isLoading: isLoadingExamsByCategory } =
+    useGetSignupExamsByCategory(selectedCategoryId ?? null)
+  const { data: examsResponse, isLoading: isLoadingAllExams } = useGetExamsByCountry()
+  const exams =
+    (selectedCategoryId ? examsByCategoryResp?.data : examsResponse?.data) ?? []
+  const isLoadingExams =
+    selectedCategoryId ? isLoadingExamsByCategory : isLoadingAllExams
 
   const { mutate: submitOnboarding, isPending: isSkipping } = useCompleteOnboarding()
 
@@ -148,7 +162,55 @@ export default function SignupExamsPage() {
             )}
           </div>
 
-          {/* Exam — driven by country */}
+          {/* Category — narrows the exam list */}
+          <div>
+            <label className="mb-2 block text-xs font-medium text-[#0F172A]">
+              Which category does your exam fall under?
+            </label>
+            <Controller
+              name="category_id"
+              control={control}
+              render={({ field }) => (
+                <Select
+                  value={field.value ? String(field.value) : ""}
+                  onValueChange={(v) => {
+                    const id = Number(v)
+                    field.onChange(id)
+                    // Switching categories invalidates the previously-picked exam.
+                    setValue("exam_type", undefined as unknown as number, { shouldValidate: false })
+                    setValue("exam_name", "")
+                  }}
+                  disabled={isLoadingCategories || categories.length === 0}
+                >
+                  <SelectTrigger
+                    className={`h-11 w-full bg-[#F8FAFC] text-sm ${
+                      errors.category_id ? "border-red-500" : "border-input"
+                    } ${!field.value ? "text-muted-foreground" : "text-[#0F172A]"}`}
+                  >
+                    <SelectValue
+                      placeholder={
+                        isLoadingCategories
+                          ? "Loading categories..."
+                          : categories.length === 0
+                          ? "No categories available"
+                          : "Select category"
+                      }
+                    />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {categories.map((c) => (
+                      <SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            />
+            {errors.category_id && (
+              <p className="mt-1 text-xs text-red-400">{errors.category_id.message}</p>
+            )}
+          </div>
+
+          {/* Exam — driven by category */}
           <div>
             <label className="mb-2 block text-xs font-medium text-[#0F172A]">
               What exams are you preparing for?
