@@ -198,10 +198,42 @@ const onSubmit = (data: z.output<typeof sessionSchema>) => {
     req?.call(el).catch(() => { /* denied or unsupported */ });
   }
 
-  handleStart(data, {
-    onSuccess: (res) => handleMutationSuccess(res, data.enable_proctoring),
-    onError: handleMutationError,
-  });
+  // Always carry subject ids. When the "Practice specific subjects" toggle is
+  // off, default to every subject the exam exposes so the backend never has to
+  // interpret an empty array as "all subjects". A preselected subject (from the
+  // browse flow) takes precedence — its id alone is sent.
+  let resolvedSubjects = data.subjects_selected ?? [];
+  let resolvedSubjectName = "";
+  if (preselectedSubject) {
+    resolvedSubjects = [preselectedSubject.id];
+    resolvedSubjectName = preselectedSubject.name;
+  } else if (resolvedSubjects.length === 0) {
+    resolvedSubjects = availableSubjects.map((s) => s.id);
+    resolvedSubjectName = availableSubjects[0]?.name ?? "";
+  } else {
+    // The user picked specific subjects — use the first one's name as the
+    // human-readable `subject_name` the backend expects alongside the ids.
+    const firstId = resolvedSubjects[0];
+    resolvedSubjectName = availableSubjects.find((s) => s.id === firstId)?.name ?? "";
+  }
+
+  // This modal always starts a non-AI session, so flag the payload explicitly
+  // so the backend never has to infer it. The AI flow lives in AIPracticeModal
+  // and sets use_ai_questions: true on its own. Empty `topics_selected` and
+  // `subjects_selected` arrays are stripped by the API layer (the backend
+  // rejects them and treats their absence as "all").
+  handleStart(
+    {
+      ...data,
+      subjects_selected: resolvedSubjects,
+      subject_name: resolvedSubjectName,
+      use_ai_questions: false,
+    },
+    {
+      onSuccess: (res) => handleMutationSuccess(res, data.enable_proctoring),
+      onError: handleMutationError,
+    },
+  );
 }
 
 

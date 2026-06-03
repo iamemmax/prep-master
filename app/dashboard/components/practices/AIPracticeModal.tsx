@@ -24,7 +24,10 @@ import { clearProctorReports } from "../../util/proctor/report";
 const aiSchema = z.object({
   category_id: z.number().int().positive().optional(),
   exam_config_id: z.number({ message: "Pick an exam" }).int().positive(),
-  subject_name: z.string().trim().min(1, "Subject is required"),
+  // The subject dropdown's value is the picked subject's id (as a string so
+  // the underlying Select component is happy). We derive the name from the
+  // selected exam's subjects[] at submit time.
+  subject_id: z.string().min(1, "Subject is required"),
   difficulty_level: z.enum(["easy", "medium", "hard"], { message: "Pick a difficulty" }),
   number_of_questions: z
     .number({ message: "Number of questions is required" })
@@ -33,6 +36,7 @@ const aiSchema = z.object({
   session_mode: z.enum(["timed", "untimed"], { message: "Pick a session mode" }),
   time_limit_minutes: z.number().min(1, "At least 1 minute").nullable().optional(),
   enable_proctoring: z.boolean().default(false),
+  use_ai_questions: z.boolean().default(true),
 }).refine((d) => d.session_mode !== "timed" || (d.time_limit_minutes != null && d.time_limit_minutes > 0), {
   message: "Time limit is required for timed sessions",
   path: ["time_limit_minutes"],
@@ -87,12 +91,13 @@ export default function AIPracticeModal({ open, onClose }: Props) {
     defaultValues: {
       category_id: undefined,
       exam_config_id: undefined as unknown as number,
-      subject_name: "",
+      subject_id: "",
       difficulty_level: "medium",
       number_of_questions: 10,
       session_mode: "untimed",
       time_limit_minutes: 30,
       enable_proctoring: false,
+      use_ai_questions: true,
     },
   });
 
@@ -131,7 +136,7 @@ export default function AIPracticeModal({ open, onClose }: Props) {
   // When the exam changes, drop any subject picked under the previous exam
   // (its subjects[] list is different) so the dropdown starts blank.
   useEffect(() => {
-    setValue("subject_name", "");
+    setValue("subject_id", "");
   }, [selectedExamConfigId, setValue]);
 
   const { mutate: handleStart, isPending } = useStartPracticeExam();
@@ -168,20 +173,30 @@ export default function AIPracticeModal({ open, onClose }: Props) {
   };
 
   const submitStart = (data: AIFormData, attempt: number) => {
+    // Look up the picked subject so we can send either its id (when not using
+    // AI generation — backend expects subjects_selected:[id]) or its name
+    // (AI flow uses subject_name to seed the prompt).
+    const pickedSubject = availableSubjects.find((s) => String(s.id) === data.subject_id);
+
+    // `topics_selected` is intentionally omitted — backend rejects an empty
+    // array and treats a missing field as "all topics".
+    const basePayload = {
+      exam_config_id: data.exam_config_id,
+      number_of_questions: data.number_of_questions,
+      use_ai_questions: data.use_ai_questions,
+      session_mode: data.session_mode,
+      difficulty_level: data.difficulty_level,
+      time_limit_minutes: data.session_mode === "timed" ? data.time_limit_minutes ?? null : null,
+      show_explanation_after_answer: false,
+      enable_proctoring: data.enable_proctoring,
+    };
+
+    const subjectPayload = data.use_ai_questions
+      ? { subjects_selected: [], subject_name: pickedSubject?.name ?? "" }
+      : { subjects_selected: pickedSubject ? [pickedSubject.id] : [] };
+
     handleStart(
-      {
-        exam_config_id: data.exam_config_id,
-        number_of_questions: data.number_of_questions,
-        use_ai_questions: true,
-        subject_name: data.subject_name.trim(),
-        session_mode: data.session_mode,
-        difficulty_level: data.difficulty_level,
-        time_limit_minutes: data.session_mode === "timed" ? data.time_limit_minutes ?? null : null,
-        subjects_selected: [],
-        topics_selected: [],
-        show_explanation_after_answer: false,
-        enable_proctoring: data.enable_proctoring,
-      },
+      { ...basePayload, ...subjectPayload },
       {
         onSuccess: (res) => {
           if (typeof window !== "undefined") {
@@ -356,11 +371,50 @@ export default function AIPracticeModal({ open, onClose }: Props) {
                 )}
               </div>
 
+              {/* Use AI questions toggle — when off, the session pulls real
+                  questions for the chosen subject id; when on, the AI
+                  generates fresh ones from the subject name. */}
+              <Controller
+                name="use_ai_questions"
+                control={control}
+                render={({ field }) => {
+                  const on = !!field.value;
+                  return (
+                    <div className={`rounded-xl border p-3 transition-all ${on ? "border-indigo-300 bg-indigo-50/50 dark:border-indigo-500/40 dark:bg-indigo-500/5" : "border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900"}`}>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-start gap-2 min-w-0">
+                          <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${on ? "bg-indigo-100 dark:bg-indigo-500/20" : "bg-slate-100 dark:bg-zinc-800"}`}>
+                            <Wand2 size={14} className={on ? "text-indigo-600 dark:text-indigo-300" : "text-slate-400 dark:text-zinc-500"} />
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-xs font-semibold text-slate-700 dark:text-zinc-200 leading-tight">Use AI-generated questions</p>
+                            <p className="text-[10px] text-slate-400 dark:text-white/70 leading-snug mt-0.5">
+                              {on
+                                ? "Fresh AI questions tailored to the subject"
+                                : "Use existing questions from the question bank"}
+                            </p>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => field.onChange(!on)}
+                          className={`relative rounded-full transition-colors duration-200 shrink-0 ml-2 ${on ? "bg-indigo-600" : "bg-slate-200 dark:bg-zinc-700"}`}
+                          style={{ width: 40, height: 22 }}
+                          aria-pressed={on}
+                        >
+                          <div className={`absolute top-0.75 w-4 h-4 bg-white rounded-full shadow transition-all duration-200 ${on ? "left-5.5" : "left-0.75"}`} />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                }}
+              />
+
               {/* Subject name */}
               <div>
                 <label className="block text-xs font-semibold text-slate-700 dark:text-zinc-300 mb-2">Subject</label>
                 <Controller
-                  name="subject_name"
+                  name="subject_id"
                   control={control}
                   render={({ field }) => (
                     <Select
@@ -381,7 +435,7 @@ export default function AIPracticeModal({ open, onClose }: Props) {
                       </SelectTrigger>
                       <SelectContent className="z-10000" position="popper" sideOffset={4}>
                         {availableSubjects.map((s) => (
-                          <SelectItem key={s.id} value={s.name} className="text-xs">
+                          <SelectItem key={s.id} value={String(s.id)} className="text-xs">
                             {s.name}
                           </SelectItem>
                         ))}
@@ -389,8 +443,8 @@ export default function AIPracticeModal({ open, onClose }: Props) {
                     </Select>
                   )}
                 />
-                {errors.subject_name && (
-                  <p className="text-[10px] text-red-500 mt-1">{errors.subject_name.message}</p>
+                {errors.subject_id && (
+                  <p className="text-[10px] text-red-500 mt-1">{errors.subject_id.message}</p>
                 )}
               </div>
 
