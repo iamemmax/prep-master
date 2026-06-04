@@ -5,8 +5,8 @@ import { Controller, useForm, useWatch } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useEffect, useMemo, useState } from "react";
-import { Wand2, ShieldCheck } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Wand2, ShieldCheck, RotateCw, AlertTriangle } from "lucide-react";
 import SessionGeneratingState from "./SessionGeneratingState";
 import { AxiosError } from "axios";
 import { useRouter } from "next/navigation";
@@ -45,9 +45,9 @@ const aiSchema = z.object({
 type AIFormData = z.output<typeof aiSchema>;
 
 const DIFFICULTIES = [
-  { label: "Easy", value: "easy" },
-  { label: "Medium", value: "medium" },
-  { label: "Hard", value: "hard" },
+  { label: "Beginner", value: "easy" },
+  { label: "Intermediate", value: "medium" },
+  { label: "Advanced", value: "hard" },
 ] as const;
 
 const QUESTION_PRESETS = [5, 10, 15, 20];
@@ -141,21 +141,93 @@ export default function AIPracticeModal({ open, onClose }: Props) {
 
   const { mutate: handleStart, isPending } = useStartPracticeExam();
   const [isRedirecting, setIsRedirecting] = useState(false);
-  // Track retry attempts so the loading screen can say "Retrying… (2/3)" and
-  // we cap the auto-retry loop at a safe upper bound.
-  const MAX_RETRIES = 2;
+  // Track retry attempts so the loading screen can show "(attempt N)". AI
+  // generation can time out repeatedly while the model warms up, so timeouts
+  // are retried indefinitely rather than bouncing the user to an error modal.
   const [retryAttempt, setRetryAttempt] = useState(0);
-  const isStarting = isPending || isRedirecting;
+  // `retryAttempt > 0` means a retry is scheduled but the previous request has
+  // already settled (isPending is briefly false during the backoff gap). Keep
+  // the loader mounted across that gap so it doesn't flash the form between
+  // attempts.
+  const isStarting = isPending || isRedirecting || retryAttempt > 0;
 
+  // Pending auto-retry bookkeeping. `abortedRef` lets a modal close cancel an
+  // in-flight retry loop; `retryTimerRef` holds the scheduled-retry timer so we
+  // can clear it on close/unmount and never fire a stray request.
+  const abortedRef = useRef(false);
+  const retryTimerRef = useRef<number | null>(null);
+  // Remember the last submitted form data so the manual "Try again" button can
+  // re-run the exact same request without the user re-filling the form.
+  const lastDataRef = useRef<AIFormData | null>(null);
+
+  // How many times we silently auto-retry a transient failure before handing
+  // control to the user with a retry prompt. Generation usually succeeds on the
+  // first or second retry once the model is warm.
+  const AUTO_RETRY_LIMIT = 2;
+  // When auto-retries are exhausted, we show a friendly "Try again" modal
+  // instead of a dead-end error — a manual retry almost always works.
+  const [showRetryPrompt, setShowRetryPrompt] = useState(false);
+
+  const cancelPendingRetry = () => {
+    abortedRef.current = true;
+    if (retryTimerRef.current != null) {
+      window.clearTimeout(retryTimerRef.current);
+      retryTimerRef.current = null;
+    }
+  };
+
+  // Clear any scheduled retry when the modal closes or the component unmounts so
+  // a backgrounded timer can't restart a session the user already dismissed.
+  // Also reset transient UI state so a reopened modal never starts on a stuck
+  // loader or stale retry prompt.
+  useEffect(() => {
+    if (!open) {
+      cancelPendingRetry();
+      setIsRedirecting(false);
+      setRetryAttempt(0);
+      setShowRetryPrompt(false);
+    }
+    return () => cancelPendingRetry();
+  }, [open]);
+
+  // Stop a pending retry loop, reset transient state, and hand off to the parent.
+  const handleClose = () => {
+    cancelPendingRetry();
+    setIsRedirecting(false);
+    setRetryAttempt(0);
+    setShowRetryPrompt(false);
+    onClose();
+  };
+
+  // Manual retry from the "Try again" prompt — restart the auto-retry loop from
+  // scratch using the last submitted form data.
+  const handleManualRetry = () => {
+    const data = lastDataRef.current;
+    if (!data) return;
+    setShowRetryPrompt(false);
+    abortedRef.current = false;
+    setRetryAttempt(0);
+    setIsRedirecting(true);
+    submitStart(data, 0);
+  };
+
+  // A "transient" failure is anything that a plain retry tends to fix: a real
+  // timeout, a dropped/again-able connection, a rate-limit, or a gateway/5xx
+  // from the proxy while the AI model is still warming up. These never mean the
+  // user's input was wrong, so we retry them rather than showing an error.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const isTimeoutError = (error: any): boolean => {
+  const isRetryableError = (error: any): boolean => {
     if (!error) return false;
-    if (error.code === "ECONNABORTED") return true;
+    // Client aborted / network-level failures (no response ever arrived).
+    if (error.code === "ECONNABORTED" || error.code === "ERR_NETWORK") return true;
+    if (!error.response) return true; // network drop, CORS, DNS, server unreachable
     const msg = String(error?.message ?? "").toLowerCase();
-    if (msg.includes("timeout") || msg.includes("timed out")) return true;
-    // 408 Request Timeout / 504 Gateway Timeout from the server count too.
+    if (msg.includes("timeout") || msg.includes("timed out") || msg.includes("network")) return true;
+    // Transient server statuses: 408 Request Timeout, 425 Too Early,
+    // 429 Too Many Requests, and 5xx gateway/server errors (502/503/504 are the
+    // usual "model still warming up" responses, 500 often is too).
     const status = Number(error?.response?.status);
-    return status === 408 || status === 504;
+    return status === 408 || status === 425 || status === 429 || (status >= 500 && status <= 599);
   };
 
   const onSubmit = (data: AIFormData) => {
@@ -168,11 +240,14 @@ export default function AIPracticeModal({ open, onClose }: Props) {
       const req = el.requestFullscreen ?? el.webkitRequestFullscreen;
       req?.call(el).catch(() => { /* denied or unsupported */ });
     }
+    abortedRef.current = false;
     setRetryAttempt(0);
     submitStart(data, 0);
   };
 
   const submitStart = (data: AIFormData, attempt: number) => {
+    if (abortedRef.current) return;
+    lastDataRef.current = data;
     // Look up the picked subject so we can send either its id (when not using
     // AI generation — backend expects subjects_selected:[id]) or its name
     // (AI flow uses subject_name to seed the prompt).
@@ -211,15 +286,26 @@ export default function AIPracticeModal({ open, onClose }: Props) {
         },
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         onError: (error: any) => {
-          // Network/server timeout — auto-retry transparently. AI generation
-          // can take a while and the first request often warms the model; a
-          // simple linear-backoff retry rescues most of these without bouncing
-          // the user back to the form.
-          if (isTimeoutError(error) && attempt < MAX_RETRIES) {
-            const nextAttempt = attempt + 1;
-            setRetryAttempt(nextAttempt);
-            // Short backoff so we don't slam a struggling server.
-            window.setTimeout(() => submitStart(data, nextAttempt), 1500);
+          // Transient failure (timeout, dropped connection, gateway/5xx while
+          // the model warms up) — auto-retry silently a few times with a capped
+          // backoff. AI generation often only succeeds on the second attempt.
+          if (isRetryableError(error) && !abortedRef.current) {
+            if (attempt < AUTO_RETRY_LIMIT) {
+              const nextAttempt = attempt + 1;
+              setRetryAttempt(nextAttempt);
+              const backoff = Math.min(1500 + attempt * 1000, 8000);
+              retryTimerRef.current = window.setTimeout(
+                () => submitStart(data, nextAttempt),
+                backoff,
+              );
+              return;
+            }
+            // Auto-retries exhausted — hand control to the user with a "Try
+            // again" prompt instead of a dead-end error. A manual retry from
+            // here almost always succeeds.
+            setIsRedirecting(false);
+            setRetryAttempt(0);
+            setShowRetryPrompt(true);
             return;
           }
 
@@ -252,17 +338,22 @@ export default function AIPracticeModal({ open, onClose }: Props) {
           showCloseButton={false}
         >
           {isStarting ? (
-            <SessionGeneratingState retryAttempt={retryAttempt} maxRetries={MAX_RETRIES} />
+            <SessionGeneratingState retryAttempt={retryAttempt} />
+          ) : showRetryPrompt ? (
+            <RetryRequired onRetry={handleManualRetry} onClose={handleClose} />
           ) : needsUpgrade ? (
             <UpgradeRequired
-              onClose={() => { setNeedsUpgrade(false); onClose(); }}
+              onClose={() => { setNeedsUpgrade(false); handleClose(); }}
               onSubscribe={() => {
                 setNeedsUpgrade(false);
-                onClose();
+                handleClose();
                 openUpgradeModal();
               }}
             />
           ) : (
+          // onSubmit only touches refs inside submit/timer callbacks, never during
+          // render — the rule's render-time heuristic is a false positive here.
+          // eslint-disable-next-line react-hooks/refs
           <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col max-h-[90vh]">
             {/* Header */}
             <div className="flex items-start justify-between px-6 pt-5 pb-4 border-b border-slate-100 dark:border-zinc-800 shrink-0">
@@ -282,7 +373,7 @@ export default function AIPracticeModal({ open, onClose }: Props) {
               </div>
               <button
                 type="button"
-                onClick={onClose}
+                onClick={handleClose}
                 className="text-slate-300 hover:text-slate-500 transition-colors mt-0.5"
               >
                 <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
@@ -380,7 +471,7 @@ export default function AIPracticeModal({ open, onClose }: Props) {
                 render={({ field }) => {
                   const on = !!field.value;
                   return (
-                    <div className={`rounded-xl border p-3 transition-all ${on ? "border-indigo-300 bg-indigo-50/50 dark:border-indigo-500/40 dark:bg-indigo-500/5" : "border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900"}`}>
+                    <div className={`rounded-xl border hidden p-3 transition-all ${on ? "border-indigo-300 bg-indigo-50/50 dark:border-indigo-500/40 dark:bg-indigo-500/5" : "border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900"}`}>
                       <div className="flex items-center justify-between">
                         <div className="flex items-start gap-2 min-w-0">
                           <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${on ? "bg-indigo-100 dark:bg-indigo-500/20" : "bg-slate-100 dark:bg-zinc-800"}`}>
@@ -642,7 +733,7 @@ export default function AIPracticeModal({ open, onClose }: Props) {
             <div className="flex gap-3 px-6 py-4 border-t border-slate-100 dark:border-zinc-800 shrink-0">
               <button
                 type="button"
-                onClick={onClose}
+                onClick={handleClose}
                 className="flex-1 h-11 rounded-xl border border-slate-200 dark:border-zinc-700 text-sm font-semibold text-slate-600 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-800 transition-colors"
               >
                 Cancel
@@ -704,6 +795,48 @@ function UpgradeRequired({ onClose, onSubscribe }: { onClose: () => void; onSubs
           style={{ background: "linear-gradient(135deg, #6366F1, #7C3AED)" }}
         >
           <Crown size={14} fill="currentColor" /> Subscribe
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// Shown after the silent auto-retries are exhausted on a transient failure.
+// AI generation frequently only succeeds on a follow-up attempt once the model
+// is warm, so we keep the user in the flow with a one-tap "Try again" instead
+// of dropping them on a dead-end error modal.
+function RetryRequired({ onRetry, onClose }: { onRetry: () => void; onClose: () => void }) {
+  return (
+    <div className="flex flex-col items-center text-center px-8 py-10">
+      <div
+        className="w-14 h-14 rounded-2xl flex items-center justify-center shadow-lg mb-4"
+        style={{ background: "linear-gradient(135deg, #6366F1, #7C3AED)" }}
+      >
+        <AlertTriangle size={26} className="text-white" />
+      </div>
+      <h3 className="text-base font-bold text-slate-900 dark:text-zinc-100">
+        Generation is taking longer than usual
+      </h3>
+      <p className="mt-1.5 text-xs text-slate-500 dark:text-zinc-400 max-w-sm">
+        The AI is warming up and timed out a few times. This usually clears on the next try —
+        give it another go.
+      </p>
+
+      <div className="mt-6 w-full flex flex-col sm:flex-row gap-2">
+        <button
+          type="button"
+          onClick={onClose}
+          className="flex-1 h-11 rounded-xl border border-slate-200 dark:border-zinc-700 text-sm font-semibold text-slate-600 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-800 transition-colors"
+        >
+          Cancel
+        </button>
+        <button
+          type="button"
+          onClick={onRetry}
+          className="flex-1 h-11 rounded-xl flex items-center justify-center gap-1.5 text-sm font-bold text-white transition-all hover:opacity-90 hover:-translate-y-0.5"
+          style={{ background: "linear-gradient(135deg, #6366F1, #7C3AED)" }}
+        >
+          <RotateCw size={14} /> Try again
         </button>
       </div>
     </div>

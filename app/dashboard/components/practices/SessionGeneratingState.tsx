@@ -134,7 +134,9 @@ export default function SessionGeneratingState({
       {isRetrying && (
         <p className="relative mt-3 text-[11px] font-semibold text-amber-600 dark:text-amber-400 inline-flex items-center gap-1.5">
           <span className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-pulse" />
-          That took a while — retrying… ({retryAttempt + 1}/{totalAttempts})
+          {maxRetries > 0
+            ? `That took a while — retrying… (${retryAttempt + 1}/${totalAttempts})`
+            : `This is taking longer than usual — still trying… (attempt ${retryAttempt + 1})`}
         </p>
       )}
 
