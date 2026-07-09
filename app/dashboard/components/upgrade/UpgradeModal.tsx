@@ -14,7 +14,9 @@ import {
   Landmark,
   Copy,
   ShieldCheck,
+  CreditCard,
 } from "lucide-react";
+import { FaWhatsapp } from "react-icons/fa";
 import toast from "react-hot-toast";
 import { SmallSpinner } from "@/components/ui/Spinner";
 import { formatAxiosErrorMessage } from "@/utils";
@@ -44,6 +46,10 @@ function priceUnit(days: number): string {
 }
 
 const ACCOUNT_NAME = "Upstage Technologies Limited";
+
+// Customer-care WhatsApp — same short link used by the support widget. After a
+// transfer, users are sent here to share their receipt and get activated.
+const SUPPORT_WHATSAPP = "https://wa.link/qeo22v";
 
 type BankAccount = { label: string; number: string };
 type BankGroup = { bank: string; accounts: BankAccount[] };
@@ -94,6 +100,8 @@ export default function UpgradeModal({
   // No default selection — the user must pick a plan first, which then reveals
   // the allocation, features, and payment details below.
   const [selectedId, setSelectedId] = useState<number | null>(null);
+  // Which payment rail the user picked once a plan is selected.
+  const [payMethod, setPayMethod] = useState<"paystack" | "transfer">("paystack");
 
   const selectedPlan: SubscriptionPlan | null =
     plans.find((p) => p.id === selectedId) ?? null;
@@ -109,6 +117,13 @@ export default function UpgradeModal({
     } catch {
       toast.error("Couldn't copy. Please copy it manually.");
     }
+  };
+
+  // After a bank transfer, open the customer-care WhatsApp so the user can send
+  // their receipt, then close the modal.
+  const handleTransferDone = () => {
+    window.open(SUPPORT_WHATSAPP, "_blank", "noopener,noreferrer");
+    onClose();
   };
 
   const handleContinue = () => {
@@ -139,7 +154,7 @@ export default function UpgradeModal({
   const orderedBankGroups = withDomiciliaryLast(BANK_GROUPS);
 
   return (
-    <Dialog open={open} onOpenChange={(v) => { if (!v && !initiating) onClose(); }}>
+    <Dialog open={open}>
       <DialogContent
         showCloseButton={false}
         className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 p-0 gap-0 text-slate-900 dark:text-zinc-100 rounded-2xl overflow-hidden flex flex-col max-h-[90vh] shadow-2xl font-inter"
@@ -315,10 +330,77 @@ export default function UpgradeModal({
             </div>
           )}
 
-          {/* Bank transfer — ledger/wire-slip treatment, shown once a plan is
-              chosen (this condition was previously inverted to `!selectedPlan`,
-              which hid payment details after picking a plan — fixed here). */}
+          {/* Payment method — shown once a plan is chosen */}
           {selectedPlan && (
+            <div>
+              <p className="text-[11px] uppercase tracking-wider font-bold text-slate-600 dark:text-zinc-400 mb-2.5">
+                Payment method
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => setPayMethod("paystack")}
+                  className={`relative text-left p-4 rounded-xl border-2 transition-all ${
+                    payMethod === "paystack"
+                      ? "border-[#F7C948] bg-amber-50/50 dark:bg-amber-500/10 shadow-sm"
+                      : "border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 hover:border-slate-300 dark:hover:border-zinc-700"
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5">
+                    <span className="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-[#F7C948]/15 text-[#B45309] dark:text-[#F7C948] shrink-0">
+                      <CreditCard size={17} strokeWidth={2.2} />
+                    </span>
+                    <div className="min-w-0">
+                      <p className="text-[13px] sm:text-sm font-bold text-slate-900 dark:text-zinc-100 leading-tight">
+                        Card / Paystack
+                      </p>
+                      <p className="text-[10px] sm:text-[11px] text-slate-500 dark:text-zinc-400 leading-tight mt-0.5">
+                        Pay online — instant access
+                      </p>
+                    </div>
+                  </div>
+                  {payMethod === "paystack" && (
+                    <span className="absolute top-3 right-3 w-5 h-5 rounded-full bg-[#F7C948] text-[#5A3300] flex items-center justify-center">
+                      <Check size={12} strokeWidth={3} />
+                    </span>
+                  )}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setPayMethod("transfer")}
+                  className={`relative text-left p-4 rounded-xl border-2 transition-all ${
+                    payMethod === "transfer"
+                      ? "border-[#F7C948] bg-amber-50/50 dark:bg-amber-500/10 shadow-sm"
+                      : "border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 hover:border-slate-300 dark:hover:border-zinc-700"
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5">
+                    <span className="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-[#F7C948]/15 text-[#B45309] dark:text-[#F7C948] shrink-0">
+                      <Landmark size={17} strokeWidth={2.2} />
+                    </span>
+                    <div className="min-w-0">
+                      <p className="text-[13px] sm:text-sm font-bold text-slate-900 dark:text-zinc-100 leading-tight">
+                        Bank transfer
+                      </p>
+                      <p className="text-[10px] sm:text-[11px] text-slate-500 dark:text-zinc-400 leading-tight mt-0.5">
+                        Pay to our account
+                      </p>
+                    </div>
+                  </div>
+                  {payMethod === "transfer" && (
+                    <span className="absolute top-3 right-3 w-5 h-5 rounded-full bg-[#F7C948] text-[#5A3300] flex items-center justify-center">
+                      <Check size={12} strokeWidth={3} />
+                    </span>
+                  )}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Bank transfer — ledger/wire-slip treatment, shown only when the
+              user picks the transfer rail. */}
+          {selectedPlan && payMethod === "transfer" && (
             <div className="slip-card relative rounded-xl overflow-hidden border border-slate-200 dark:border-zinc-800">
               <style>{`
                 @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600;700&family=Source+Serif+4:ital,wght@1,500&display=swap');
@@ -501,7 +583,9 @@ export default function UpgradeModal({
             instead of getting squeezed by the secure-checkout note. */}
         <div className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-between gap-3 px-4 sm:px-6 py-3 border-t border-slate-100 dark:border-zinc-800 shrink-0 bg-white dark:bg-zinc-900">
           <p className="text-[10px] sm:text-[11px] text-slate-500 dark:text-zinc-400 text-center sm:text-left">
-            Secure Paystack checkout. Cancel anytime.
+            {payMethod === "transfer"
+              ? "After transferring, send your receipt to activate."
+              : "Secure Paystack checkout. Cancel anytime."}
           </p>
           <div className="flex items-center gap-2 w-full sm:w-auto">
             <button
@@ -511,24 +595,37 @@ export default function UpgradeModal({
             >
               Maybe later
             </button>
-            <button
-              onClick={handleContinue}
-              disabled={!selectedPlan || initiating}
-              className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 text-[11px] sm:text-xs font-bold px-3 sm:px-5 h-10 rounded-lg text-white shadow-sm transition-all hover:shadow-md hover:-translate-y-0.5 disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:translate-y-0 whitespace-nowrap"
-              style={{ background: "linear-gradient(135deg, #FE9A00, #FF6900)" }}
-            >
-              {initiating ? (
-                <><SmallSpinner /> Redirecting…</>
-              ) : selectedPlan ? (
-                <>
-                  <Zap size={13} fill="currentColor" />
-                  <span className="sm:hidden">Continue</span>
-                  <span className="hidden sm:inline">Continue with {selectedPlan.name}</span>
-                </>
-              ) : (
-                <>Continue</>
-              )}
-            </button>
+            {payMethod === "transfer" ? (
+              <button
+                onClick={handleTransferDone}
+                disabled={!selectedPlan}
+                className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 text-[11px] sm:text-xs font-bold px-3 sm:px-5 h-10 rounded-lg text-white shadow-sm transition-all hover:shadow-md hover:-translate-y-0.5 disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:translate-y-0 whitespace-nowrap"
+                style={{ background: "linear-gradient(135deg, #25D366, #128C7E)" }}
+              >
+                <FaWhatsapp size={15} />
+                <span className="sm:hidden">Send receipt</span>
+                <span className="hidden sm:inline">I&apos;ve sent — chat with support</span>
+              </button>
+            ) : (
+              <button
+                onClick={handleContinue}
+                disabled={!selectedPlan || initiating}
+                className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 text-[11px] sm:text-xs font-bold px-3 sm:px-5 h-10 rounded-lg text-white shadow-sm transition-all hover:shadow-md hover:-translate-y-0.5 disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:translate-y-0 whitespace-nowrap"
+                style={{ background: "linear-gradient(135deg, #FE9A00, #FF6900)" }}
+              >
+                {initiating ? (
+                  <><SmallSpinner /> Redirecting…</>
+                ) : selectedPlan ? (
+                  <>
+                    <Zap size={13} fill="currentColor" />
+                    <span className="sm:hidden">Continue</span>
+                    <span className="hidden sm:inline">Continue with {selectedPlan.name}</span>
+                  </>
+                ) : (
+                  <>Continue</>
+                )}
+              </button>
+            )}
           </div>
         </div>
       </DialogContent>
