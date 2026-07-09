@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import {
   Check,
@@ -11,6 +11,9 @@ import {
   BookOpen,
   Brain,
   AlertTriangle,
+  Landmark,
+  Copy,
+  ShieldCheck,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { SmallSpinner } from "@/components/ui/Spinner";
@@ -40,6 +43,43 @@ function priceUnit(days: number): string {
   return `/${periodLabel(days)}`;
 }
 
+const ACCOUNT_NAME = "Upstage Technologies Limited";
+
+type BankAccount = { label: string; number: string };
+type BankGroup = { bank: string; accounts: BankAccount[] };
+
+const BANK_GROUPS: BankGroup[] = [
+  {
+    bank: "Providus Bank",
+    accounts: [
+      { label: "Current account (NGN)", number: "1309349924" },
+      { label: "Domiciliary account (USD)", number: "1309349931" },
+    ],
+  },
+  {
+    bank: "DOT Microfinance Bank",
+    accounts: [{ label: "Current account", number: "1006785123" }],
+  },
+];
+
+// Domiciliary accounts always render last within their bank group — sorted at
+// read time so the display order stays correct even if BANK_GROUPS is later
+// swapped for API-fetched data in a different order.
+function withDomiciliaryLast(groups: BankGroup[]): BankGroup[] {
+  return groups.map((group) => ({
+    ...group,
+    accounts: [...group.accounts].sort((a, b) => {
+      const aDom = /domiciliary/i.test(a.label) ? 1 : 0;
+      const bDom = /domiciliary/i.test(b.label) ? 1 : 0;
+      return aDom - bDom;
+    }),
+  }));
+}
+
+const token = {
+  ink: "#1D2B3A",
+};
+
 export default function UpgradeModal({
   open,
   onClose,
@@ -51,18 +91,25 @@ export default function UpgradeModal({
   const { mutate: initiate, isPending: initiating } = useInitiatePayment();
 
   const plans = plansResp?.data ?? [];
+  // No default selection — the user must pick a plan first, which then reveals
+  // the allocation, features, and payment details below.
   const [selectedId, setSelectedId] = useState<number | null>(null);
-
-  // Default to the first plan once they arrive (or to the highest-tier one if
-  // we can spot it). Runs only when the plan list changes.
-  useEffect(() => {
-    if (selectedId != null) return;
-    if (plans.length === 0) return;
-    setSelectedId(plans[0].id);
-  }, [plans, selectedId]);
 
   const selectedPlan: SubscriptionPlan | null =
     plans.find((p) => p.id === selectedId) ?? null;
+
+  const [copied, setCopied] = useState<string | null>(null);
+
+  const handleCopy = async (value: string) => {
+    try {
+      await navigator.clipboard.writeText(value);
+      setCopied(value);
+      toast.success("Account number copied");
+      setTimeout(() => setCopied((c) => (c === value ? null : c)), 2000);
+    } catch {
+      toast.error("Couldn't copy. Please copy it manually.");
+    }
+  };
 
   const handleContinue = () => {
     if (!selectedPlan) return;
@@ -88,6 +135,8 @@ export default function UpgradeModal({
       },
     });
   };
+
+  const orderedBankGroups = withDomiciliaryLast(BANK_GROUPS);
 
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v && !initiating) onClose(); }}>
@@ -263,6 +312,187 @@ export default function UpgradeModal({
                   </li>
                 ))}
               </ul>
+            </div>
+          )}
+
+          {/* Bank transfer — ledger/wire-slip treatment, shown once a plan is
+              chosen (this condition was previously inverted to `!selectedPlan`,
+              which hid payment details after picking a plan — fixed here). */}
+          {selectedPlan && (
+            <div className="slip-card relative rounded-xl overflow-hidden border border-slate-200 dark:border-zinc-800">
+              <style>{`
+                @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600;700&family=Source+Serif+4:ital,wght@1,500&display=swap');
+                .slip-card {
+                  --slip-paper: #F3ECDA; --slip-paper-deep: #EBE1C7;
+                  --slip-ink: #1D2B3A; --slip-ink-soft: #4A5A6C;
+                  --slip-brass: #B08A2E; --slip-brass-deep: #8C6C1F;
+                  --slip-stamp: #A23B2E; --slip-hairline: #D9CCA6; --slip-graphite: #33302A;
+                  --slip-hole: #ffffff;
+                  background: var(--slip-paper);
+                }
+                .dark .slip-card {
+                  --slip-paper: #1E1B14; --slip-paper-deep: #171410;
+                  --slip-ink-soft: #A9B7C6; --slip-brass: #C9A227; --slip-brass-deep: #9C7C1E;
+                  --slip-stamp: #D96450; --slip-hairline: #3A3326; --slip-graphite: #E8DEC4;
+                  --slip-hole: #18181b;
+                }
+                .slip-mono { font-family: 'IBM Plex Mono', ui-monospace, monospace; }
+                .slip-serif { font-family: 'Source Serif 4', Georgia, serif; }
+                .slip-leader {
+                  background-image: radial-gradient(circle, color-mix(in srgb, var(--slip-ink-soft) 40%, transparent) 1px, transparent 1.4px);
+                  background-size: 6px 100%;
+                  background-position: bottom;
+                  background-repeat: repeat-x;
+                }
+                .slip-perf {
+                  background-image: radial-gradient(circle, var(--slip-hole) 3.5px, transparent 3.6px);
+                  background-size: 16px 16px;
+                  background-position: -8px -8px;
+                }
+                .slip-copybtn { transition: transform .12s ease, background-color .12s ease; }
+                .slip-copybtn:active { transform: scale(0.96); }
+                @media (prefers-reduced-motion: reduce) {
+                  .slip-copybtn, .slip-stamp { transition: none !important; }
+                }
+                .slip-copybtn:focus-visible, .slip-copyname:focus-visible {
+                  outline: 2px solid var(--slip-stamp);
+                  outline-offset: 2px;
+                }
+              `}</style>
+
+              {/* Perforated tear-edge — holes reveal the dialog's own background */}
+              <div className="h-4 w-full slip-perf" aria-hidden="true" />
+
+              {/* Header band */}
+              <div
+                className="relative flex items-center gap-3 px-5 sm:px-6 py-4"
+                style={{ background: token.ink, color: "#F3ECDA" }}
+              >
+                <span
+                  className="inline-flex items-center justify-center w-9 h-9 rounded-md shrink-0"
+                  style={{ background: "var(--slip-brass)", color: token.ink }}
+                >
+                  <Landmark size={17} strokeWidth={2.4} />
+                </span>
+                <div className="min-w-0">
+                  <p className="slip-mono text-[11px] font-bold uppercase tracking-[0.16em] leading-tight">
+                    Transfer instruction
+                  </p>
+                  <p className="slip-serif italic text-[12px] leading-snug mt-1" style={{ color: "#C9BFA0" }}>
+                    Transfer to any account below, then send your receipt to activate.
+                  </p>
+                </div>
+              </div>
+
+              {/* Verified stamp — the one signature flourish, used once */}
+              <div
+                className="slip-stamp pointer-events-none absolute z-10"
+                style={{ top: 78, right: 20, transform: "rotate(-9deg)" }}
+                aria-hidden="true"
+              >
+                <div
+                  className="flex items-center gap-1 rounded-sm px-2 py-1"
+                  style={{ border: "2px solid var(--slip-stamp)", color: "var(--slip-stamp)", opacity: 0.82 }}
+                >
+                  <ShieldCheck size={12} strokeWidth={2.6} />
+                  <span className="slip-mono text-[9px] font-bold uppercase tracking-[0.14em]">Verified</span>
+                </div>
+              </div>
+
+              {/* Account name band */}
+              <div
+                className="flex items-center justify-between gap-3 px-5 sm:px-6 py-3"
+                style={{ background: "var(--slip-brass)", color: token.ink, borderBottom: "1px solid var(--slip-brass-deep)" }}
+              >
+                <div className="min-w-0">
+                  <p className="slip-mono text-[9px] uppercase tracking-[0.18em] font-bold opacity-70">
+                    Account name
+                  </p>
+                  <p className="slip-serif text-[15px] sm:text-base font-semibold truncate leading-tight mt-0.5">
+                    {ACCOUNT_NAME}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleCopy(ACCOUNT_NAME)}
+                  className="slip-copybtn slip-copyname shrink-0 slip-mono inline-flex items-center gap-1.5 text-[11px] font-bold px-3 h-8 rounded-md"
+                  style={{ background: token.ink, color: "#F3ECDA" }}
+                  aria-label="Copy account name"
+                >
+                  {copied === ACCOUNT_NAME ? (
+                    <><Check size={13} strokeWidth={3} /> Copied</>
+                  ) : (
+                    <><Copy size={13} /> Copy</>
+                  )}
+                </button>
+              </div>
+
+              {/* Bank groups — domiciliary accounts sorted to the end of each group */}
+              {orderedBankGroups.map((group, gi) => (
+                <div key={group.bank}>
+                  <div
+                    className="px-5 sm:px-6 pt-4 pb-1 flex items-center gap-2"
+                    style={{ background: gi % 2 === 0 ? "var(--slip-paper)" : "var(--slip-paper-deep)" }}
+                  >
+                    <span
+                      className="slip-mono text-[9px] font-bold uppercase tracking-[0.16em] px-1.5 py-0.5 rounded-sm"
+                      style={{ background: token.ink, color: "#F3ECDA" }}
+                    >
+                      {group.bank.slice(0, 2)}
+                    </span>
+                    <p className="slip-serif italic text-[12px]" style={{ color: "var(--slip-ink-soft)" }}>
+                      {group.bank}
+                    </p>
+                  </div>
+
+                  {group.accounts.map((acct) => {
+                    const isCopied = copied === acct.number;
+                    return (
+                      <div
+                        key={acct.number}
+                        className="flex items-end justify-between gap-3 px-5 sm:px-6 py-3"
+                        style={{ background: gi % 2 === 0 ? "var(--slip-paper)" : "var(--slip-paper-deep)" }}
+                      >
+                        <div className="min-w-0 flex-1">
+                          <p
+                            className="slip-mono text-[9px] font-semibold uppercase tracking-[0.14em] truncate"
+                            style={{ color: "var(--slip-ink-soft)" }}
+                          >
+                            {acct.label}
+                          </p>
+                          <div className="slip-leader flex items-baseline">
+                            <p
+                              className="slip-mono text-xl sm:text-2xl font-bold tabular-nums tracking-[0.08em] leading-tight pr-2"
+                              style={{ color: "var(--slip-graphite)" }}
+                            >
+                              {acct.number}
+                            </p>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleCopy(acct.number)}
+                          className="slip-copybtn shrink-0 slip-mono inline-flex items-center gap-1.5 text-[11px] font-bold px-3.5 h-9 rounded-md"
+                          style={
+                            isCopied
+                              ? { background: "#2F6B4F", color: "#F3ECDA" }
+                              : { background: "var(--slip-brass)", color: token.ink }
+                          }
+                          aria-label={`Copy ${acct.number}`}
+                        >
+                          {isCopied ? (
+                            <><Check size={13} strokeWidth={3} /> Copied</>
+                          ) : (
+                            <><Copy size={13} /> Copy</>
+                          )}
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              ))}
+
+              <div className="h-3" style={{ background: "var(--slip-paper-deep)", borderTop: "1px dashed var(--slip-hairline)" }} />
             </div>
           )}
         </div>
