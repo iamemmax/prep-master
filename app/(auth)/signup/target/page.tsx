@@ -7,6 +7,7 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { Button } from "@/components/ui/button"
 import AuthStepHeader from "@/components/auth/auth-step-header"
 import { Checkbox } from "@/components/ui/checkbox"
+import { Slider } from "@/components/ui/slider"
 import {  Step2Data, step2Schema } from "../../schema/signup/userInfoSchema"
 // import { useCompleteOnboarding } from "../../apis/signup/verifyUser"
 import { useOnboardingStore } from "@/app/store/onboardingStore"
@@ -62,7 +63,9 @@ export default function SignupTargetPage() {
     email,
     country: examData.country,
     exam_type: examData.exam_type,
-    exam_date: examData.exam_date ?? null,
+    // Send null (not "") when no date was chosen — the API rejects an empty
+    // string with a "wrong format" error, expecting YYYY-MM-DD or null.
+    exam_date: examData.exam_date || null,
     target_score: data.target_score,
     daily_study_hours: data.daily_study_hours,
     current_level: data.current_level,
@@ -101,26 +104,41 @@ export default function SignupTargetPage() {
 
         <form className="mt-6 space-y-5" onSubmit={handleSubmit(onSubmit)}>
 
-          {/* Target score (auto-set) */}
+          {/* Target score */}
           <div>
             <div className="text-xs font-medium text-[#0F172A]">Target score</div>
             <Controller
               name="target_score"
               control={control}
-              render={({ field }) => (
-                <div className="mt-2 rounded-md bg-[#F8FAFC] px-4 py-3">
-                  <div className="flex items-center justify-between">
-                    <div className="text-[24px] font-semibold text-[#0F172A]">{field.value}</div>
-                    <span className="text-[10px] font-semibold uppercase tracking-wider text-[#B7791F] bg-primary/10 px-2 py-0.5 rounded">
-                      Auto-set
-                    </span>
+              render={({ field }) => {
+                const MIN = 400;
+                const MAX = 1600;
+                const num = Number(field.value);
+                const safe = Number.isNaN(num) ? MIN : Math.min(MAX, Math.max(MIN, num));
+                return (
+                  <div className="mt-2 rounded-md bg-[#F8FAFC] px-4 py-4">
+                    <div className="flex items-baseline justify-between">
+                      <div className="text-[28px] font-semibold text-[#0F172A]">{field.value || "—"}</div>
+                      <span className="text-[10px] font-medium text-[#94A3B8]">{MIN}–{MAX}</span>
+                    </div>
+                    <Slider
+                      className="mt-3"
+                      min={MIN}
+                      max={MAX}
+                      step={10}
+                      value={[safe]}
+                      onValueChange={(v) => field.onChange(String(v[0]))}
+                    />
+                    <p className="mt-2 text-xs text-[#94A3B8]">
+                      {examData?.exam_name ? `Recommended for ${examData.exam_name}` : "Drag to set the score you're aiming for."}
+                    </p>
                   </div>
-                  <p className="mt-1 text-xs text-[#94A3B8]">
-                    {examData?.exam_name ? `Recommended for ${examData.exam_name}` : "We'll tune this as you practice."}
-                  </p>
-                </div>
-              )}
+                );
+              }}
             />
+            {errors.target_score && (
+              <p className="mt-1 text-xs text-red-400">{errors.target_score.message}</p>
+            )}
           </div>
 
           {/* Daily study hours */}
